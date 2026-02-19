@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Torre de Controle - Sistema de Acolhimento</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2463eb",
+                        "success": "#10b981",
+                        "warning": "#f59e0b",
+                        "danger": "#ef4444",
+                        "background-light": "#f8fafc",
+                        "background-dark": "#111621",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .kanban-column { min-width: 280px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
+<!-- Top Navigation Bar -->
+<header class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-8 py-4 sticky top-0 z-50">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-3 text-primary">
+<div class="size-10 bg-primary/10 rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-3xl">hub</span>
+</div>
+<div>
+<h2 class="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-tight">Torre de Controle</h2>
+<p class="text-xs text-slate-500 font-medium uppercase tracking-wider">Sistema de Acolhimento</p>
+</div>
+</div>
+<nav class="hidden lg:flex items-center gap-6">
+<a class="text-primary text-sm font-semibold border-b-2 border-primary pb-1" href="#">Dashboard</a>
+<a class="text-slate-500 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors" href="#">Relatórios</a>
+<a class="text-slate-500 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors" href="#">Cuidadores</a>
+<a class="text-slate-500 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors" href="#">Configurações</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden md:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
+<input class="pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-sm w-64 focus:ring-2 focus:ring-primary" placeholder="Buscar convidado..." type="text"/>
+</div>
+<button class="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 size-2 bg-danger rounded-full border-2 border-white dark:border-slate-900"></span>
+</button>
+<div class="size-10 rounded-full bg-primary/20 border border-primary/30 overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Avatar do usuário coordenador logado" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDaXtKmf8dflTM2po-nB96guAUHSGK6-F3iAvpshSzPKG7NJ_V4zseb9R0g3igSF1bzGLMUarNFevJkFRzvUbYSRQ5sIFIRk8MWz_KzCNcuzZ4DEzigz81IgHTj6QooijIti9apXDMdQoaAppBzRrL_hfddCXplTDPEzERzbhufnermT72_NqHHRq-eju7wPiIFmdeeqrZp61fBaPlck3dXqZjJYDmp9MeUK4zSjlf83EHjWzAvZSO8UQyb1verGVTu6fdUGy0sh_8"/>
+</div>
+</div>
+</header>
+<main class="flex-1 p-8 flex flex-col gap-8 max-w-[1600px] mx-auto w-full">
+<!-- KPIs Section -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col gap-2">
+<div class="flex justify-between items-start">
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Taxa de Retenção TCI</p>
+<span class="material-symbols-outlined text-primary">analytics</span>
+</div>
+<div class="flex items-baseline gap-2">
+<h3 class="text-3xl font-bold">87.4%</h3>
+<span class="text-success text-xs font-bold flex items-center gap-0.5">
+<span class="material-symbols-outlined text-xs">trending_up</span> 2.4%
+                    </span>
+</div>
+<div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 87.4%"></div>
+</div>
+</div>
+<div class="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col gap-2">
+<div class="flex justify-between items-start">
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Casas Ativas</p>
+<span class="material-symbols-outlined text-success">home_work</span>
+</div>
+<div class="flex items-baseline gap-2">
+<h3 class="text-3xl font-bold">92%</h3>
+<span class="text-slate-400 text-xs font-medium">Meta: 95%</span>
+</div>
+<div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+<div class="bg-success h-full rounded-full" style="width: 92%"></div>
+</div>
+</div>
+<div class="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 border-l-4 border-l-danger flex flex-col gap-2">
+<div class="flex justify-between items-start">
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Alerta de Inatividade</p>
+<span class="material-symbols-outlined text-danger">warning</span>
+</div>
+<div class="flex items-baseline gap-2">
+<h3 class="text-3xl font-bold text-danger">14</h3>
+<span class="text-danger text-xs font-bold">Casos urgentes</span>
+</div>
+<p class="text-xs text-slate-400">Exige intervenção nas últimas 48h</p>
+</div>
+</section>
+<div class="flex flex-col xl:flex-row gap-8 flex-1">
+<!-- Kanban Spiritual Journey -->
+<section class="flex-1 flex flex-col gap-4 overflow-hidden">
+<div class="flex items-center justify-between">
+<h2 class="text-xl font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">auto_awesome</span>
+                        Jornada Espiritual
+                    </h2>
+<div class="flex gap-2">
+<button class="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all">
+<span class="material-symbols-outlined text-sm">person_add</span>
+                            Novo Convidado
+                        </button>
+</div>
+</div>
+<div class="flex gap-6 overflow-x-auto pb-4 custom-scrollbar flex-1 items-start">
+<!-- Column: Novo Contato -->
+<div class="kanban-column flex flex-col gap-4 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 min-h-full">
+<div class="flex items-center justify-between px-2">
+<span class="text-xs font-bold uppercase text-slate-500 tracking-widest flex items-center gap-2">
+<span class="size-2 rounded-full bg-primary"></span>
+                                Novo Contato (4)
+                            </span>
+<span class="material-symbols-outlined text-slate-400 text-lg">more_horiz</span>
+</div>
+<div class="flex flex-col gap-3">
+<!-- Card -->
+<div class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 hover:border-primary/50 transition-all cursor-grab active:cursor-grabbing group">
+<div class="flex justify-between items-start mb-2">
+<h4 class="font-semibold text-sm group-hover:text-primary transition-colors">Ana Souza</h4>
+<span class="px-2 py-0.5 rounded bg-warning/10 text-warning text-[10px] font-bold">3 dias</span>
+</div>
+<p class="text-xs text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">call</span> Pendente retorno
+                                </p>
+<div class="flex justify-between items-center">
+<div class="size-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center border border-white dark:border-slate-800">
+<span class="text-[8px] font-bold">JD</span>
+</div>
+<span class="material-symbols-outlined text-slate-300 group-hover:text-primary transition-colors text-lg">chevron_right</span>
+</div>
+</div>
+<div class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 hover:border-primary/50 transition-all cursor-grab group">
+<div class="flex justify-between items-start mb-2">
+<h4 class="font-semibold text-sm group-hover:text-primary transition-colors">Carlos Alberto</h4>
+<span class="px-2 py-0.5 rounded bg-success/10 text-success text-[10px] font-bold">Hoje</span>
+</div>
+<p class="text-xs text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">mail</span> Enviou interesse
+                                </p>
+<div class="flex justify-between items-center">
+<div class="size-6 rounded-full bg-primary/20 flex items-center justify-center border border-white dark:border-slate-800">
+<span class="text-[8px] font-bold text-primary">ML</span>
+</div>
+<span class="material-symbols-outlined text-slate-300 group-hover:text-primary transition-colors text-lg">chevron_right</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Column: Primeira Visita -->
+<div class="kanban-column flex flex-col gap-4 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 min-h-full">
+<div class="flex items-center justify-between px-2">
+<span class="text-xs font-bold uppercase text-slate-500 tracking-widest flex items-center gap-2">
+<span class="size-2 rounded-full bg-warning"></span>
+                                Primeira Visita (2)
+                            </span>
+</div>
+<div class="flex flex-col gap-3">
+<div class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 border-l-4 border-l-danger hover:border-primary/50 transition-all cursor-grab group">
+<div class="flex justify-between items-start mb-2">
+<h4 class="font-semibold text-sm group-hover:text-primary transition-colors">Marcos Lima</h4>
+<span class="px-2 py-0.5 rounded bg-danger/10 text-danger text-[10px] font-bold">5 dias</span>
+</div>
+<p class="text-xs text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">event</span> Aguardando feedback
+                                </p>
+<div class="flex justify-between items-center">
+<div class="size-6 rounded-full bg-warning/20 flex items-center justify-center border border-white dark:border-slate-800">
+<span class="text-[8px] font-bold text-warning">PA</span>
+</div>
+<span class="material-symbols-outlined text-slate-300 group-hover:text-primary transition-colors text-lg">chevron_right</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Column: Em Acompanhamento -->
+<div class="kanban-column flex flex-col gap-4 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 min-h-full">
+<div class="flex items-center justify-between px-2">
+<span class="text-xs font-bold uppercase text-slate-500 tracking-widest flex items-center gap-2">
+<span class="size-2 rounded-full bg-success"></span>
+                                Em Acompanhamento (8)
+                            </span>
+</div>
+<div class="flex flex-col gap-3">
+<div class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 hover:border-primary/50 transition-all cursor-grab group">
+<div class="flex justify-between items-start mb-2">
+<h4 class="font-semibold text-sm group-hover:text-primary transition-colors">Julia Silva</h4>
+<span class="px-2 py-0.5 rounded bg-success/10 text-success text-[10px] font-bold">2 dias</span>
+</div>
+<p class="text-xs text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">volunteer_activism</span> Consolidação ativa
+                                </p>
+<div class="flex justify-between items-center">
+<div class="size-6 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center border border-white dark:border-slate-800">
+<span class="text-[8px] font-bold">CR</span>
+</div>
+<span class="material-symbols-outlined text-slate-300 group-hover:text-primary transition-colors text-lg">chevron_right</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Column: Integrado -->
+<div class="kanban-column flex flex-col gap-4 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 min-h-full">
+<div class="flex items-center justify-between px-2">
+<span class="text-xs font-bold uppercase text-slate-500 tracking-widest flex items-center gap-2">
+<span class="size-2 rounded-full bg-primary"></span>
+                                Integrado (15)
+                            </span>
+</div>
+<div class="flex flex-col gap-3">
+<div class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 hover:border-primary/50 transition-all cursor-grab group">
+<div class="flex justify-between items-start mb-2">
+<h4 class="font-semibold text-sm group-hover:text-primary transition-colors">Ricardo Santos</h4>
+<span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] font-bold">Membro</span>
+</div>
+<p class="text-xs text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">verified</span> Casa de Deus
+                                </p>
+<div class="flex justify-between items-center">
+<div class="size-6 rounded-full bg-primary/20 flex items-center justify-center border border-white dark:border-slate-800">
+<span class="text-[8px] font-bold text-primary">RS</span>
+</div>
+<span class="material-symbols-outlined text-slate-300 group-hover:text-primary transition-colors text-lg">celebration</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Capacity Management Sidebar -->
+<aside class="w-full xl:w-80 flex flex-col gap-4">
+<div class="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden h-full">
+<div class="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
+<h3 class="font-bold text-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-xl">group_work</span>
+                            Gestão de Capacidade
+                        </h3>
+<p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-1">Cuidadores Ativos</p>
+</div>
+<div class="p-4 flex flex-col gap-4 custom-scrollbar overflow-y-auto">
+<!-- Heatmap List -->
+<div class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+<div class="flex items-center gap-3">
+<div class="size-2 rounded-full bg-success"></div>
+<div class="flex flex-col">
+<span class="text-sm font-semibold">João Silva</span>
+<span class="text-[10px] text-slate-400">0-1 acolhido</span>
+</div>
+</div>
+<span class="bg-success/10 text-success text-xs font-bold px-2 py-1 rounded">1</span>
+</div>
+<div class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+<div class="flex items-center gap-3">
+<div class="size-2 rounded-full bg-warning"></div>
+<div class="flex flex-col">
+<span class="text-sm font-semibold">Maria Oliveira</span>
+<span class="text-[10px] text-slate-400">2-3 acolhidos</span>
+</div>
+</div>
+<span class="bg-warning/10 text-warning text-xs font-bold px-2 py-1 rounded">3</span>
+</div>
+<div class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+<div class="flex items-center gap-3">
+<div class="size-2 rounded-full bg-danger"></div>
+<div class="flex flex-col">
+<span class="text-sm font-semibold">Pedro Albuquerque</span>
+<span class="text-[10px] text-slate-400">4+ acolhidos</span>
+</div>
+</div>
+<span class="bg-danger/10 text-danger text-xs font-bold px-2 py-1 rounded">5</span>
+</div>
+<div class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+<div class="flex items-center gap-3">
+<div class="size-2 rounded-full bg-warning"></div>
+<div class="flex flex-col">
+<span class="text-sm font-semibold">Carla Rocha</span>
+<span class="text-[10px] text-slate-400">2-3 acolhidos</span>
+</div>
+</div>
+<span class="bg-warning/10 text-warning text-xs font-bold px-2 py-1 rounded">2</span>
+</div>
+<div class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+<div class="flex items-center gap-3">
+<div class="size-2 rounded-full bg-success"></div>
+<div class="flex flex-col">
+<span class="text-sm font-semibold">José Dantas</span>
+<span class="text-[10px] text-slate-400">0-1 acolhido</span>
+</div>
+</div>
+<span class="bg-success/10 text-success text-xs font-bold px-2 py-1 rounded">0</span>
+</div>
+</div>
+<div class="mt-auto p-4 bg-primary/5 dark:bg-primary/10 border-t border-slate-200 dark:border-slate-800">
+<div class="flex flex-col gap-3">
+<div class="flex justify-between text-[10px] font-bold uppercase text-slate-400 tracking-wider">
+<span>Capacidade Total</span>
+<span class="text-primary">78%</span>
+</div>
+<div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 78%"></div>
+</div>
+<button class="w-full py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                                Balancear Cargas
+                            </button>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</main>
+<!-- Support/Quick Action Footer -->
+<footer class="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex flex-wrap justify-between items-center text-xs text-slate-400 gap-4">
+<div class="flex gap-4">
+<span class="flex items-center gap-1"><span class="size-2 rounded-full bg-success"></span> Servidor Online</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-xs">update</span> Última sincronização: Agora</span>
+</div>
+<div class="flex gap-6">
+<a class="hover:text-primary" href="#">Manual do Sistema</a>
+<a class="hover:text-primary" href="#">Termos de Uso</a>
+<a class="hover:text-primary font-bold text-slate-600 dark:text-slate-300" href="#">Suporte Técnico</a>
+</div>
+</footer>
+</body></html>

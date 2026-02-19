@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Meu Serviço - Central de Acolhimento</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2463eb",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#111621",
+                        "border-subtle": "#e2e8f0",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .filled-icon { font-variation-settings: 'FILL' 1; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex flex-col max-w-md mx-auto shadow-2xl">
+<!-- Header Section -->
+<header class="px-6 pt-8 pb-4 bg-white dark:bg-slate-900 border-b border-border-subtle dark:border-slate-800">
+<div class="flex items-center justify-between mb-6">
+<div class="flex items-center gap-3">
+<div class="size-12 rounded-full border-2 border-primary/20 p-0.5 overflow-hidden">
+<img alt="Avatar do usuário" class="w-full h-full object-cover rounded-full" data-alt="Close up portrait of a smiling man" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3VhI297OoPIddWoy9MUQaPN_2UwCcLWgyK7ykqh8KIaoldvW6WEP4dCfpQ5Iho3iqZgJ3AG4uG_l7ksyxPg_uVPYc1Gj3zlgJrqsV8RX7MaiTh6EXi8B0jAWxEDmY8qThy0JK_OOIJuNyKwD-nUsVx9sd4Nb0SzHDTO4D5_ksZDleaiiaeQmflz52qUbPTvnjif5nw3iGyysbZk8pdrjZn1cXYD7mEVaxhP56xmSfmb9FvEMGShexS_jmx93mWRmCjGscul4kBoM"/>
+</div>
+<div>
+<h1 class="text-xl font-bold tracking-tight">Bom dia, Tiago</h1>
+<div class="flex items-center gap-1.5 mt-0.5">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+</span>
+<span class="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">chat</span>
+                            WhatsApp Conectado
+                        </span>
+</div>
+</div>
+</div>
+<button class="p-2 text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</div>
+</header>
+<main class="flex-1 px-6 py-6 space-y-6 overflow-y-auto">
+<!-- Quick Actions -->
+<div class="grid grid-cols-2 gap-4">
+<button class="flex flex-col items-center justify-center p-4 bg-primary text-white rounded-xl shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all active:scale-95">
+<span class="material-symbols-outlined text-3xl mb-2">assignment_add</span>
+<span class="text-sm font-semibold">Registrar Visita</span>
+</button>
+<button class="flex flex-col items-center justify-center p-4 bg-white dark:bg-slate-800 border border-border-subtle dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-all active:scale-95">
+<span class="material-symbols-outlined text-3xl mb-2 text-primary">person_add</span>
+<span class="text-sm font-semibold">Novos Convidados</span>
+</button>
+</div>
+<!-- Section: Meus Cuidados -->
+<section>
+<div class="flex items-center justify-between mb-3">
+<h2 class="text-lg font-bold text-slate-800 dark:text-slate-100">Meus Cuidados</h2>
+<a class="text-sm font-medium text-primary" href="#">Ver todos</a>
+</div>
+<div class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-border-subtle dark:border-slate-700 shadow-sm">
+<p class="text-sm text-slate-500 dark:text-slate-400 mb-4">3 pessoas sob sua responsabilidade direta esta semana.</p>
+<div class="flex items-center -space-x-3">
+<img alt="Acolhido 1" class="size-10 rounded-full ring-2 ring-white dark:ring-slate-800" data-alt="Female profile photo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCVYXf_FzD6Yckq-C9IRUuVpyyb5gC9VAr7fHDSW8Zo5uO7MnxZZyyHPiRLR950dBH2kMXSOWlHa3Dd4zbjDCIE7hazYIn5ihCXPNUe4I4En3hkGeorfH7EsAVAh7n_cPgnk2I6AB5yjieWFq6fcfwzCBEE3CujeegYKY8GYt-wprBJtNpnFXxPsg6pSGt-1ohweCscQGvSBtnZ1O5tqPqd3VunEh6a1nDmUwM98srXdvh3xHEP1U-HRX2w3wwgW9PuDsn4pvpo6nU"/>
+<img alt="Acolhido 2" class="size-10 rounded-full ring-2 ring-white dark:ring-slate-800" data-alt="Male profile photo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD0veWWnznrATUz1Rr_aVc8vaMq1M_OuCQMt2zzQEAUxs_P8ttJk4UsIBk-dB0UppY-UzbA6vPgInC5x_svQUx8CaZeKtqFUW7NJqdZu3HbQXL-nUGt8a1OLPcIrF5wrvOw2v7n9F_BLzMP3dKD5NAiKWRFL7a4JRcIAGXfyMiS7R5qIJeFOk6_7cBQ81qiuO-CIB0xcg0ep4BKj-TU5YREEuJVtHgpadyJLL650HFHc2T0mVVDPZgKiSZOW3yAezlQFIuq4jNlaro"/>
+<img alt="Acolhido 3" class="size-10 rounded-full ring-2 ring-white dark:ring-slate-800" data-alt="Portrait of a woman" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAOZb_0JJEUuIrSYsBOEXOequT37iaHD8qi8SSh10qWnnn7f7ExahQS5Viz27E9gGZaqymL31xVXhYBk73MyTvkydUOxHeFxyVKtCG2SwEyEd6PeI9O0XvZFquEzLEI1ZU5AmGlOw4QAVZI2Kuwbp0OnJ1FWQkns26PngYrcCoPKiltZWbyXHMzKXGVHViR-0orepbTi5yjqtXP6n_fZGHeiu3OqfNV9Z8YAJ0G0szpG4x4C_Evc1GLVrj-ImnRajWmPvNWMn5T_Rc"/>
+<div class="flex size-10 items-center justify-center rounded-full border-2 border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-400">
+<span class="material-symbols-outlined text-sm">add</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Section: Próxima Oração -->
+<section>
+<h2 class="text-lg font-bold text-slate-800 dark:text-slate-100 mb-3">Próxima Oração</h2>
+<div class="bg-white dark:bg-slate-800 rounded-xl p-5 border border-border-subtle dark:border-slate-700 shadow-sm flex items-center gap-4">
+<div class="flex size-14 items-center justify-center rounded-lg bg-primary/10 text-primary">
+<span class="material-symbols-outlined text-3xl filled-icon">schedule</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<p class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">15:30</p>
+<span class="px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-primary text-[10px] font-bold uppercase rounded leading-none">Hoje</span>
+</div>
+<p class="text-sm font-medium text-slate-600 dark:text-slate-400">Sala de Oração - Ala Sul</p>
+</div>
+</div>
+</section>
+<!-- Recent Activity Feed (Simplified) -->
+<section class="pb-20">
+<h2 class="text-lg font-bold text-slate-800 dark:text-slate-100 mb-3">Últimas Mensagens</h2>
+<div class="space-y-3">
+<div class="flex gap-4 p-3 bg-white dark:bg-slate-800/50 rounded-lg border border-border-subtle dark:border-slate-700">
+<div class="size-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+<span class="material-symbols-outlined text-slate-500">mail</span>
+</div>
+<div>
+<p class="text-sm font-semibold">Maria Silva</p>
+<p class="text-xs text-slate-500 truncate w-48">"Obrigado pelo acolhimento de ontem..."</p>
+</div>
+<span class="text-[10px] text-slate-400 ml-auto pt-1 font-medium">14:05</span>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-border-subtle dark:border-slate-800 px-6 py-2">
+<div class="flex justify-between items-center">
+<a class="flex flex-col items-center gap-1 p-2 text-primary" href="#">
+<span class="material-symbols-outlined filled-icon">home</span>
+<span class="text-[10px] font-bold">Início</span>
+</a>
+<a class="flex flex-col items-center gap-1 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="text-[10px] font-medium">Acolhidos</span>
+</a>
+<a class="flex flex-col items-center gap-1 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" href="#">
+<span class="material-symbols-outlined">prayer_times</span>
+<span class="text-[10px] font-medium">Orações</span>
+</a>
+<a class="flex flex-col items-center gap-1 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" href="#">
+<span class="material-symbols-outlined">account_circle</span>
+<span class="text-[10px] font-medium">Perfil</span>
+</a>
+</div>
+</nav>
+</body></html>

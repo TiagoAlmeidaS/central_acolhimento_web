@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Configurações do Sistema</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2463eb",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#111621",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .sidebar-item-active {
+            background-color: #2463eb15;
+            color: #2463eb;
+            border-right: 3px solid #2463eb;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen">
+<div class="flex h-screen overflow-hidden">
+<!-- Sidebar Navigation -->
+<aside class="w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-background-dark flex flex-col">
+<div class="p-6 flex items-center gap-3">
+<div class="bg-primary p-1.5 rounded-lg">
+<span class="material-symbols-outlined text-white">settings</span>
+</div>
+<h1 class="font-bold text-xl tracking-tight">AdminPanel</h1>
+</div>
+<nav class="flex-1 px-4 space-y-1 overflow-y-auto">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg sidebar-item-active font-medium transition-colors" href="#">
+<span class="material-symbols-outlined">person</span>
+                    Perfil
+                </a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors text-slate-600 dark:text-slate-400" href="#">
+<span class="material-symbols-outlined">display_settings</span>
+                    Preferências
+                </a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors text-slate-600 dark:text-slate-400" href="#">
+<span class="material-symbols-outlined">hub</span>
+                    Integrações
+                </a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors text-slate-600 dark:text-slate-400" href="#">
+<span class="material-symbols-outlined">group</span>
+                    Usuários
+                </a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors text-slate-600 dark:text-slate-400" href="#">
+<span class="material-symbols-outlined">database</span>
+                    Dados &amp; PWA
+                </a>
+</nav>
+<div class="p-4 border-t border-slate-200 dark:border-slate-800">
+<div class="flex items-center gap-3 px-3 py-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+<div class="size-10 rounded-full bg-cover bg-center border-2 border-primary/20" data-alt="Foto de perfil do coordenador Carlos Eduardo" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD3D1EgsGGb9_bTDPMs8z3hGR9tVkUuYtKIdlUCX3-7MxaGmV6mgDGu8wBL4lT6upg-qgG2rkdIfxSWUSLsEHABAWn7UYMC1u7TMugDX0g9bpfUYYibkvcTFIciGffFPgHPFgb0O37zdqKz09hjtEWFvRRw1C7gd90O9AMtUbBh32M7ACJwCHdNJbqlkJT7uW8GdP6ms4fKZCFwqvJaRmUDMVF2Cw9YcEcCFxmzbRctpYDqr4R7DzlC6QeTfW1i7E7cB-K2kNqZ2ew')"></div>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-bold truncate">Carlos Eduardo</p>
+<p class="text-xs text-slate-500 truncate">Coordenador</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 overflow-y-auto">
+<!-- Header -->
+<header class="sticky top-0 z-10 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-8 py-4 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<h2 class="text-xl font-bold">Configurações</h2>
+<span class="text-slate-300 dark:text-slate-600">/</span>
+<span class="text-slate-500 font-medium">Perfil &amp; Sistema</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="bg-primary text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 shadow-sm hover:shadow-md transition-shadow">
+<span class="material-symbols-outlined text-sm">save</span>
+                        Salvar Alterações
+                    </button>
+</div>
+</header>
+<div class="p-8 max-w-5xl mx-auto space-y-8">
+<!-- Profile Section -->
+<section class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm" id="perfil">
+<div class="flex flex-col md:flex-row gap-8 items-start">
+<div class="relative group">
+<div class="size-32 rounded-full bg-cover bg-center border-4 border-white dark:border-slate-800 shadow-lg" data-alt="Foto de perfil ampliada do coordenador" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDzh4fA-Wzs3I3EXUzjtKR3VgU9_ktzCp8Qcf3nJc_7mh3Sk7tAQ4MSVk7eo_mT4iCUYt9F5OmTzcmUvgyFPS2C-WHESZxo-SFHHibMYRED20nJi8o0VLFlC5azaDaE8hW3BzLm54xe4xUH460NTBdrUPYeGj1M8rA40Ftaqdv2PTQL1LXsr132AJefroPJnPuJzRbmcTDe_7_OdLzZF3DHXXwv8rAgfCi6UwpAfR5A1Smo3ybYZLCDlysBvQbf-ejFtXc7nkBvdm4')"></div>
+<button class="absolute bottom-0 right-0 size-10 bg-primary text-white rounded-full flex items-center justify-center border-4 border-white dark:border-slate-800 shadow-lg">
+<span class="material-symbols-outlined text-sm">edit</span>
+</button>
+</div>
+<div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+<div class="space-y-1">
+<label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Nome Completo</label>
+<input class="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-primary" type="text" value="Carlos Eduardo Oliveira"/>
+</div>
+<div class="space-y-1">
+<label class="text-xs font-bold text-slate-500 uppercase tracking-wider">E-mail</label>
+<input class="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-primary" type="email" value="carlos.eduardo@sistema.com.br"/>
+</div>
+<div class="space-y-1">
+<label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Cargo</label>
+<input class="w-full bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-500 cursor-not-allowed" readonly="" type="text" value="Coordenador Geral"/>
+</div>
+<div class="space-y-1">
+<label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Alterar Senha</label>
+<button class="w-full border border-primary text-primary font-bold py-2 rounded-lg text-sm hover:bg-primary/5 transition-colors">Resetar Senha</button>
+</div>
+</div>
+</div>
+</section>
+<!-- System Preferences -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+<!-- Appearance & UI -->
+<section class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-6">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-primary">palette</span>
+<h3 class="font-bold text-lg">Aparência</h3>
+</div>
+<div class="space-y-4">
+<div class="flex items-center justify-between">
+<div>
+<p class="font-semibold text-sm">Modo Escuro</p>
+<p class="text-xs text-slate-500">Alternar entre temas claro e escuro</p>
+</div>
+<div class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</div>
+</div>
+<div class="flex items-center justify-between">
+<div>
+<p class="font-semibold text-sm">Notificações Push</p>
+<p class="text-xs text-slate-500">Alertas críticos no navegador</p>
+</div>
+<div class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- Data & PWA -->
+<section class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-6">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-primary">cloud_sync</span>
+<h3 class="font-bold text-lg">Dados &amp; Offline</h3>
+</div>
+<div class="space-y-4">
+<div class="flex items-center justify-between">
+<div>
+<p class="font-semibold text-sm">Sincronização Offline (PWA)</p>
+<p class="text-xs text-slate-500">Permitir uso sem conexão</p>
+</div>
+<div class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</div>
+</div>
+<button class="w-full flex items-center justify-between px-4 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 transition-colors border border-slate-200 dark:border-slate-700">
+<span class="text-sm font-semibold">Exportar Relatório Mensal</span>
+<span class="material-symbols-outlined text-sm">download</span>
+</button>
+</div>
+</section>
+</div>
+<!-- Integration Settings (WhatsApp/Evolution API) -->
+<section class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-6">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">chat_bubble</span>
+<h3 class="font-bold text-lg">Integração WhatsApp (Evolution API)</h3>
+</div>
+<span class="bg-green-100 text-green-700 text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-widest">Conectado</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="space-y-1">
+<label class="text-xs font-bold text-slate-500 uppercase">Endpoint URL</label>
+<input class="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg text-sm" type="text" value="https://api.evolution.io/v1"/>
+</div>
+<div class="space-y-1">
+<label class="text-xs font-bold text-slate-500 uppercase">Instância</label>
+<input class="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg text-sm" type="text" value="care-manager-01"/>
+</div>
+<div class="space-y-1">
+<label class="text-xs font-bold text-slate-500 uppercase">API Key</label>
+<div class="relative">
+<input class="w-full bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-lg text-sm pr-10" type="password" value="••••••••••••••••"/>
+<span class="material-symbols-outlined absolute right-3 top-2 text-slate-400 text-sm cursor-pointer">visibility</span>
+</div>
+</div>
+</div>
+<div class="flex gap-3">
+<button class="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-lg text-xs hover:bg-slate-200 transition-colors">Testar Conexão</button>
+<button class="px-4 py-2 bg-primary/10 text-primary font-bold rounded-lg text-xs hover:bg-primary/20 transition-colors">Re-autenticar Instância</button>
+</div>
+</section>
+<!-- User Management Section -->
+<section class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-6">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">badge</span>
+<h3 class="font-bold text-lg">Gestão de Equipe</h3>
+</div>
+<button class="text-primary font-bold text-sm flex items-center gap-1 hover:underline">
+<span class="material-symbols-outlined text-sm">add</span>
+                            Novo Usuário
+                        </button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-slate-100 dark:border-slate-800">
+<th class="pb-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Usuário</th>
+<th class="pb-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Função</th>
+<th class="pb-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Permissões</th>
+<th class="pb-3 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Ações</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+<tr class="group">
+<td class="py-4">
+<div class="flex items-center gap-3">
+<div class="size-9 rounded-lg bg-slate-200 flex items-center justify-center font-bold text-slate-600">RC</div>
+<div>
+<p class="text-sm font-bold">Ricardo Costa</p>
+<p class="text-[10px] text-slate-500">ricardo@care.io</p>
+</div>
+</div>
+</td>
+<td class="py-4">
+<span class="px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase tracking-wide">Coordenador</span>
+</td>
+<td class="py-4">
+<p class="text-xs text-slate-500">Acesso Total, Relatórios, Configs</p>
+</td>
+<td class="py-4 text-right">
+<button class="p-1 hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">edit</span></button>
+<button class="p-1 hover:text-red-500 transition-colors"><span class="material-symbols-outlined text-lg">delete</span></button>
+</td>
+</tr>
+<tr class="group">
+<td class="py-4">
+<div class="flex items-center gap-3">
+<div class="size-9 rounded-lg bg-slate-200 flex items-center justify-center font-bold text-slate-600 text-xs">MA</div>
+<div>
+<p class="text-sm font-bold">Maria Almeida</p>
+<p class="text-[10px] text-slate-500">maria.cuidadora@care.io</p>
+</div>
+</div>
+</td>
+<td class="py-4">
+<span class="px-2 py-1 rounded bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[10px] font-bold uppercase tracking-wide">Cuidador</span>
+</td>
+<td class="py-4">
+<p class="text-xs text-slate-500">Registros diários, Chat pacientes</p>
+</td>
+<td class="py-4 text-right">
+<button class="p-1 hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">edit</span></button>
+<button class="p-1 hover:text-red-500 transition-colors"><span class="material-symbols-outlined text-lg">delete</span></button>
+</td>
+</tr>
+<tr class="group">
+<td class="py-4">
+<div class="flex items-center gap-3">
+<div class="size-9 rounded-lg bg-slate-200 flex items-center justify-center font-bold text-slate-600 text-xs">JS</div>
+<div>
+<p class="text-sm font-bold">João Silva</p>
+<p class="text-[10px] text-slate-500">joao.silva@care.io</p>
+</div>
+</div>
+</td>
+<td class="py-4">
+<span class="px-2 py-1 rounded bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[10px] font-bold uppercase tracking-wide">Cuidador</span>
+</td>
+<td class="py-4">
+<p class="text-xs text-slate-500">Registros diários, Chat pacientes</p>
+</td>
+<td class="py-4 text-right">
+<button class="p-1 hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">edit</span></button>
+<button class="p-1 hover:text-red-500 transition-colors"><span class="material-symbols-outlined text-lg">delete</span></button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<div class="flex justify-end gap-4 pt-4 pb-12">
+<button class="px-6 py-2.5 rounded-lg font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors">Cancelar</button>
+<button class="px-8 py-2.5 rounded-lg font-bold text-white bg-primary shadow-lg shadow-primary/25 hover:opacity-90 transition-opacity">Salvar Todas as Configurações</button>
+</div>
+</div>
+</main>
+</div>
+</body></html>

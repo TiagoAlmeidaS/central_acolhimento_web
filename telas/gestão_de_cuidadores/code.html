@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Gestão de Cuidadores</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2463eb",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#111621",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .filled-icon { font-variation-settings: 'FILL' 1; }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display">
+<div class="flex h-screen overflow-hidden">
+<!-- Sidebar Navigation -->
+<aside class="w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col">
+<div class="p-6 flex items-center gap-3">
+<div class="bg-primary p-1.5 rounded-lg text-white">
+<span class="material-symbols-outlined text-2xl">healing</span>
+</div>
+<h1 class="text-xl font-bold tracking-tight">CareAssist</h1>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-medium text-sm">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/10 text-primary transition-colors" href="#">
+<span class="material-symbols-outlined filled-icon">group</span>
+<span class="font-medium text-sm">Cuidadores</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">calendar_today</span>
+<span class="font-medium text-sm">Visitas</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">bar_chart</span>
+<span class="font-medium text-sm">Relatórios</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-medium text-sm">Configurações</span>
+</a>
+</nav>
+<div class="p-4 border-t border-slate-200 dark:border-slate-800">
+<div class="flex items-center gap-3 p-2">
+<img alt="Admin Profile" class="w-8 h-8 rounded-full" data-alt="Foto de perfil do administrador sorrindo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA2lpIiMKqS8eVZfSKHCjduQa0oar31mOODD5kW5d41aGkAQn8d7_FxLQ2eyV9drieDpnCazAE5wxOCp0OQana83CYH3OcVMPJgefame46X2lsvQPV0xOqcXAyBzZhRwKoVAA1P6-4vhL4CsYe6LIkWMEOg3lrQwHm1I8Rar3zj8b540zysq14VXbGxHtZsBW6K8zzj56yJSJBXt-SnAfZjUIWXsnlemMjzmX_8xgEbK0IAlYhXjZqJO_lTZ-SlFAPHEUqppCMZ77Q"/>
+<div class="flex flex-col">
+<span class="text-xs font-semibold">Ricardo Mendes</span>
+<span class="text-[10px] text-slate-500">Administrador</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 overflow-y-auto bg-background-light dark:bg-background-dark">
+<!-- Header Bar -->
+<header class="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-8 py-4 flex items-center justify-between">
+<div>
+<h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Gestão de Cuidadores</h2>
+<p class="text-sm text-slate-500">Gerencie a disponibilidade e atividades dos irmãos cuidadores.</p>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+<input class="pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-sm focus:ring-2 focus:ring-primary w-64 transition-all" placeholder="Pesquisar cuidador..." type="text"/>
+</div>
+<button class="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all">
+<span class="material-symbols-outlined text-lg">person_add</span>
+                        Adicionar Novo Cuidador
+                    </button>
+</div>
+</header>
+<div class="p-8">
+<!-- Filters & Legend -->
+<div class="flex flex-wrap items-center justify-between mb-8 gap-4">
+<div class="flex gap-2">
+<button class="px-4 py-1.5 rounded-full bg-primary text-white text-xs font-semibold">Todos</button>
+<button class="px-4 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium hover:bg-slate-50 transition-colors">Disponíveis</button>
+<button class="px-4 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium hover:bg-slate-50 transition-colors">Em Alerta</button>
+</div>
+<div class="flex items-center gap-6 text-xs font-medium text-slate-500 uppercase tracking-wider bg-white dark:bg-slate-800 px-4 py-2 rounded-lg shadow-sm">
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+<span>Livre</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+<span>Atenção</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+<span>Crítico</span>
+</div>
+</div>
+</div>
+<!-- Caregiver Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+<!-- Card 1 (Livre) -->
+<div class="group bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-xl hover:border-primary/30 transition-all cursor-pointer">
+<div class="p-5">
+<div class="flex justify-between items-start mb-4">
+<div class="relative">
+<img alt="João Silva" class="w-16 h-16 rounded-full border-2 border-white dark:border-slate-700 shadow-sm" data-alt="Retrato de um cuidador sorridente chamado João" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDJR5yb_dxU7_fh2KbnSJoEdQUQyOsKVMjKzEAGQlQiybK9bvUJ9z6leuiwj3JJ1U0wkfdpi5CoE_4_H2aWO6X1KamdADA9wjFkGxrTHVAk_Wp4x10DDwdq7NIzIO61RXnmnoS1KQQ4I0r-zENS_LIgrP0uwBLYeUKmSyYY5MGkIHmymoxRqAJovIss5cJ6Q2sYscOsbiPlryKsaayLRNGKqpMy2T0Ycamph6yMqGkFpE8pTO6ED2G79qZ1k3p3LtiRzqUoA-cVjWA"/>
+<span class="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-800" title="Capacidade: Baixa"></span>
+</div>
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<h3 class="font-bold text-lg text-slate-900 dark:text-slate-100 group-hover:text-primary transition-colors">João Silva</h3>
+<p class="text-xs text-slate-500 mb-4">Irmão Visitador Sênior</p>
+<div class="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-700">
+<div class="flex items-center justify-between text-sm">
+<div class="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+<span class="material-symbols-outlined text-lg">medical_services</span>
+<span>Visitas Ativas</span>
+</div>
+<span class="font-bold text-slate-900 dark:text-slate-100">02</span>
+</div>
+<div class="flex items-center justify-between text-sm">
+<div class="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+<span class="material-symbols-outlined text-lg">history</span>
+<span>Última Atividade</span>
+</div>
+<span class="font-medium text-slate-500">Há 2h</span>
+</div>
+</div>
+</div>
+<div class="bg-emerald-50 dark:bg-emerald-900/20 px-5 py-2 text-center">
+<span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Disponível para chamados</span>
+</div>
+</div>
+<!-- Card 2 (Atenção) -->
+<div class="group bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-xl hover:border-primary/30 transition-all cursor-pointer">
+<div class="p-5">
+<div class="flex justify-between items-start mb-4">
+<div class="relative">
+<img alt="Maria Oliveira" class="w-16 h-16 rounded-full border-2 border-white dark:border-slate-700 shadow-sm" data-alt="Foto de perfil de Maria Oliveira" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCB1zID0TbpRlwQ5TgLYEm16fIIoD0WTKcHB50F-oZk90dyj3unhNGBHBJvMjwguTSEGCnr9n2v6jtnR2AplhBTHwjUo6nsSU67wEWLH0U2xjUqd7flwOMFPb0svobdiZTCGCG9U5eLypK6mEhEVLwhn65Wt7UggWsb_6__F3vjsKpNFW8vy5jUpfCz_HPi2_vM1tnhfT5RlWhmXpsdlSBCz-sKZf51NXw_QvuFAVfwFU6JnqXD-KAzZUBDYFs70E20qm7-pf-PfYs"/>
+<span class="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-amber-500 border-2 border-white dark:border-slate-800" title="Capacidade: Média"></span>
+</div>
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<h3 class="font-bold text-lg text-slate-900 dark:text-slate-100 group-hover:text-primary transition-colors">Maria Oliveira</h3>
+<p class="text-xs text-slate-500 mb-4">Apoio em Enfermagem</p>
+<div class="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-700">
+<div class="flex items-center justify-between text-sm">
+<div class="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+<span class="material-symbols-outlined text-lg">medical_services</span>
+<span>Visitas Ativas</span>
+</div>
+<span class="font-bold text-slate-900 dark:text-slate-100">05</span>
+</div>
+<div class="flex items-center justify-between text-sm">
+<div class="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+<span class="material-symbols-outlined text-lg">history</span>
+<span>Última Atividade</span>
+</div>
+<span class="font-medium text-slate-500">Há 15min</span>
+</div>
+</div>
+</div>
+<div class="bg-amber-50 dark:bg-amber-900/20 px-5 py-2 text-center">
+<span class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Carga Moderada</span>
+</div>
+</div>
+<!-- Card 3 (Crítico) -->
+<div class="group bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-xl hover:border-primary/30 transition-all cursor-pointer">
+<div class="p-5">
+<div class="flex justify-between items-start mb-4">
+<div class="relative">
+<img alt="Antônio Santos" class="w-16 h-16 rounded-full border-2 border-white dark:border-slate-700 shadow-sm" data-alt="Foto de perfil de Antônio Santos" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB-3afQRxVfLh9a6GFAXKMlc2fjgvqol2zRst4iEICMDMa15lanSrL40bAp1w8tb0vx8z4Ep5KSU5AquwNome6PST7leyzgWxhtKkRwASA7VlRJ6sUqCZJnyjre9sjKfXgPkFnTDsckn1vRhABiKKzn4djtboRkX_Z2tAjbDZ7I2dOeFAzL9vG6NzXaynEgSYX9XOfzgJnZdAJ4F6FlVRnq9D6OO8kj_jnZBOUtxzanEO036WJvIFQYVHbeRev_bx2JWp_HHjAJftc"/>
+<span class="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-rose-500 border-2 border-white dark:border-slate-800" title="Capacidade: Alta"></span>
+</div>
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<h3 class="font-bold text-lg text-slate-900 dark:text-slate-100 group-hover:text-primary transition-colors">Antônio Santos</h3>
+<p class="text-xs text-slate-500 mb-4">Psicólogo Social</p>
+<div class="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-700">
+<div class="flex items-center justify-between text-sm">
+<div class="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+<span class="material-symbols-outlined text-lg">medical_services</span>
+<span>Visitas Ativas</span>
+</div>
+<span class="font-bold text-slate-900 dark:text-slate-100">08</span>
+</div>
+<div class="flex items-center justify-between text-sm">
+<div class="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+<span class="material-symbols-outlined text-lg">history</span>
+<span>Última Atividade</span>
+</div>
+<span class="font-medium text-slate-500">Em curso</span>
+</div>
+</div>
+</div>
+<div class="bg-rose-50 dark:bg-rose-900/20 px-5 py-2 text-center">
+<span class="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-widest">Capacidade Máxima</span>
+</div>
+</div>
+<!-- Card 4 (Livre) -->
+<div class="group bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-xl hover:border-primary/30 transition-all cursor-pointer">
+<div class="p-5">
+<div class="flex justify-between items-start mb-4">
+<div class="relative">
+<img alt="Francisca Costa" class="w-16 h-16 rounded-full border-2 border-white dark:border-slate-700 shadow-sm" data-alt="Foto de perfil de Francisca Costa" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCtW2nB88a1I_iMTIwUX-JuGMye2l3soYufkY3uRzehRNyHYL9xNKQJzZosUBVYMXu1ilnQCZKHQCJanJv6raWP2GF9wwL7Tlzuv48Dm70DBXgsb5-nQKiOxEpxu74kA0Z5kRduRDoy8YiPSDQ3eHukPChhK3EX_Z1_u4pzclu9IzcY_t60_x3sc4fHkvOg1zm3ta-Fosh6HxV-0n8haMIpm55iyf7Pgd3ltcbhFKtDqn9qGCth5gMg1noqqvxFz-yKWlpzFU-X5ZI"/>
+<span class="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-800" title="Capacidade: Baixa"></span>
+</div>
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<h3 class="font-bold text-lg text-slate-900 dark:text-slate-100 group-hover:text-primary transition-colors">Francisca Costa</h3>
+<p class="text-xs text-slate-500 mb-4">Irmã Visitadora</p>
+<div class="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-700">
+<div class="flex items-center justify-between text-sm">
+<div class="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+<span class="material-symbols-outlined text-lg">medical_services</span>
+<span>Visitas Ativas</span>
+</div>
+<span class="font-bold text-slate-900 dark:text-slate-100">01</span>
+</div>
+<div class="flex items-center justify-between text-sm">
+<div class="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+<span class="material-symbols-outlined text-lg">history</span>
+<span>Última Atividade</span>
+</div>
+<span class="font-medium text-slate-500">Ontem</span>
+</div>
+</div>
+</div>
+<div class="bg-emerald-50 dark:bg-emerald-900/20 px-5 py-2 text-center">
+<span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Disponível para chamados</span>
+</div>
+</div>
+<!-- Card 5 (Atenção) -->
+<div class="group bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-xl hover:border-primary/30 transition-all cursor-pointer">
+<div class="p-5">
+<div class="flex justify-between items-start mb-4">
+<div class="relative">
+<img alt="Lucas Ferraz" class="w-16 h-16 rounded-full border-2 border-white dark:border-slate-700 shadow-sm" data-alt="Foto de perfil de Lucas Ferraz" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDBdA-8gXqBYTUgzHZ4Xny8JgUrSP8OmqgkyhgvAM8fG95LNJJvajR8xp6ZFFQId7WSm2SeSROfckTQqv35dbd79669S1CS_Gs-GeGCEtJhzQ2EB3p38N3n4LgbnmpYo9wJHNrRad99H-m4lKpF9By2bvd1mF-EIBMXtdAZ7cHVobwVvVzOmblYevpI6XCH5AgeaUhuRgeyVBjQS5t0aoeYUFzpNY0igSUvFl3yRgu3vKxVgDL5NfZQC264Egh2oM-BahEwulhiW6w"/>
+<span class="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-amber-500 border-2 border-white dark:border-slate-800" title="Capacidade: Média"></span>
+</div>
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<h3 class="font-bold text-lg text-slate-900 dark:text-slate-100 group-hover:text-primary transition-colors">Lucas Ferraz</h3>
+<p class="text-xs text-slate-500 mb-4">Capelão Hospitalar</p>
+<div class="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-700">
+<div class="flex items-center justify-between text-sm">
+<div class="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+<span class="material-symbols-outlined text-lg">medical_services</span>
+<span>Visitas Ativas</span>
+</div>
+<span class="font-bold text-slate-900 dark:text-slate-100">04</span>
+</div>
+<div class="flex items-center justify-between text-sm">
+<div class="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+<span class="material-symbols-outlined text-lg">history</span>
+<span>Última Atividade</span>
+</div>
+<span class="font-medium text-slate-500">Há 4h</span>
+</div>
+</div>
+</div>
+<div class="bg-amber-50 dark:bg-amber-900/20 px-5 py-2 text-center">
+<span class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Carga Moderada</span>
+</div>
+</div>
+<!-- Add New Card Placeholder -->
+<div class="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl hover:border-primary hover:bg-primary/5 transition-all cursor-pointer group">
+<div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3 group-hover:bg-primary/10">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary">add</span>
+</div>
+<span class="text-sm font-semibold text-slate-500 group-hover:text-primary">Novo Cuidador</span>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Details Overlay (Conceptual) -->
+<div class="fixed inset-y-0 right-0 w-[400px] bg-white dark:bg-slate-900 shadow-2xl border-l border-slate-200 dark:border-slate-800 transform translate-x-full transition-transform duration-300 z-50 overflow-y-auto">
+<!-- Close Button -->
+<button class="absolute top-4 right-4 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+<div class="p-8">
+<div class="flex flex-col items-center mb-8">
+<img alt="Detail Profile" class="w-24 h-24 rounded-full border-4 border-primary/20 mb-4" data-alt="Perfil detalhado de João Silva" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA7C6TRI2m_o1CEVchRiuLtO6ayKN3A4En2VlBuvYWP33XAbbXFyos1Sdit-A_kQSbDVFXWIXa8KoOco_kSXCcUTgS27OEMEcAih2O8FCzVul9smlQmv7cjLOuUib-7-spBltXwEt-bphdIb1bZtgLUVRU0GlvBHetQVwbE-xBdmIMjWBeNWma914wuCny9M4g7ZYXK7Dz018tzdGzbvLdhF370Ex9_EmcNoJDuLUU_B0aR0bQA8jYCTMwkx-rMWdI6KQixvz0bm_A"/>
+<h3 class="text-2xl font-bold">João Silva</h3>
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold mt-2">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    DISPONÍVEL
+                </span>
+</div>
+<div class="space-y-6">
+<section>
+<h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Informações de Contato</h4>
+<div class="space-y-3">
+<div class="flex items-center gap-3 text-sm">
+<span class="material-symbols-outlined text-slate-400">mail</span>
+<span>joao.silva@email.com</span>
+</div>
+<div class="flex items-center gap-3 text-sm">
+<span class="material-symbols-outlined text-slate-400">phone</span>
+<span>(11) 98888-7777</span>
+</div>
+</div>
+</section>
+<section>
+<h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Escala de Atividade</h4>
+<div class="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg">
+<div class="flex items-center justify-between mb-2">
+<span class="text-sm">Visitas este mês</span>
+<span class="font-bold">24</span>
+</div>
+<div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+<div class="bg-primary h-2 rounded-full w-[60%]"></div>
+</div>
+</div>
+</section>
+<section>
+<h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Histórico Recente</h4>
+<div class="space-y-4">
+<div class="flex gap-3">
+<div class="w-px bg-slate-200 dark:bg-slate-700 relative">
+<div class="absolute -left-1 top-1 w-2.5 h-2.5 rounded-full bg-primary"></div>
+</div>
+<div class="pb-4">
+<p class="text-sm font-semibold">Visita Finalizada</p>
+<p class="text-xs text-slate-500">Sra. Aparecida - Há 2 horas</p>
+</div>
+</div>
+<div class="flex gap-3">
+<div class="w-px bg-slate-200 dark:bg-slate-700 relative">
+<div class="absolute -left-1 top-1 w-2.5 h-2.5 rounded-full bg-slate-300"></div>
+</div>
+<div class="pb-4">
+<p class="text-sm font-semibold">Relatório de Visita Enviado</p>
+<p class="text-xs text-slate-500">Sr. Manoel - Ontem às 18:30</p>
+</div>
+</div>
+</div>
+</section>
+</div>
+<div class="mt-8 flex gap-3">
+<button class="flex-1 bg-primary text-white py-3 rounded-lg font-bold text-sm">Editar Perfil</button>
+<button class="p-3 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-400 hover:text-rose-500 transition-colors">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+</div>
+</div>
+</body></html>

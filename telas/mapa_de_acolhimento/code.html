@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Mapa de Acolhimento - Coordenação</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2463eb",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#111621",
+                        "temp-hot": "#ef4444",
+                        "temp-warm": "#f59e0b",
+                        "temp-cold": "#3b82f6",
+                        "success": "#10b981"
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .kanban-column {
+            min-width: 280px;
+            max-width: 280px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 antialiased">
+<div class="relative flex h-screen w-full flex-col overflow-hidden">
+<header class="flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shrink-0">
+<div class="flex items-center gap-3">
+<button class="flex items-center justify-center rounded-lg p-1 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined text-slate-600 dark:text-slate-400">menu</span>
+</button>
+<h1 class="text-lg font-bold tracking-tight">Mapa de Acolhimento</h1>
+</div>
+<div class="flex items-center gap-2">
+<button class="flex items-center justify-center rounded-lg p-1 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined text-slate-600 dark:text-slate-400">search</span>
+</button>
+<button class="flex items-center justify-center rounded-lg p-1 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined text-slate-600 dark:text-slate-400">filter_list</span>
+</button>
+</div>
+</header>
+<main class="flex-1 overflow-x-auto no-scrollbar bg-background-light dark:bg-background-dark">
+<div class="flex h-full p-4 gap-4 items-start">
+<section class="kanban-column flex flex-col h-full shrink-0">
+<div class="flex items-center justify-between mb-3 px-1">
+<div class="flex items-center gap-2">
+<h2 class="font-bold text-sm uppercase tracking-wider text-slate-500 dark:text-slate-400">Novo TCI</h2>
+<span class="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded-full">12</span>
+</div>
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-3 pb-20">
+<div class="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border-l-4 border-temp-hot relative group active:scale-[0.98] transition-all">
+<div class="flex justify-between items-start mb-2">
+<span class="bg-temp-hot/10 text-temp-hot text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Quente</span>
+<span class="text-[10px] text-slate-400">2h atrás</span>
+</div>
+<h3 class="font-bold text-sm mb-1">João Paulo Silva</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 mb-3 line-clamp-1">Primeira visita, indicação de Maria.</p>
+<div class="flex items-center justify-between">
+<div class="flex -space-x-2">
+<img alt="Volunteer avatar" class="w-6 h-6 rounded-full border-2 border-white dark:border-slate-800" data-alt="Volunteer avatar small circle" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBEaVDYuLzOpQnAFSQ_M1cphnhRa7Z5cUOPfXgqBHkeeCnpeZgw9vdF6JjzA4k8n0BVHD3GeAD7aYxu5R9W8KsBzewUc5VIamp6qoIOwArkqtfU1-T4PhD9Zk1hyefwoyd1F0ASA_ChU4uHtqaQGlrMnXhM8az2Xn2tZ01kMKCuqQVSWmQN8WEa1xO9AxyzH4TfoHgxsZcraKMsDbqjykTB28tRweM6FJw5jEBPYxaMHuSQ0WIocBgFxWhs1h_21I3eNVF8OyPeip8"/>
+<div class="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-700 border-2 border-white dark:border-slate-800 flex items-center justify-center">
+<span class="text-[8px] font-bold">M</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-300 dark:text-slate-600 text-[18px]">drag_indicator</span>
+</div>
+</div>
+<div class="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border-l-4 border-temp-warm relative group">
+<div class="flex justify-between items-start mb-2">
+<span class="bg-temp-warm/10 text-temp-warm text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Morno</span>
+<span class="text-[10px] text-slate-400">5h atrás</span>
+</div>
+<h3 class="font-bold text-sm mb-1">Beatriz Mendonça</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 mb-3">Busca aconselhamento familiar.</p>
+<div class="flex items-center justify-between">
+<div class="flex -space-x-2">
+<img alt="Volunteer avatar" class="w-6 h-6 rounded-full border-2 border-white dark:border-slate-800" data-alt="Volunteer avatar small circle" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDlAphJS361TsJlbe1CE2GjKPJ63O9Zrl3NFbkhFlAHCTasLXR2muKGWY8d_RLG6QfCXuBMgcGFWvn15VickrbZdDviIIXEDBPjKLTFllHBSEeTCf_z4lj5JQCJ4ZHfWLHcPFemgFFQjxu2k_-YE3ASJP5CRCPDuYyAOYkgCOlRYd5UweGxwyTR8FoowQL5uZTXzaRPI3dK1FQGjX49-cnvGNyUwiNw_ZLP7n9tfnF_mYc8zPX1L6OTyU2a-2xs8f6h8BGME_ezqCQ"/>
+</div>
+<span class="material-symbols-outlined text-slate-300 dark:text-slate-600 text-[18px]">drag_indicator</span>
+</div>
+</div>
+<div class="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border-l-4 border-temp-cold relative group">
+<div class="flex justify-between items-start mb-2">
+<span class="bg-temp-cold/10 text-temp-cold text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Frio</span>
+<span class="text-[10px] text-slate-400">Ontem</span>
+</div>
+<h3 class="font-bold text-sm mb-1">Lucas Ferreira</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 mb-3">Interesse em grupo de jovens.</p>
+<div class="flex items-center justify-between">
+<div class="flex -space-x-2">
+<div class="w-6 h-6 rounded-full bg-primary/20 text-primary border-2 border-white dark:border-slate-800 flex items-center justify-center">
+<span class="text-[8px] font-bold">L</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-300 dark:text-slate-600 text-[18px]">drag_indicator</span>
+</div>
+</div>
+</div>
+</section>
+<section class="kanban-column flex flex-col h-full shrink-0">
+<div class="flex items-center justify-between mb-3 px-1">
+<div class="flex items-center gap-2">
+<h2 class="font-bold text-sm uppercase tracking-wider text-slate-500 dark:text-slate-400">Em Visita</h2>
+<span class="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-bold px-2 py-0.5 rounded-full">8</span>
+</div>
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-3 pb-20">
+<div class="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border-l-4 border-temp-hot relative group">
+<div class="flex justify-between items-start mb-2">
+<span class="bg-temp-hot/10 text-temp-hot text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Quente</span>
+<span class="text-[10px] text-slate-400">Agendado</span>
+</div>
+<h3 class="font-bold text-sm mb-1">Carla Oliveira</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 mb-2">Visita domiciliar hoje às 19h.</p>
+<div class="flex gap-1 mb-3">
+<span class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 text-[9px] px-1.5 py-0.5 rounded">Família</span>
+<span class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 text-[9px] px-1.5 py-0.5 rounded">Urgente</span>
+</div>
+<div class="flex items-center justify-between border-t border-slate-100 dark:border-slate-700 pt-2 mt-1">
+<div class="flex items-center gap-2">
+<img alt="Volunteer avatar" class="w-5 h-5 rounded-full" data-alt="Volunteer small avatar face" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCl6Vxxqaz60n4OQe7W1sD1A77x_iyHV2sVRf-VZJrFlelOm5qosiBMu2nygyrCbl_IWM2bzmS0JvypfH3SyWkoFcYx9ZCshqYjUUUM4taEJaDx5uYEj1TOM8-rsOMLvJrGAwi42nKWqWKqqwMCF2VggAlmxeUOjaGfrZhlCCkl_WpNzCL1ds6202sfrcj4q_wbqtqU7SHv21Dd31TnNqycI6x6HDLP5xcxOkQMKZB9pL9gtFhlRpf6VCZA2lg31yXFUmuIrJp0iW4"/>
+<span class="text-[10px] font-medium text-slate-500">Resp: Ricardo</span>
+</div>
+<span class="material-symbols-outlined text-slate-300 dark:text-slate-600 text-[18px]">drag_indicator</span>
+</div>
+</div>
+</div>
+</section>
+<section class="kanban-column flex flex-col h-full shrink-0">
+<div class="flex items-center justify-between mb-3 px-1">
+<div class="flex items-center gap-2">
+<h2 class="font-bold text-sm uppercase tracking-wider text-slate-500 dark:text-slate-400">Em Consolidação</h2>
+<span class="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-bold px-2 py-0.5 rounded-full">5</span>
+</div>
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-3 pb-20 text-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl px-4">
+<span class="material-symbols-outlined text-slate-300 dark:text-slate-700 text-4xl mb-2">group_work</span>
+<p class="text-xs text-slate-400">Mova um cartão para esta etapa</p>
+</div>
+</section>
+<section class="kanban-column flex flex-col h-full shrink-0 mr-12">
+<div class="flex items-center justify-between mb-3 px-1">
+<div class="flex items-center gap-2">
+<h2 class="font-bold text-sm uppercase tracking-wider text-slate-500 dark:text-slate-400">Casa de Deus</h2>
+<span class="bg-success/10 text-success text-xs font-bold px-2 py-0.5 rounded-full">20</span>
+</div>
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-3 pb-20">
+<div class="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border-l-4 border-success relative group">
+<div class="flex justify-between items-start mb-2">
+<span class="bg-success/10 text-success text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Integrado</span>
+<span class="text-[10px] text-slate-400">2d atrás</span>
+</div>
+<h3 class="font-bold text-sm mb-1">Marcos Vinícius</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 mb-3">Membro ativo no ministério de louvor.</p>
+<div class="flex items-center justify-between">
+<div class="flex -space-x-2">
+<img alt="Avatar user" class="w-6 h-6 rounded-full border-2 border-white dark:border-slate-800" data-alt="Small avatar of a integrated member" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCFVD-CNcqvJLswThYtRIewA43JXjCjtNX0R72GhLrlAyAEO1eSXpaYPyLVyOo3rD7fGlv_qGnabZW1vU3uT7GFz7Js_ZV9f_rHB22jtC1rkxBdCvEYDVNIW8BNF9QvhkentaEzaeCTNzYWkTeXxzhdZrSmob9Blt1VcLVqe5lvKlRmwd3QBiCsSrRfDWvZuIDDOAcUlJD09apFLumwQztBRzri7RHbumqRBRguqWphgesT4OStw4tX5uRv9BuSlDaO8EzNG531seY"/>
+</div>
+<span class="material-symbols-outlined text-success text-[18px]">check_circle</span>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<button class="fixed bottom-24 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[32px]">add</span>
+</button>
+<nav class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-4 py-2 shrink-0">
+<div class="flex items-center justify-between max-w-md mx-auto">
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">view_kanban</span>
+<span class="text-[10px] font-bold">Board</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="text-[10px] font-medium">Equipe</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" href="#">
+<span class="material-symbols-outlined">map</span>
+<span class="text-[10px] font-medium">Mapa</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span class="text-[10px] font-medium">Dados</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-[10px] font-medium">Ajustes</span>
+</a>
+</div>
+</nav>
+<div class="h-8 bg-white dark:bg-slate-900"></div>
+</div>
+</body></html>

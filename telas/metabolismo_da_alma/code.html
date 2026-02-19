@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+
+<html class="light" lang="pt-br"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Metabolismo da Alma - Check-in</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2463eb",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#111621",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: rgba(36, 99, 235, 0.2);
+            border-radius: 10px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 antialiased min-h-screen flex flex-col">
+<!-- Top Navigation Bar -->
+<header class="sticky top-0 z-10 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+<div class="flex items-center justify-between p-4 max-w-md mx-auto w-full">
+<button class="p-2 -ml-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+<span class="material-symbols-outlined block">arrow_back</span>
+</button>
+<div class="flex-1 px-4 text-center">
+<h1 class="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">Metabolismo da Alma</h1>
+<p class="text-xs font-medium text-slate-500 dark:text-slate-400">Relatório de Visita • Gabriel Santos</p>
+</div>
+<div class="w-10"></div> <!-- Placeholder for visual balance -->
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-1 w-full max-w-md mx-auto p-4 space-y-8 overflow-y-auto pb-32">
+<!-- Journaling Section -->
+<section class="space-y-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-xl">edit_note</span>
+<h2 class="text-base font-semibold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Diário de Jornada</h2>
+</div>
+<div class="relative group">
+<textarea class="w-full min-h-[220px] p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-slate-700 dark:text-slate-300 placeholder:text-slate-400 text-base leading-relaxed resize-none shadow-sm" placeholder="Como foi a visita? Descreva os momentos marcantes e a conexão espiritual estabelecida hoje..."></textarea>
+<div class="absolute bottom-3 right-3 text-[10px] text-slate-400 font-medium bg-white/50 dark:bg-slate-900/50 px-2 py-1 rounded backdrop-blur-sm">
+                    Modo Reflexivo Ativo
+                </div>
+</div>
+</section>
+<!-- Spiritual State Mood Tracker -->
+<section class="space-y-4">
+<div class="flex items-center gap-2 px-1">
+<span class="material-symbols-outlined text-primary text-xl">psychology_alt</span>
+<h2 class="text-base font-semibold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Estado Espiritual</h2>
+</div>
+<div class="grid grid-cols-3 gap-3">
+<!-- Option 1: Novo -->
+<label class="relative cursor-pointer group">
+<input checked="" class="peer hidden" name="spiritual-state" type="radio"/>
+<div class="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 peer-checked:border-primary peer-checked:bg-primary/5 transition-all duration-300">
+<span class="text-3xl mb-2 grayscale group-hover:grayscale-0 peer-checked:grayscale-0 transition-all scale-100 group-active:scale-95">🌱</span>
+<span class="text-sm font-bold text-slate-700 dark:text-slate-300 peer-checked:text-primary">Novo</span>
+<span class="text-[10px] text-slate-400 text-center leading-tight mt-1">Sementes</span>
+</div>
+</label>
+<!-- Option 2: Crescendo -->
+<label class="relative cursor-pointer group">
+<input class="peer hidden" name="spiritual-state" type="radio"/>
+<div class="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 peer-checked:border-primary peer-checked:bg-primary/5 transition-all duration-300">
+<span class="text-3xl mb-2 grayscale group-hover:grayscale-0 peer-checked:grayscale-0 transition-all scale-100 group-active:scale-95">🌿</span>
+<span class="text-sm font-bold text-slate-700 dark:text-slate-300 peer-checked:text-primary">Raízes</span>
+<span class="text-[10px] text-slate-400 text-center leading-tight mt-1">Crescendo</span>
+</div>
+</label>
+<!-- Option 3: Firme -->
+<label class="relative cursor-pointer group">
+<input class="peer hidden" name="spiritual-state" type="radio"/>
+<div class="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 peer-checked:border-primary peer-checked:bg-primary/5 transition-all duration-300">
+<span class="text-3xl mb-2 grayscale group-hover:grayscale-0 peer-checked:grayscale-0 transition-all scale-100 group-active:scale-95">🌳</span>
+<span class="text-sm font-bold text-slate-700 dark:text-slate-300 peer-checked:text-primary">Firme</span>
+<span class="text-[10px] text-slate-400 text-center leading-tight mt-1">Frutos</span>
+</div>
+</label>
+</div>
+</section>
+<!-- Notification Switch -->
+<section class="p-4 bg-primary/5 border border-primary/10 rounded-xl flex items-center justify-between">
+<div class="flex gap-3 items-center">
+<div class="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-xl">hub</span>
+</div>
+<div>
+<p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Notificar Central</p>
+<p class="text-[11px] text-slate-500">Envio automático para supervisão</p>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox" value=""/>
+<div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+</label>
+</section>
+</main>
+<!-- Fixed Bottom Action Bar -->
+<footer class="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 p-4 pb-8 z-20">
+<div class="max-w-md mx-auto">
+<button class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/25 flex items-center justify-center gap-3 transition-all active:scale-[0.98]">
+<span>Finalizar e Enviar</span>
+<span class="material-symbols-outlined">send</span>
+</button>
+<p class="text-center text-[10px] text-slate-400 mt-3 font-medium uppercase tracking-widest">A jornada continua</p>
+</div>
+</footer>
+<!-- Success Feedback Overlay (Visual representation of Drawer concept) -->
+<div class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex flex-col justify-end" id="success-overlay">
+<div class="bg-white dark:bg-slate-900 rounded-t-3xl p-8 space-y-6 transform transition-transform duration-300 translate-y-0">
+<div class="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-2"></div>
+<div class="flex flex-col items-center text-center space-y-4">
+<div class="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-600 dark:text-green-400">
+<span class="material-symbols-outlined text-5xl">check_circle</span>
+</div>
+<div>
+<h3 class="text-xl font-bold text-slate-900 dark:text-slate-100">Relatório Enviado</h3>
+<p class="text-slate-500 dark:text-slate-400 text-sm mt-1 max-w-[240px] mx-auto">
+                        Obrigado por nutrir este crescimento. A Central já foi notificada.
+                    </p>
+</div>
+<button class="w-full bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold py-3 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                    Fechar
+                </button>
+</div>
+</div>
+</div>
+</body></html>
