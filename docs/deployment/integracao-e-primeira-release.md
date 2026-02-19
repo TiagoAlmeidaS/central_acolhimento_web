@@ -14,10 +14,10 @@ A integração funcional (Web chamando a API do MS) já está implementada: cont
 | **URL da API no Web** | central_acolhimento_web | Definir `VITE_API_URL` no build/deploy (ex.: `https://api.seudominio.com`). Em dev, o client já usa fallback para `http://localhost:5000` (ou a porta em que o MS sobe). |
 | **Supabase (schema)** | Ambos | Rodar as [migrations](database/README.md) no projeto Supabase (`supabase db push`) ou executar o script SQL único. Sem isso, o MS em modo Supabase não encontra as tabelas. |
 | **Configuração Supabase no MS** | central_ms | Preencher `Supabase:Url` e `Supabase:ServiceRoleKey` (em `appsettings.Development.json` ou variáveis de ambiente) quando for usar persistência real. Sem isso, o MS usa in-memory. |
-| **Supabase Auth no Web** | central_acolhimento_web | Opcional para a primeira versão: login Google/Email, tabela `profiles`, proteção de rotas. Ver [auth-design](architecture/auth-design.md). |
-| **Proteger API com JWT** | central_ms | Opcional: validar JWT do Supabase no MS para garantir que apenas usuários autenticados acessem a API. |
+| **Supabase Auth no Web** | central_acolhimento_web | **Implementado:** login Google/Email, proteção de rotas, cliente API envia Bearer token. Ver [Implementação de Auth](architecture/auth-implementation.md). |
+| **Proteger API com JWT** | central_ms | **Implementado:** quando `Supabase:JwtSecret` está configurado, a API exige JWT válido em `/api/*`. Ver [Implementação de Auth](../architecture/auth-implementation.md). |
 
-Resumo: para a **primeira versão** basta garantir **VITE_API_URL** no deploy do Web e, se for usar banco real, **migrations no Supabase** e **config do Supabase no MS**. CORS já está ativo no MS. Auth e JWT podem vir depois.
+Resumo: para a **primeira versão** basta garantir **VITE_API_URL** no deploy do Web e, se for usar banco real, **migrations no Supabase** e **config do Supabase no MS**. CORS já está ativo no MS. Auth e JWT estão implementados; configure `VITE_SUPABASE_*` no Web e `Supabase:JwtSecret` no MS para ativar.
 
 ---
 

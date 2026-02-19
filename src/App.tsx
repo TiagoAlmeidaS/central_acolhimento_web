@@ -1,4 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from '@/contexts/AuthContext'
+import { ApiAuthBinder } from '@/components/ApiAuthBinder'
+import { RequireAuth } from '@/components/RequireAuth'
 import { Layout } from '@/components/Layout'
 import { LoginPage } from '@/pages/LoginPage'
 import { DashboardPage } from '@/pages/DashboardPage'
@@ -12,29 +15,32 @@ import { MetabolismoAlmaPage } from '@/pages/mobile/MetabolismoAlmaPage'
 
 function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      {/* Mobile-first (app irmão/cuidador) */}
-      <Route path="/meu-servico" element={<DashboardMeuServicoPage />} />
-      <Route path="/meu-servico/acolhidos" element={<DashboardMeuServicoPage />} />
-      <Route path="/meu-servico/oracoes" element={<DashboardMeuServicoPage />} />
-      <Route path="/meu-servico/perfil" element={<DashboardMeuServicoPage />} />
-      <Route path="/mapa" element={<MapaAcolhimentoPage />} />
-      <Route path="/mapa/equipe" element={<MapaAcolhimentoPage />} />
-      <Route path="/mapa/mapa-view" element={<MapaAcolhimentoPage />} />
-      <Route path="/mapa/dados" element={<MapaAcolhimentoPage />} />
-      <Route path="/mapa/ajustes" element={<MapaAcolhimentoPage />} />
-      <Route path="/metabolismo" element={<MetabolismoAlmaPage />} />
-      {/* Desktop (coordenação) */}
-      <Route path="/" element={<Layout />}>
-        <Route index element={<DashboardPage />} />
-        <Route path="cuidadores" element={<CuidadoresPage />} />
-        <Route path="convidados" element={<ConvidadosPage />} />
-        <Route path="relatorios" element={<RelatoriosPage />} />
-        <Route path="configuracoes" element={<ConfiguracoesPage />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <AuthProvider>
+      <ApiAuthBinder />
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        {/* Rotas protegidas (quando Supabase configurado) */}
+        <Route path="/meu-servico" element={<RequireAuth><DashboardMeuServicoPage /></RequireAuth>} />
+        <Route path="/meu-servico/acolhidos" element={<RequireAuth><DashboardMeuServicoPage /></RequireAuth>} />
+        <Route path="/meu-servico/oracoes" element={<RequireAuth><DashboardMeuServicoPage /></RequireAuth>} />
+        <Route path="/meu-servico/perfil" element={<RequireAuth><DashboardMeuServicoPage /></RequireAuth>} />
+        <Route path="/mapa" element={<RequireAuth><MapaAcolhimentoPage /></RequireAuth>} />
+        <Route path="/mapa/equipe" element={<RequireAuth><MapaAcolhimentoPage /></RequireAuth>} />
+        <Route path="/mapa/mapa-view" element={<RequireAuth><MapaAcolhimentoPage /></RequireAuth>} />
+        <Route path="/mapa/dados" element={<RequireAuth><MapaAcolhimentoPage /></RequireAuth>} />
+        <Route path="/mapa/ajustes" element={<RequireAuth><MapaAcolhimentoPage /></RequireAuth>} />
+        <Route path="/metabolismo" element={<RequireAuth><MetabolismoAlmaPage /></RequireAuth>} />
+        {/* Desktop (coordenação) */}
+        <Route path="/" element={<RequireAuth><Layout /></RequireAuth>}>
+          <Route index element={<DashboardPage />} />
+          <Route path="cuidadores" element={<CuidadoresPage />} />
+          <Route path="convidados" element={<ConvidadosPage />} />
+          <Route path="relatorios" element={<RelatoriosPage />} />
+          <Route path="configuracoes" element={<ConfiguracoesPage />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AuthProvider>
   )
 }
 

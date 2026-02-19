@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { faker } from '@faker-js/faker/locale/pt_BR'
-import { getMembros, createMembro, getContatosTci, atribuirResponsavel } from './client'
+import { setApiAuthTokenGetter, getMembros, createMembro, getContatosTci, atribuirResponsavel } from './client'
 import { PerfilServico, StatusVida } from './types'
 import type { Membro, ContatoTci } from './types'
 
@@ -35,6 +35,7 @@ describe('api client', () => {
 
   beforeEach(() => {
     globalThis.fetch = vi.fn()
+    setApiAuthTokenGetter(() => Promise.resolve(null))
   })
 
   afterEach(() => {
@@ -51,7 +52,7 @@ describe('api client', () => {
 
       const result = await getMembros()
 
-      expect(fetch).toHaveBeenCalledWith(`${baseUrl}/api/membros`)
+      expect(fetch).toHaveBeenCalledWith(`${baseUrl}/api/membros`, { headers: {} })
       expect(result).toEqual(lista)
       expect(result).toHaveLength(2)
     })
@@ -65,7 +66,7 @@ describe('api client', () => {
 
       await getMembros('Sapé')
 
-      expect(fetch).toHaveBeenCalledWith(`${baseUrl}/api/membros?bairro=${encodeURIComponent('Sapé')}`)
+      expect(fetch).toHaveBeenCalledWith(`${baseUrl}/api/membros?bairro=${encodeURIComponent('Sapé')}`, { headers: {} })
     })
   })
 
@@ -91,7 +92,7 @@ describe('api client', () => {
         `${baseUrl}/api/membros`,
         expect.objectContaining({
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
           body: JSON.stringify(body),
         })
       )
@@ -113,7 +114,7 @@ describe('api client', () => {
 
       expect(fetch).toHaveBeenCalledWith(
         `${baseUrl}/api/contatos-tci/${contatoId}/atribuir-responsavel/${membroId}`,
-        { method: 'POST' }
+        expect.objectContaining({ method: 'POST', headers: {} })
       )
       expect(result.ResponsavelId).toBe(membroId)
     })
@@ -141,7 +142,7 @@ describe('api client', () => {
 
       const result = await getContatosTci()
 
-      expect(fetch).toHaveBeenCalledWith(`${baseUrl}/api/contatos-tci`)
+      expect(fetch).toHaveBeenCalledWith(`${baseUrl}/api/contatos-tci`, { headers: {} })
       expect(result).toEqual(lista)
     })
   })

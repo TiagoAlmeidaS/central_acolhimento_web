@@ -6,6 +6,7 @@ Este repositório contém a aplicação **central_acolhimento_web**: interface P
 
 - [System Design Document (SSD)](architecture/system-design-document.md) — Visão geral do ecossistema, arquitetura, modelagem de dados, requisitos não funcionais e roadmap.
 - [Design de Autenticação](architecture/auth-design.md) — Login (Google, Email/Senha), perfil (Nome, Localidade: Igreja e Estado) e mapeamento com .NET 9 e Supabase.
+- [Implementação de Auth](architecture/auth-implementation.md) — O que foi implementado (Web + API), variáveis de ambiente e como ativar JWT.
 - [Mapeamento das Telas Stitch](telas-stitch-mapping.md) — Mapeamento das telas exportadas do Stitch para rotas e componentes do app React.
 - [Contratos Web ↔ Backend](apis/contratos-web-backend.md) — Endpoints, request/response e enums para integração com o central_ms.
 - [Scripts SQL Supabase](database/README.md) — Schema (profiles, membros, contatos_tci, interacoes_cuidado) e trigger de sincronização com Auth.

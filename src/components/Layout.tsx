@@ -1,4 +1,5 @@
-import { Outlet, NavLink } from 'react-router-dom'
+import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { useAuth } from '@/contexts/AuthContext'
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: 'hub' },
@@ -9,6 +10,17 @@ const navItems = [
 ]
 
 export function Layout() {
+  const { user, signOut, isConfigured } = useAuth()
+  const navigate = useNavigate()
+
+  const handleSignOut = async () => {
+    await signOut()
+    navigate('/login', { replace: true })
+  }
+
+  const displayName = user?.user_metadata?.full_name ?? user?.user_metadata?.nome ?? user?.email ?? 'Usuário'
+  const displayRole = user?.email ? (user.email.split('@')[0]) : 'Coordenador'
+
   return (
     <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display">
       <aside className="w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col shrink-0">
@@ -43,12 +55,22 @@ export function Layout() {
         <div className="p-4 border-t border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-3 p-2">
             <div className="size-10 rounded-full bg-primary/20 border border-primary/30 overflow-hidden flex items-center justify-center text-primary font-bold text-sm">
-              U
+              {displayName.charAt(0).toUpperCase()}
             </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-xs font-semibold truncate">Usuário</span>
-              <span className="text-[10px] text-slate-500">Coordenador</span>
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="text-xs font-semibold truncate">{displayName}</span>
+              <span className="text-[10px] text-slate-500 truncate">{user?.email ?? displayRole}</span>
             </div>
+            {isConfigured && (
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                title="Sair"
+              >
+                <span className="material-symbols-outlined text-xl">logout</span>
+              </button>
+            )}
           </div>
         </div>
       </aside>
