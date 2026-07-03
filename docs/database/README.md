@@ -1,81 +1,45 @@
-# Scripts de banco de dados (Supabase)
+# Database Guide
 
-Scripts SQL para criar e evoluir o schema no **Supabase** (PostgreSQL), alinhados ao [System Design Document](../architecture/system-design-document.md) e ao [Design de Autenticação](../architecture/auth-design.md).
+Este projeto usa PostgreSQL no monolito em Next.js.
 
-Há **duas formas** de aplicar o schema:
+Em producao, a recomendacao e conectar o banco pela integracao de Postgres da Vercel Marketplace, como Neon.
 
----
+## Estrutura atual
 
-## Opção 1: Migrations (recomendado)
+- `supabase/migrations/` — migrations SQL versionadas do projeto
+- `supabase/seed.sql` — dados iniciais do MVP
 
-Use o **Supabase CLI** para versionar e aplicar alterações via migrations. Ideal para CI/CD e para manter histórico de mudanças no banco.
+O nome da pasta `supabase/` foi mantido apenas para preservar o historico do repositório durante a migracao. Ela agora funciona como pasta de SQL versionado do projeto.
 
-### Pré-requisitos
+## Migrations ativas
 
-- [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started) instalado
-- Projeto criado no [Dashboard Supabase](https://supabase.com/dashboard)
+- `20260702220000_create_mvp_monolith_schema.sql` — novo schema do MVP do monolito
 
-### Fluxo
+## Como aplicar
 
-1. **Inicializar (uma vez)** — na raiz do repositório (onde está a pasta `supabase/`):
-   ```bash
-   supabase init
-   ```
-   (Se a pasta `supabase/` já existir com `migrations/`, pode pular.)
+Voce pode aplicar as migrations por qualquer fluxo que aceite SQL PostgreSQL:
 
-2. **Vincular ao projeto remoto** — associe o CLI ao projeto no Dashboard:
-   ```bash
-   supabase login
-   supabase link --project-ref <seu-project-ref>
-   ```
-   O `project-ref` aparece na URL do projeto no Dashboard (ex.: `https://supabase.com/dashboard/project/abcdefgh` → ref é `abcdefgh`).
+1. via editor SQL do provedor
+2. via CLI do provedor
+3. via ferramenta de migrations adotada pelo time
 
-3. **Aplicar as migrations** — envia as migrations pendentes para o banco remoto:
-   ```bash
-   supabase db push
-   ```
+## Ordem recomendada
 
-4. **Criar novas migrations** — ao alterar o schema no futuro:
-   ```bash
-   supabase migration new nome_da_alteracao
-   ```
-   Edite o arquivo gerado em `supabase/migrations/` e depois rode `supabase db push` de novo.
+1. aplicar a migration do schema do MVP
+2. aplicar o `seed.sql` se quiser dados iniciais
+3. configurar as variaveis de ambiente do banco na Vercel
 
-### Estrutura
+## Variaveis de ambiente aceitas pelo app
 
-- **`supabase/migrations/`** — arquivos SQL com timestamp no nome (ex.: `20260218120000_create_central_acolhimento_schema.sql`). São aplicados em ordem e versionados no Supabase.
+- `POSTGRES_URL_NON_POOLING`
+- `POSTGRES_URL`
+- `DATABASE_URL`
 
-### Desenvolvimento local (opcional)
+O app usa a primeira disponivel nessa ordem.
 
-Com Docker, você pode subir um Supabase local e testar as migrations sem tocar no projeto remoto:
+## Arquivos legados
 
-```bash
-supabase start
-supabase db reset   # aplica todas as migrations + seed (se houver supabase/seed.sql)
-```
+Os arquivos abaixo foram mantidos apenas como historico:
 
----
-
-## Opção 2: Script SQL único (manual)
-
-Se não quiser usar o CLI, execute o script único no SQL Editor do Dashboard:
-
-1. Abra o [Dashboard do Supabase](https://supabase.com/dashboard) e selecione o projeto.
-2. Vá em **SQL Editor** e crie uma nova query.
-3. Cole o conteúdo de **`docs/database/supabase-schema.sql`** e execute.
-
-Use esta opção para um setup rápido ou quando não for usar migrations.
-
----
-
-## Conteúdo do schema
-
-| Artefato | Descrição |
-|----------|-----------|
-| **Enums** | `perfil_servico`, `status_vida`, `tipo_interacao` (valores textuais alinhados ao .NET). |
-| **profiles** | Perfil do usuário (id, nome, email, igreja, estado, avatar_url). Sincronizado com `auth.users` via trigger. |
-| **membros** | Rede de Cuidado (nome, whatsapp, bairro, perfil_servico, limite_acolhimento, user_id → profiles). |
-| **contatos_tci** | Convidados (nome, whatsapp, status_vida, responsavel_id → membros). |
-| **interacoes_cuidado** | Logs de cuidado (contato_id, membro_id, tipo, relato_metabolico). |
-
-O trigger `on_auth_user_sync_profile` preenche/atualiza `public.profiles` sempre que um usuário é inserido ou atualizado em `auth.users`.
+- `docs/database/supabase-schema.sql`
+- `supabase/migrations/20260218120000_create_central_acolhimento_schema.sql`

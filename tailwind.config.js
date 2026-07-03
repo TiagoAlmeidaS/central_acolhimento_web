@@ -1,8 +1,8 @@
-/** @type {import('tailwindcss').Config} */
-export default {
+const config = {
   content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/ui/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/auth/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   darkMode: "class",
   theme: {
@@ -28,7 +28,12 @@ export default {
         xl: "0.75rem",
         full: "9999px",
       },
+      boxShadow: {
+        panel: "0 18px 50px rgba(15, 23, 42, 0.08)",
+      },
     },
   },
   plugins: [],
-}
+};
+
+export default config;

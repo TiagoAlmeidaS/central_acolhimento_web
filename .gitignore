@@ -4,7 +4,9 @@
 # Build / cache
 dist/
 .vite/
+.next/
 *.local
+*.tsbuildinfo
 
 # Env (nunca versionar chaves)
 .env

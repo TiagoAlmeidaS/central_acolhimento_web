@@ -1,16 +1,19 @@
-# Supabase – Migrations
+# SQL Versionado do Projeto
 
-Esta pasta é usada pelo **Supabase CLI** para migrations do banco de dados.
+Esta pasta guarda os arquivos SQL versionados do monolito.
 
-- **`migrations/`** — arquivos SQL versionados, aplicados em ordem com `supabase db push`.
+O nome `supabase/` foi mantido apenas para preservar o historico do repositório durante a migracao. A pasta agora deve ser lida como:
 
-Documentação completa: [docs/database/README.md](../docs/database/README.md).
+- `migrations/` — schema versionado do projeto
+- `seed.sql` — dados iniciais para ambiente local/demo
 
-Comandos úteis:
+## Arquivos ativos
 
-```bash
-supabase init          # primeira vez (cria config se não existir)
-supabase link          # vincular ao projeto no Dashboard
-supabase db push       # aplicar migrations ao projeto remoto
-supabase migration new <nome>   # criar nova migration
-```
+- `migrations/20260702220000_create_mvp_monolith_schema.sql`
+- `seed.sql`
+
+## Arquivos legados
+
+- `migrations/20260218120000_create_central_acolhimento_schema.sql`
+
+Esse arquivo legado existe apenas como contexto da fase anterior baseada em Supabase.

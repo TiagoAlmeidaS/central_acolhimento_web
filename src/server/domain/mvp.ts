@@ -1,0 +1,206 @@
+export type TenantStatus = "active" | "inactive";
+export type AppRole = "coordinator" | "caregiver";
+export type MemberStatus = "new" | "in_progress" | "consolidated" | "inactive";
+export type SeedStatus = "new" | "contacted" | "in_progress" | "consolidated" | "inactive";
+export type FollowupType = "visit" | "call" | "message" | "prayer" | "other";
+export type InvitationStatus = "pending" | "accepted" | "revoked" | "expired";
+
+export type Tenant = {
+  id: string;
+  name: string;
+  city: string;
+  state: string;
+  status: TenantStatus;
+  coordinator: string | null;
+  createdAt?: string;
+};
+
+export type TenantUser = {
+  id: string;
+  tenantId: string;
+  authUserId: string | null;
+  appUserId?: string | null;
+  name: string;
+  email: string | null;
+  role: AppRole;
+  active: boolean;
+};
+
+export type AppUser = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  active: boolean;
+  createdAt?: string;
+};
+
+export type Caregiver = {
+  id: string;
+  tenantId: string;
+  tenantUserId: string | null;
+  name: string;
+  phone: string;
+  email: string | null;
+  active: boolean;
+  notes: string;
+  city?: string;
+  activeMembers?: number;
+  createdAt?: string;
+};
+
+export type Seed = {
+  id: string;
+  tenantId: string;
+  caregiverId: string | null;
+  referenceName: string;
+  phone: string;
+  city: string;
+  source: string;
+  status: SeedStatus;
+  notes: string;
+  firstContactAt: string | null;
+  caregiver?: string | null;
+  createdAt?: string;
+};
+
+export type Member = {
+  id: string;
+  tenantId: string;
+  caregiverId: string | null;
+  seedId: string | null;
+  name: string;
+  phone: string;
+  address: string;
+  city: string;
+  birthDate: string | null;
+  status: MemberStatus;
+  notes: string;
+  caregiver?: string | null;
+  lastContact?: string | null;
+  createdAt?: string;
+};
+
+export type Followup = {
+  id: string;
+  tenantId: string;
+  memberId: string;
+  caregiverId: string | null;
+  type: FollowupType;
+  occurredAt: string;
+  notes: string;
+  nextActionAt: string | null;
+  member?: string | null;
+  caregiver?: string | null;
+  createdAt?: string;
+};
+
+export type DashboardCard = {
+  label: string;
+  value: string;
+  detail: string;
+};
+
+export type CaregiverInvitation = {
+  id: string;
+  tenantId: string;
+  role: AppRole;
+  email: string | null;
+  token: string;
+  status: InvitationStatus;
+  expiresAt: string;
+  acceptedAt: string | null;
+  inviteUrl: string;
+  createdAt?: string;
+};
+
+export type CreateTenantInput = {
+  name: string;
+  city: string;
+  state: string;
+  status?: TenantStatus;
+  coordinator?: string | null;
+};
+
+export type UpdateTenantInput = CreateTenantInput;
+
+export type CreateCaregiverInput = {
+  tenantId: string;
+  tenantUserId?: string | null;
+  name: string;
+  phone?: string;
+  email?: string | null;
+  active?: boolean;
+  notes?: string;
+};
+
+export type UpdateCaregiverInput = CreateCaregiverInput;
+
+export type CreateSeedInput = {
+  tenantId: string;
+  caregiverId?: string | null;
+  referenceName: string;
+  phone?: string;
+  city?: string;
+  source?: string;
+  status?: SeedStatus;
+  notes?: string;
+  firstContactAt?: string | null;
+};
+
+export type UpdateSeedInput = CreateSeedInput;
+
+export type ConvertSeedToMemberInput = {
+  caregiverId?: string | null;
+  address?: string;
+  birthDate?: string | null;
+  notes?: string;
+};
+
+export type CreateMemberInput = {
+  tenantId: string;
+  caregiverId?: string | null;
+  seedId?: string | null;
+  name: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  birthDate?: string | null;
+  status?: MemberStatus;
+  notes?: string;
+};
+
+export type UpdateMemberInput = CreateMemberInput;
+
+export type CreateFollowupInput = {
+  tenantId: string;
+  memberId: string;
+  caregiverId?: string | null;
+  type: FollowupType;
+  occurredAt?: string;
+  notes?: string;
+  nextActionAt?: string | null;
+};
+
+export type UpdateFollowupInput = CreateFollowupInput;
+
+export type CreateCaregiverInvitationInput = {
+  tenantId: string;
+  email?: string | null;
+  expiresInDays?: number;
+  createdByTenantUserId?: string | null;
+};
+
+export type AcceptCaregiverInvitationInput = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  password: string;
+};
+
+export type LoginInput = {
+  email: string;
+  password: string;
+};

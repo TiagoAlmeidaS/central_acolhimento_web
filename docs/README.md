@@ -1,21 +1,29 @@
-# Documentação - Central de Acolhimento (Web)
+# Documentacao - Central de Acolhimento (Monolito)
 
-Este repositório contém a aplicação **central_acolhimento_web**: interface PWA (React + Vite) para coordenadores e irmãos, com dashboards e formulários de cadastro de convidados (TCI) e gestão da Rede de Cuidado.
+Este repositório contém a aplicacao **central_acolhimento_web** no formato de monolito em Next.js, com frontend e backend no mesmo projeto.
 
-## Índice
+## Documentacao ativa
 
-- [System Design Document (SSD)](architecture/system-design-document.md) — Visão geral do ecossistema, arquitetura, modelagem de dados, requisitos não funcionais e roadmap.
-- [Design de Autenticação](architecture/auth-design.md) — Login (Google, Email/Senha), perfil (Nome, Localidade: Igreja e Estado) e mapeamento com .NET 9 e Supabase.
-- [Implementação de Auth](architecture/auth-implementation.md) — O que foi implementado (Web + API), variáveis de ambiente e como ativar JWT.
-- [Mapeamento das Telas Stitch](telas-stitch-mapping.md) — Mapeamento das telas exportadas do Stitch para rotas e componentes do app React.
-- [Contratos Web ↔ Backend](apis/contratos-web-backend.md) — Endpoints, request/response e enums para integração com o central_ms.
-- [Scripts SQL Supabase](database/README.md) — Schema (profiles, membros, contatos_tci, interacoes_cuidado) e trigger de sincronização com Auth.
-- [Integração Web ↔ MS e primeira release](deployment/integracao-e-primeira-release.md) — O que falta para integração, .gitignore e passo a passo do primeiro push.
+- [Next Monolith Notes](architecture/next-monolith-implementation-notes.md) — estado atual da migracao para o monolito.
+- [Next Migration Assessment](architecture/next-migration-assessment.md) — diagnostico da base antiga e racional da migracao.
+- [Next + Vercel Migration Spec](architecture/next-vercel-migration-spec.md) — estrategia de migracao e publicacao.
+- [Database Guide](database/README.md) — uso de migrations e seed para o schema atual.
+- [MVP Monolith Schema](database/mvp-monolith-schema.md) — entidades ativas do MVP (`tenants`, `caregivers`, `members`, `followups`, `seeds`).
+- [Postgres Setup on Vercel](database/vercel-postgres-setup.md) — variaveis e fluxo recomendado para conectar o banco na Vercel.
+- [Mapeamento das Telas Stitch](telas-stitch-mapping.md) — referencia visual usada para portar as telas.
 
-## Estrutura futura (estilo Backstage)
+## Documentacao legada
 
-Conforme novas funcionalidades e APIs forem implementadas, a documentação será organizada em:
+Os arquivos abaixo foram mantidos apenas como contexto historico da fase anterior e podem ser arquivados no futuro:
 
-- **components/** — Catálogo de componentes e módulos do front-end.
-- **apis/** — Registro de contratos e endpoints consumidos pelo Web (em uso: contratos-web-backend.md).
-- **adr/** — Architecture Decision Records (decisões de design e arquitetura).
+- `architecture/auth-design.md`
+- `architecture/auth-implementation.md`
+- `architecture/system-design-document.md`
+- `deployment/integracao-e-primeira-release.md`
+- `database/supabase-schema.sql`
+
+## Estrutura futura
+
+- `components/` — catalogo de componentes e modulos do front-end
+- `apis/` — contratos e endpoints do monolito
+- `adr/` — decisoes arquiteturais formais
