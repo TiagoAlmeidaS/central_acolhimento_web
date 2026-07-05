@@ -1,4 +1,6 @@
-import { updateCaregiver } from "@/server/repositories/mvp-repository";
+import { assertSessionCanAccessRecord, assertSessionRole, getDataScopeFromSession, resolveTenantId } from "@/server/auth/access-scope";
+import { requireServerAuthSession } from "@/server/auth/session";
+import { listCaregivers, updateCaregiver } from "@/server/repositories/mvp-repository";
 
 type RouteContext = {
   params: Promise<{ caregiverId: string }>;
@@ -6,7 +8,14 @@ type RouteContext = {
 
 export async function PUT(request: Request, context: RouteContext) {
   try {
+    const session = await requireServerAuthSession();
+    assertSessionRole(session, "coordinator");
     const { caregiverId } = await context.params;
+    const currentCaregiver = (await listCaregivers(getDataScopeFromSession(session))).find((item) => item.id === caregiverId);
+    if (!currentCaregiver) {
+      return Response.json({ error: "Cuidador nao encontrado." }, { status: 404 });
+    }
+    assertSessionCanAccessRecord(session, currentCaregiver);
     const body = (await request.json()) as {
       tenantId?: string;
       tenantUserId?: string | null;
@@ -22,7 +31,7 @@ export async function PUT(request: Request, context: RouteContext) {
     }
 
     const caregiver = await updateCaregiver(caregiverId, {
-      tenantId: body.tenantId,
+      tenantId: resolveTenantId(session, body.tenantId),
       tenantUserId: body.tenantUserId ?? null,
       name: body.name,
       phone: body.phone,

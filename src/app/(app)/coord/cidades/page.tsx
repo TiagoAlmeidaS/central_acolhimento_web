@@ -1,51 +1,140 @@
+export const dynamic = "force-dynamic";
+
 import { listCaregiverInvitations } from "@/server/repositories/invitation-repository";
 import { listTenants } from "@/server/repositories/mvp-repository";
+import { getDataScopeFromSession } from "@/server/auth/access-scope";
+import { requireServerAuthSession } from "@/server/auth/session";
 import { CaregiverInvitationManager } from "@/ui/mvp/caregiver-invitation-manager";
 import { TenantManager } from "@/ui/mvp/tenant-manager";
 
 export default async function CitiesPage() {
-  const [tenants, invitations] = await Promise.all([listTenants(), listCaregiverInvitations()]);
+  const session = await requireServerAuthSession("coordinator");
+  const scope = getDataScopeFromSession(session);
+  const [tenants, invitations] = await Promise.all([
+    listTenants(scope),
+    listCaregiverInvitations(session.membership.tenantId),
+  ]);
 
   return (
-    <div className="min-h-screen bg-background-light px-6 py-8 md:px-8">
-      <div className="max-w-6xl space-y-6">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-primary">Tenant</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Cidades</h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-500">
-            A cidade entra agora como entidade central do produto para a base já nascer pronta para escalar.
-          </p>
-        </div>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", padding: "0 0 48px" }}>
+      {/* Page header */}
+      <div style={{
+        padding: "32px 40px 24px",
+        borderBottom: "1px solid var(--border)",
+        background: "var(--surface)",
+        marginBottom: 32,
+      }}>
+        <p style={{
+          fontSize: 11, fontWeight: 700,
+          letterSpacing: "0.08em", textTransform: "uppercase",
+          color: "var(--accent)", marginBottom: 6,
+        }}>
+          Coordenação · Multi-Tenant
+        </p>
+        <h1 style={{
+          margin: 0,
+          fontSize: 28, fontWeight: 800,
+          letterSpacing: "-0.03em", color: "var(--text)",
+          lineHeight: 1.1,
+        }}>
+          Localidades
+        </h1>
+        <p style={{ marginTop: 8, fontSize: 14, color: "var(--text-2)", maxWidth: 560 }}>
+          Cada localidade é a unidade operacional central do produto — já nascendo preparada para escalar o acolhimento em múltiplas cidades.
+        </p>
+      </div>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {tenants.map((tenant) => (
-            <article key={tenant.id} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-panel">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-slate-900">{tenant.name}</h2>
-                <span className="rounded-full bg-success/10 px-3 py-1 text-xs font-bold text-success">
-                  {tenant.status === "active" ? "Ativa" : "Inativa"}
-                </span>
-              </div>
-              <dl className="mt-5 space-y-3 text-sm text-slate-600">
-                <div className="flex justify-between gap-4">
-                  <dt>Cidade</dt>
-                  <dd className="font-semibold text-slate-900">{tenant.city}</dd>
+      <div style={{ padding: "0 40px", display: "flex", flexDirection: "column", gap: 48 }}>
+        {/* Active tenants overview */}
+        {tenants.length > 0 && (
+          <section>
+            <h2 style={{
+              margin: "0 0 16px",
+              fontSize: 14, fontWeight: 700,
+              color: "var(--text-2)", letterSpacing: "0.04em",
+              textTransform: "uppercase",
+            }}>
+              Panorama — {tenants.length} {tenants.length === 1 ? "localidade" : "localidades"}
+            </h2>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+              gap: 16,
+            }}>
+              {tenants.map((tenant) => (
+                <div
+                  key={tenant.id}
+                  style={{
+                    padding: "20px 22px",
+                    borderRadius: 16,
+                    background: "var(--surface)",
+                    border: "1px solid var(--border)",
+                    boxShadow: "var(--shadow-card)",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+                    <div>
+                      <div style={{
+                        fontSize: 16, fontWeight: 700,
+                        color: "var(--text)", letterSpacing: "-0.02em",
+                      }}>
+                        {tenant.name}
+                      </div>
+                      <div style={{
+                        fontSize: 13, color: "var(--text-2)", marginTop: 4,
+                      }}>
+                        {tenant.city}, {tenant.state}
+                      </div>
+                    </div>
+                    <span style={{
+                      fontSize: 11, fontWeight: 700,
+                      padding: "3px 10px", borderRadius: 999,
+                      background: tenant.status === "active" ? "#DCFCE7" : "#F4F4F5",
+                      color: tenant.status === "active" ? "#15803D" : "#71717A",
+                      whiteSpace: "nowrap", marginTop: 2,
+                    }}>
+                      {tenant.status === "active" ? "Ativa" : "Inativa"}
+                    </span>
+                  </div>
+                  {tenant.coordinator && (
+                    <div style={{
+                      marginTop: 12, fontSize: 12.5,
+                      color: "var(--text-3)",
+                    }}>
+                      Coord. {tenant.coordinator}
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-between gap-4">
-                  <dt>Estado</dt>
-                  <dd className="font-semibold text-slate-900">{tenant.state}</dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt>Coordenador</dt>
-                  <dd className="font-semibold text-slate-900">{tenant.coordinator ?? "Nao definido"}</dd>
-                </div>
-              </dl>
-            </article>
-          ))}
-        </div>
+              ))}
+            </div>
+          </section>
+        )}
 
-        <TenantManager tenants={tenants} />
-        <CaregiverInvitationManager tenants={tenants} invitations={invitations} />
+        {/* Tenant form + list */}
+        <section>
+          <h2 style={{
+            margin: "0 0 16px",
+            fontSize: 14, fontWeight: 700,
+            color: "var(--text-2)", letterSpacing: "0.04em",
+            textTransform: "uppercase",
+          }}>
+            Gerenciar localidades
+          </h2>
+          <TenantManager tenants={tenants} />
+        </section>
+
+        {/* Caregiver invitations */}
+        <section>
+          <h2 style={{
+            margin: "0 0 16px",
+            fontSize: 14, fontWeight: 700,
+            color: "var(--text-2)", letterSpacing: "0.04em",
+            textTransform: "uppercase",
+          }}>
+            Convites de cuidadores
+          </h2>
+          <CaregiverInvitationManager tenants={tenants} invitations={invitations} />
+        </section>
       </div>
     </div>
   );

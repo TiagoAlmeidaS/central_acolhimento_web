@@ -1,3 +1,5 @@
+import { assertSessionCanAccessRecord } from "@/server/auth/access-scope";
+import { requireServerAuthSession } from "@/server/auth/session";
 import { updateTenant } from "@/server/repositories/mvp-repository";
 
 type RouteContext = {
@@ -6,7 +8,9 @@ type RouteContext = {
 
 export async function PUT(request: Request, context: RouteContext) {
   try {
+    const session = await requireServerAuthSession("coordinator");
     const { tenantId } = await context.params;
+    assertSessionCanAccessRecord(session, { tenantId });
     const body = (await request.json()) as {
       name?: string;
       city?: string;

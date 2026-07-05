@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: central-acolhimento-postgres
+    environment:
+      POSTGRES_DB: central_acolhimento
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - central_acolhimento_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d central_acolhimento"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: central-acolhimento-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      POSTGRES_URL_NON_POOLING: postgres://postgres:postgres@postgres:5432/central_acolhimento?sslmode=disable
+      POSTGRES_URL: postgres://postgres:postgres@postgres:5432/central_acolhimento?sslmode=disable
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/central_acolhimento?sslmode=disable
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      APP_URL: http://localhost:3000
+      SKIP_DB_MIGRATIONS: "false"
+      SKIP_DB_SEED: "false"
+    ports:
+      - "3000:3000"
+
+volumes:
+  central_acolhimento_pgdata:

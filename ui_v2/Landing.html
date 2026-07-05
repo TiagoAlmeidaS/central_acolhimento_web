@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Acolhe · Central de acolhimento pastoral</title>
+<meta name="description" content="A Acolhe é uma central de cuidado pastoral para comunidades de fé. Localidade fechada, agente de IA e equipe de cuidadores em um só lugar." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  }
+
+  .app-light {
+    --bg: #F5F5F7;
+    --surface: #FFFFFF;
+    --surface-2: #F8F9FB;
+    --border: #E8EAEE;
+    --border-strong: #D5D9E0;
+
+    --text: #0F172A;
+    --text-2: #4B5563;
+    --text-3: #94A3B8;
+
+    --accent: #2D7FF9;
+    --accent-strong: #1F6BE0;
+    --accent-bg: #E8F1FE;
+
+    --shadow-card: 0 1px 2px rgba(15,23,42,0.04), 0 1px 0 rgba(15,23,42,0.02);
+  }
+
+  .app-dark {
+    --bg: #0B1220;
+    --surface: #131A2A;
+    --surface-2: #1B2336;
+    --border: #232C42;
+    --border-strong: #344058;
+    --text: #F1F5F9;
+    --text-2: #94A3B8;
+    --text-3: #64748B;
+    --accent: #60A5FA;
+    --accent-strong: #3B82F6;
+    --accent-bg: rgba(96,165,250,0.14);
+    --shadow-card: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.25);
+  }
+
+  html, body {
+    margin: 0; padding: 0;
+    font-family: var(--font-sans);
+    background: #F5F5F7;
+    color: #0F172A;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  button, input, select, textarea { font-family: inherit; }
+
+  /* hide scrollbars on the phone mockups */
+  .app-light *::-webkit-scrollbar,
+  .app-dark *::-webkit-scrollbar { width: 0; height: 0; }
+  select option { color: #0F172A; background: #fff; }
+
+  /* responsive */
+  @media (max-width: 1024px) {
+    .ln-mid { display: none !important; }
+    .ln-hero-grid { grid-template-columns: 1fr !important; }
+    .ln-hero-phones { height: 700px !important; }
+    .ln-split { grid-template-columns: 1fr !important; }
+    .ln-features { grid-template-columns: repeat(2, 1fr) !important; }
+    .ln-ai-grid { grid-template-columns: 1fr !important; }
+    .ln-footer { grid-template-columns: 1fr 1fr !important; }
+  }
+  @media (max-width: 640px) {
+    .ln-features { grid-template-columns: 1fr !important; }
+    .ln-pricing { grid-template-columns: 1fr !important; }
+    .ln-footer { grid-template-columns: 1fr !important; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="app/data.jsx"></script>
+<script type="text/babel" src="app/icons.jsx"></script>
+<script type="text/babel" src="app/ui.jsx"></script>
+<script type="text/babel" src="app/screens-onboarding.jsx"></script>
+<script type="text/babel" src="app/screens-main.jsx"></script>
+<script type="text/babel" src="app/screens-team.jsx"></script>
+<script type="text/babel" src="app/screens-billing.jsx"></script>
+<script type="text/babel" src="app/screens-tenant-setup.jsx"></script>
+<script type="text/babel" src="app/screens-dashboard.jsx"></script>
+<script type="text/babel" src="app/app.jsx"></script>
+<script type="text/babel" src="app/landing.jsx"></script>
+
+<script type="text/babel">
+function Root() {
+  const goToApp = () => {
+    window.location.href = 'Central Acolhimento.html';
+  };
+  return <LandingPage onLaunchApp={goToApp} />;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Root />);
+</script>
+</body>
+</html>

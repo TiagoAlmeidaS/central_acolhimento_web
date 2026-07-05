@@ -1,56 +1,129 @@
+export const dynamic = "force-dynamic";
+
 import { listCaregivers, listMembers, listTenants } from "@/server/repositories/mvp-repository";
+import { getDataScopeFromSession } from "@/server/auth/access-scope";
+import { requireServerAuthSession } from "@/server/auth/session";
 import { MemberManager } from "@/ui/mvp/member-manager";
+import type { Member } from "@/server/domain/mvp";
+
+const STATUS_LABELS: Record<Member["status"], string> = {
+  new: "Novo",
+  in_progress: "Em acompanhamento",
+  consolidated: "Consolidado",
+  inactive: "Inativo",
+};
+
+const STATUS_COLORS: Record<Member["status"], { bg: string; fg: string }> = {
+  new: { bg: "#FFEDD5", fg: "#C2410C" },
+  in_progress: { bg: "#DBEAFE", fg: "#1D4ED8" },
+  consolidated: { bg: "#DCFCE7", fg: "#15803D" },
+  inactive: { bg: "#F4F4F5", fg: "#71717A" },
+};
 
 export default async function MembersPage() {
-  const [members, tenants, caregivers] = await Promise.all([listMembers(), listTenants(), listCaregivers()]);
+  const session = await requireServerAuthSession("coordinator");
+  const scope = getDataScopeFromSession(session);
+  const [members, tenants, caregivers] = await Promise.all([
+    listMembers(scope),
+    listTenants(scope),
+    listCaregivers(scope),
+  ]);
+
+  // Aggregate by status
+  const statusCounts = Object.keys(STATUS_LABELS).reduce(
+    (acc, key) => {
+      acc[key as Member["status"]] = members.filter((m) => m.status === key).length;
+      return acc;
+    },
+    {} as Record<Member["status"], number>
+  );
 
   return (
-    <div className="min-h-screen bg-background-light px-6 py-8 md:px-8">
-      <div className="max-w-7xl space-y-6">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-primary">Coordenação</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Membros em acolhimento</h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-500">
-            O cadastro agora já nasce com linguagem de negócio alinhada ao MVP, substituindo a ideia antiga de
-            convidados/TCI.
-          </p>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", padding: "0 0 48px" }}>
+      {/* Page header */}
+      <div style={{
+        padding: "32px 40px 24px",
+        borderBottom: "1px solid var(--border)",
+        background: "var(--surface)",
+        marginBottom: 32,
+      }}>
+        <p style={{
+          fontSize: 11, fontWeight: 700,
+          letterSpacing: "0.08em", textTransform: "uppercase",
+          color: "var(--accent)", marginBottom: 6,
+        }}>
+          Coordenação · Acolhimento
+        </p>
+        <h1 style={{
+          margin: 0,
+          fontSize: 28, fontWeight: 800,
+          letterSpacing: "-0.03em", color: "var(--text)",
+          lineHeight: 1.1,
+        }}>
+          Membros em acolhimento
+        </h1>
+        <p style={{ marginTop: 8, fontSize: 14, color: "var(--text-2)", maxWidth: 560 }}>
+          Cadastre e gerencie todas as pessoas acompanhadas pela Central. O fluxo pastoral concentrado num único lugar.
+        </p>
+      </div>
+
+      <div style={{ padding: "0 40px", display: "flex", flexDirection: "column", gap: 40 }}>
+        {/* Status breakdown */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+          gap: 16,
+        }}>
+          {(Object.keys(STATUS_LABELS) as Member["status"][]).map((key) => {
+            const col = STATUS_COLORS[key];
+            return (
+              <div
+                key={key}
+                style={{
+                  padding: "20px 22px", borderRadius: 16,
+                  background: "var(--surface)", border: "1px solid var(--border)",
+                  boxShadow: "var(--shadow-card)",
+                }}
+              >
+                <div style={{ fontSize: 12, color: "var(--text-2)", fontWeight: 500, marginBottom: 8 }}>
+                  {STATUS_LABELS[key]}
+                </div>
+                <div style={{
+                  fontSize: 32, fontWeight: 800, lineHeight: 1,
+                  color: col.fg, letterSpacing: "-0.04em",
+                  fontVariantNumeric: "tabular-nums",
+                }}>
+                  {statusCounts[key]}
+                </div>
+                <div style={{
+                  marginTop: 8, height: 4, borderRadius: 2,
+                  background: col.bg,
+                  overflow: "hidden",
+                }}>
+                  <div style={{
+                    height: "100%", borderRadius: 2,
+                    background: col.fg,
+                    width: members.length > 0
+                      ? `${(statusCounts[key] / members.length) * 100}%`
+                      : "0%",
+                    transition: "width .4s",
+                  }} />
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-panel">
-          <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-            <thead className="bg-slate-50">
-              <tr className="text-xs font-black uppercase tracking-[0.3em] text-slate-500">
-                <th className="px-6 py-4">Nome</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Cuidador</th>
-                <th className="px-6 py-4">Cidade</th>
-                <th className="px-6 py-4">Último contato</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {members.map((member) => (
-                <tr key={member.id}>
-                  <td className="px-6 py-4">
-                    <div>
-                      <p className="font-semibold text-slate-900">{member.name}</p>
-                      <p className="text-xs text-slate-500">{member.phone}</p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
-                      {member.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 font-medium text-slate-700">{member.caregiver ?? "Nao atribuido"}</td>
-                  <td className="px-6 py-4 text-slate-600">{member.city}</td>
-                  <td className="px-6 py-4 text-slate-600">{member.lastContact ?? "Sem contato"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <MemberManager members={members} tenants={tenants} caregivers={caregivers} />
+        {/* Manager (form + table) */}
+        <section>
+          <h2 style={{
+            margin: "0 0 16px", fontSize: 14, fontWeight: 700,
+            color: "var(--text-2)", letterSpacing: "0.04em", textTransform: "uppercase",
+          }}>
+            Gerenciar membros
+          </h2>
+          <MemberManager members={members} tenants={tenants} caregivers={caregivers} />
+        </section>
       </div>
     </div>
   );

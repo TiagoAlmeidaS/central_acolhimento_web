@@ -1,4 +1,6 @@
-import { convertSeedToMember } from "@/server/repositories/mvp-repository";
+import { assertSessionCanAccessRecord, getDataScopeFromSession, resolveCaregiverId } from "@/server/auth/access-scope";
+import { requireServerAuthSession } from "@/server/auth/session";
+import { convertSeedToMember, listSeeds } from "@/server/repositories/mvp-repository";
 
 type RouteContext = {
   params: Promise<{ seedId: string }>;
@@ -6,7 +8,13 @@ type RouteContext = {
 
 export async function POST(request: Request, context: RouteContext) {
   try {
+    const session = await requireServerAuthSession();
     const { seedId } = await context.params;
+    const seed = (await listSeeds(getDataScopeFromSession(session))).find((item) => item.id === seedId);
+    if (!seed) {
+      return Response.json({ error: "Novo contato nao encontrado." }, { status: 404 });
+    }
+    assertSessionCanAccessRecord(session, seed);
     const body = (await request.json().catch(() => ({}))) as {
       caregiverId?: string | null;
       address?: string;
@@ -15,7 +23,9 @@ export async function POST(request: Request, context: RouteContext) {
     };
 
     const member = await convertSeedToMember(seedId, {
-      caregiverId: body.caregiverId ?? null,
+      caregiverId: resolveCaregiverId(session, body.caregiverId ?? seed.caregiverId ?? null, {
+        allowUnassignedForCoordinator: true,
+      }),
       address: body.address,
       birthDate: body.birthDate ?? null,
       notes: body.notes,

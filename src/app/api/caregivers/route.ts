@@ -1,8 +1,18 @@
+export const dynamic = "force-dynamic";
+
+import {
+  assertSessionRole,
+  getDataScopeFromSession,
+  resolveCaregiverId,
+  resolveTenantId,
+} from "@/server/auth/access-scope";
+import { requireServerAuthSession } from "@/server/auth/session";
 import { createCaregiver, listCaregivers } from "@/server/repositories/mvp-repository";
 
 export async function GET() {
   try {
-    const caregivers = await listCaregivers();
+    const session = await requireServerAuthSession("coordinator");
+    const caregivers = await listCaregivers(getDataScopeFromSession(session));
     return Response.json(caregivers);
   } catch (error) {
     return Response.json(
@@ -14,6 +24,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const session = await requireServerAuthSession();
+    assertSessionRole(session, "coordinator");
     const body = (await request.json()) as {
       tenantId?: string;
       tenantUserId?: string | null;
@@ -32,7 +44,7 @@ export async function POST(request: Request) {
     }
 
     const caregiver = await createCaregiver({
-      tenantId: body.tenantId,
+      tenantId: resolveTenantId(session, body.tenantId),
       tenantUserId: body.tenantUserId ?? null,
       name: body.name,
       phone: body.phone,

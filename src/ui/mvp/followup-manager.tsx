@@ -3,14 +3,40 @@
 import { startTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Caregiver, Followup, Member, Tenant } from "@/server/domain/mvp";
-import { PanelShell } from "@/ui/mvp/panel-shell";
+import {
+  Card,
+  Button,
+  Select,
+  Textarea,
+  SectionTitle,
+  Avatar,
+} from "@/ui/v2-components/ui";
+import {
+  IconCalendar,
+  IconCheck,
+  IconPlus,
+  IconX,
+  IconPhone,
+  IconMessage,
+  IconHeart,
+  IconDoc,
+  IconHome,
+} from "@/ui/v2-components/icons";
 
 const typeLabels: Record<Followup["type"], string> = {
   visit: "Visita",
-  call: "Ligacao",
+  call: "Ligação",
   message: "Mensagem",
-  prayer: "Oracao",
+  prayer: "Oração",
   other: "Outro",
+};
+
+const typeIcons: Record<Followup["type"], React.ReactNode> = {
+  visit: <IconHome size={14} />,
+  call: <IconPhone size={14} />,
+  message: <IconMessage size={14} />,
+  prayer: <IconHeart size={14} />,
+  other: <IconDoc size={14} />,
 };
 
 const emptyForm = {
@@ -29,6 +55,46 @@ function toDateTimeLocal(value?: string | null) {
   if (Number.isNaN(date.getTime())) return "";
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return local.toISOString().slice(0, 16);
+}
+
+// Styled native datetime-local input
+function DateTimeInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <span style={{
+        fontSize: 13.5, fontWeight: 600,
+        color: "var(--text)", letterSpacing: "-0.005em",
+      }}>
+        {label}
+      </span>
+      <div style={{
+        display: "flex", alignItems: "center", height: 54,
+        padding: "0 18px",
+        background: "var(--surface)",
+        border: "1.5px solid var(--border)",
+        borderRadius: 14,
+      }}>
+        <input
+          type="datetime-local"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          style={{
+            flex: 1, border: 0, outline: "none",
+            background: "transparent", fontFamily: "inherit",
+            fontSize: 15, color: "var(--text)", letterSpacing: "-0.005em",
+          }}
+        />
+      </div>
+    </label>
+  );
 }
 
 export function FollowupManager({
@@ -52,6 +118,7 @@ export function FollowupManager({
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   function resetForm() {
     setEditing(null);
@@ -62,6 +129,7 @@ export function FollowupManager({
       occurredAt: toDateTimeLocal(new Date().toISOString()),
     });
     setError(null);
+    setSuccess(false);
   }
 
   function openEdit(followup: Followup) {
@@ -76,179 +144,228 @@ export function FollowupManager({
       notes: followup.notes,
     });
     setError(null);
+    setSuccess(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
+    setSuccess(false);
 
-    const response = await fetch(editing ? `/api/followups/${editing.id}` : "/api/followups", {
-      method: editing ? "PUT" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        tenantId: form.tenantId,
-        memberId: form.memberId,
-        caregiverId: form.caregiverId || null,
-        type: form.type,
-        occurredAt: form.occurredAt ? new Date(form.occurredAt).toISOString() : undefined,
-        nextActionAt: form.nextActionAt ? new Date(form.nextActionAt).toISOString() : null,
-        notes: form.notes,
-      }),
-    });
+    const response = await fetch(
+      editing ? `/api/followups/${editing.id}` : "/api/followups",
+      {
+        method: editing ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId: form.tenantId,
+          memberId: form.memberId,
+          caregiverId: form.caregiverId || null,
+          type: form.type,
+          occurredAt: form.occurredAt ? new Date(form.occurredAt).toISOString() : undefined,
+          nextActionAt: form.nextActionAt ? new Date(form.nextActionAt).toISOString() : null,
+          notes: form.notes,
+        }),
+      }
+    );
 
     if (!response.ok) {
       const payload = (await response.json().catch(() => ({}))) as { error?: string };
-      setError(payload.error ?? "Nao foi possivel salvar o acompanhamento.");
+      setError(payload.error ?? "Não foi possível salvar o acompanhamento.");
       setSubmitting(false);
       return;
     }
 
+    setSuccess(true);
     resetForm();
     setSubmitting(false);
     startTransition(() => router.refresh());
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-      <PanelShell
-        title={editing ? "Editar acompanhamento" : "Novo acompanhamento"}
-        description="Registre a acao de cuidado e a proxima movimentacao da jornada."
-      >
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="text-sm">
-              <span className="mb-1 block font-medium text-slate-700">Cidade</span>
-              <select
-                required
-                value={form.tenantId}
-                onChange={(event) => setForm((current) => ({ ...current, tenantId: event.target.value }))}
-                className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-              >
-                {tenants.map((tenant) => (
-                  <option key={tenant.id} value={tenant.id}>
-                    {tenant.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm">
-              <span className="mb-1 block font-medium text-slate-700">Pessoa</span>
-              <select
-                required
-                value={form.memberId}
-                onChange={(event) => setForm((current) => ({ ...current, memberId: event.target.value }))}
-                className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-              >
-                {members.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm">
-              <span className="mb-1 block font-medium text-slate-700">Cuidador</span>
-              <select
-                value={form.caregiverId}
-                onChange={(event) => setForm((current) => ({ ...current, caregiverId: event.target.value }))}
-                className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-              >
-                <option value="">Sem cuidador</option>
-                {caregivers.map((caregiver) => (
-                  <option key={caregiver.id} value={caregiver.id}>
-                    {caregiver.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm">
-              <span className="mb-1 block font-medium text-slate-700">Tipo</span>
-              <select
-                value={form.type}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, type: event.target.value as Followup["type"] }))
-                }
-                className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-              >
-                {Object.entries(typeLabels).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm">
-              <span className="mb-1 block font-medium text-slate-700">Quando aconteceu</span>
-              <input
-                type="datetime-local"
-                value={form.occurredAt}
-                onChange={(event) => setForm((current) => ({ ...current, occurredAt: event.target.value }))}
-                className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-              />
-            </label>
-            <label className="text-sm">
-              <span className="mb-1 block font-medium text-slate-700">Proxima acao</span>
-              <input
-                type="datetime-local"
-                value={form.nextActionAt}
-                onChange={(event) => setForm((current) => ({ ...current, nextActionAt: event.target.value }))}
-                className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-              />
-            </label>
+    <div style={{ display: "grid", gap: 24, gridTemplateColumns: "1fr 1fr" }}>
+      {/* ── Form ── */}
+      <Card padding={28}>
+        <SectionTitle>
+          {editing ? "Editar acompanhamento" : "Registrar acompanhamento"}
+        </SectionTitle>
+        <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 24, marginTop: -8 }}>
+          Registre cada ação de cuidado e a próxima movimentação da jornada pastoral.
+        </p>
+
+        <form style={{ display: "flex", flexDirection: "column", gap: 16 }} onSubmit={handleSubmit}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <Select
+              label="Localidade"
+              value={form.tenantId}
+              onChange={(v) => setForm((f) => ({ ...f, tenantId: v }))}
+              options={tenants.map((t) => ({ value: t.id, label: t.name }))}
+              placeholder="Localidade"
+              required
+            />
+            <Select
+              label="Pessoa acompanhada"
+              value={form.memberId}
+              onChange={(v) => setForm((f) => ({ ...f, memberId: v }))}
+              options={members.map((m) => ({ value: m.id, label: m.name }))}
+              placeholder="Selecione a pessoa"
+              required
+            />
+            <Select
+              label="Cuidador"
+              value={form.caregiverId}
+              onChange={(v) => setForm((f) => ({ ...f, caregiverId: v }))}
+              options={[
+                { value: "", label: "Sem cuidador" },
+                ...caregivers.map((c) => ({ value: c.id, label: c.name })),
+              ]}
+            />
+            <Select
+              label="Tipo de ação"
+              value={form.type}
+              onChange={(v) => setForm((f) => ({ ...f, type: v as Followup["type"] }))}
+              options={Object.entries(typeLabels).map(([value, label]) => ({ value, label }))}
+            />
           </div>
 
-          <label className="text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Observacoes</span>
-            <textarea
-              rows={5}
-              value={form.notes}
-              onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-            />
-          </label>
+          <DateTimeInput
+            label="Quando aconteceu"
+            value={form.occurredAt}
+            onChange={(v) => setForm((f) => ({ ...f, occurredAt: v }))}
+          />
 
-          {error && <p className="text-sm text-rose-600">{error}</p>}
+          <DateTimeInput
+            label="Próxima ação programada"
+            value={form.nextActionAt}
+            onChange={(v) => setForm((f) => ({ ...f, nextActionAt: v }))}
+          />
 
-          <div className="flex gap-3">
-            <button
+          <Textarea
+            label="Observações"
+            value={form.notes}
+            onChange={(v) => setForm((f) => ({ ...f, notes: v }))}
+            placeholder="Como foi a conversa, como a pessoa está, próximos passos..."
+            rows={4}
+          />
+
+          {error && (
+            <div style={{
+              padding: "12px 16px", borderRadius: 12,
+              background: "#FFF1F2", border: "1px solid #FECDD3",
+              fontSize: 13, color: "#E11D48",
+              display: "flex", alignItems: "center", gap: 8,
+            }}>
+              <IconX size={14} /> {error}
+            </div>
+          )}
+
+          {success && (
+            <div style={{
+              padding: "12px 16px", borderRadius: 12,
+              background: "#F0FDF4", border: "1px solid #BBF7D0",
+              fontSize: 13, color: "#15803D",
+              display: "flex", alignItems: "center", gap: 8,
+            }}>
+              <IconCheck size={14} /> Acompanhamento salvo com sucesso!
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 10 }}>
+            <Button
               type="submit"
+              variant="primary"
+              size="md"
               disabled={submitting}
-              className="rounded-2xl bg-primary px-5 py-3 text-sm font-bold text-white disabled:opacity-60"
+              icon={<IconPlus />}
             >
               {submitting ? "Salvando..." : editing ? "Salvar acompanhamento" : "Criar acompanhamento"}
-            </button>
-            <button
-              type="button"
-              onClick={resetForm}
-              className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700"
-            >
+            </Button>
+            <Button type="button" variant="secondary" size="md" onClick={resetForm}>
               {editing ? "Cancelar" : "Limpar"}
-            </button>
+            </Button>
           </div>
         </form>
-      </PanelShell>
+      </Card>
 
-      <PanelShell title="Timeline editavel" description="Abra um registro existente para ajustar observacoes e proxima acao.">
-        <div className="space-y-3">
-          {followups.map((followup) => (
-            <button
-              key={followup.id}
-              type="button"
-              onClick={() => openEdit(followup)}
-              className="w-full rounded-2xl border border-slate-200 p-4 text-left transition hover:border-primary hover:bg-primary/5"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <p className="font-semibold text-slate-900">{followup.member ?? "Sem membro"}</p>
-                <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
-                  {typeLabels[followup.type]}
-                </span>
-              </div>
-              <p className="mt-2 text-sm text-slate-500">{followup.notes}</p>
-            </button>
-          ))}
+      {/* ── Timeline list ── */}
+      <Card padding={28}>
+        <SectionTitle>Timeline editável</SectionTitle>
+        <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 20, marginTop: -8 }}>
+          Clique num registro para abrir e editar observações e próxima ação.
+        </p>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {followups.length === 0 && (
+            <p style={{ fontSize: 13, color: "var(--text-3)", textAlign: "center", padding: "32px 0" }}>
+              Nenhum acompanhamento registrado ainda.
+            </p>
+          )}
+          {followups.map((followup) => {
+            const member = members.find((m) => m.id === followup.memberId);
+            return (
+              <button
+                key={followup.id}
+                type="button"
+                onClick={() => openEdit(followup)}
+                style={{
+                  display: "flex", alignItems: "flex-start", gap: 12,
+                  padding: "14px 16px", borderRadius: 14,
+                  background: editing?.id === followup.id ? "var(--accent-bg)" : "var(--surface-2)",
+                  border: editing?.id === followup.id
+                    ? "1.5px solid var(--accent)"
+                    : "1.5px solid var(--border)",
+                  cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+                  transition: "border-color .15s, background .15s",
+                }}
+              >
+                <Avatar name={followup.member ?? "?"} size={40} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                    <div style={{
+                      fontSize: 14.5, fontWeight: 700, color: "var(--text)",
+                      letterSpacing: "-0.01em",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>
+                      {followup.member ?? "Sem membro"}
+                    </div>
+                    <span style={{
+                      display: "inline-flex", alignItems: "center", gap: 5,
+                      padding: "3px 10px", borderRadius: 999,
+                      background: "var(--accent-bg)",
+                      color: "var(--accent)",
+                      fontSize: 11.5, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0,
+                    }}>
+                      {typeIcons[followup.type]}
+                      {typeLabels[followup.type]}
+                    </span>
+                  </div>
+                  {followup.notes && (
+                    <p style={{
+                      marginTop: 4, fontSize: 12.5, color: "var(--text-2)",
+                      lineHeight: 1.4,
+                      overflow: "hidden", display: "-webkit-box",
+                      WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                    }}>
+                      {followup.notes}
+                    </p>
+                  )}
+                  {followup.nextActionAt && (
+                    <div style={{
+                      marginTop: 6, fontSize: 12, color: "var(--accent)",
+                      display: "flex", alignItems: "center", gap: 4,
+                    }}>
+                      <IconCalendar size={12} />
+                      Próxima: {new Date(followup.nextActionAt).toLocaleDateString("pt-BR")}
+                    </div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
-      </PanelShell>
+      </Card>
     </div>
   );
 }

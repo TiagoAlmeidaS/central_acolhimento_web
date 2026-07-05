@@ -1,8 +1,13 @@
+export const dynamic = "force-dynamic";
+
+import { getDataScopeFromSession, resolveCaregiverId, resolveTenantId } from "@/server/auth/access-scope";
+import { requireServerAuthSession } from "@/server/auth/session";
 import { createFollowup, listFollowups } from "@/server/repositories/mvp-repository";
 
 export async function GET() {
   try {
-    const followups = await listFollowups();
+    const session = await requireServerAuthSession();
+    const followups = await listFollowups(getDataScopeFromSession(session));
     return Response.json(followups);
   } catch (error) {
     return Response.json(
@@ -14,6 +19,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const session = await requireServerAuthSession();
     const body = (await request.json()) as {
       tenantId?: string;
       memberId?: string;
@@ -32,9 +38,9 @@ export async function POST(request: Request) {
     }
 
     const followup = await createFollowup({
-      tenantId: body.tenantId,
+      tenantId: resolveTenantId(session, body.tenantId),
       memberId: body.memberId,
-      caregiverId: body.caregiverId ?? null,
+      caregiverId: resolveCaregiverId(session, body.caregiverId ?? null, { allowUnassignedForCoordinator: true }),
       type: body.type,
       occurredAt: body.occurredAt,
       notes: body.notes,

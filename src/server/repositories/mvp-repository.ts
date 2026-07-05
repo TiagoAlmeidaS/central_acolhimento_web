@@ -1,7 +1,6 @@
 import { getDbPool, isDatabaseConfigured } from "@/lib/db";
 import {
   caregivers as caregiverMocks,
-  dashboardSummary as dashboardSummaryMocks,
   latestActivity as followupMocks,
   members as memberMocks,
   tenants as tenantMocks,
@@ -19,6 +18,7 @@ import type {
   Member,
   Seed,
   Tenant,
+  DataScope,
   UpdateCaregiverInput,
   UpdateFollowupInput,
   UpdateMemberInput,
@@ -89,6 +89,18 @@ type FollowupRow = {
   created_at: string;
 };
 
+function serializeDateValue(value: string | Date | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  return value;
+}
+
 function mapTenant(row: TenantRow): Tenant {
   return {
     id: row.id,
@@ -97,7 +109,7 @@ function mapTenant(row: TenantRow): Tenant {
     state: row.state,
     status: row.status,
     coordinator: row.coordinator_name,
-    createdAt: row.created_at,
+    createdAt: serializeDateValue(row.created_at) ?? undefined,
   };
 }
 
@@ -111,7 +123,7 @@ function mapCaregiver(row: CaregiverRow): Caregiver {
     email: row.email,
     active: row.active,
     notes: row.notes,
-    createdAt: row.created_at,
+    createdAt: serializeDateValue(row.created_at) ?? undefined,
   };
 }
 
@@ -126,8 +138,8 @@ function mapSeed(row: SeedRow): Seed {
     source: row.source,
     status: row.status,
     notes: row.notes,
-    firstContactAt: row.first_contact_at,
-    createdAt: row.created_at,
+    firstContactAt: serializeDateValue(row.first_contact_at),
+    createdAt: serializeDateValue(row.created_at) ?? undefined,
   };
 }
 
@@ -141,10 +153,10 @@ function mapMember(row: MemberRow): Member {
     phone: row.phone,
     address: row.address,
     city: row.city,
-    birthDate: row.birth_date,
+    birthDate: serializeDateValue(row.birth_date),
     status: row.status,
     notes: row.notes,
-    createdAt: row.created_at,
+    createdAt: serializeDateValue(row.created_at) ?? undefined,
   };
 }
 
@@ -155,10 +167,10 @@ function mapFollowup(row: FollowupRow): Followup {
     memberId: row.member_id,
     caregiverId: row.caregiver_id,
     type: row.type,
-    occurredAt: row.occurred_at,
+    occurredAt: serializeDateValue(row.occurred_at) ?? new Date(0).toISOString(),
     notes: row.notes,
-    nextActionAt: row.next_action_at,
-    createdAt: row.created_at,
+    nextActionAt: serializeDateValue(row.next_action_at),
+    createdAt: serializeDateValue(row.created_at) ?? undefined,
   };
 }
 
@@ -173,10 +185,19 @@ function buildLocalTenants(): Tenant[] {
   }));
 }
 
+function normalizeCityKey(value: string) {
+  return value.toLowerCase();
+}
+
 function buildLocalCaregivers(): Caregiver[] {
   return caregiverMocks.map((caregiver) => ({
     id: caregiver.id,
-    tenantId: caregiver.city === "Sape" ? "1" : caregiver.city === "Mari" ? "2" : "3",
+    tenantId:
+      normalizeCityKey(caregiver.city).includes("sap")
+        ? "1"
+        : normalizeCityKey(caregiver.city).includes("mari")
+          ? "2"
+          : "3",
     tenantUserId: null,
     name: caregiver.name,
     phone: caregiver.phone,
@@ -222,8 +243,18 @@ function buildLocalSeeds(): Seed[] {
 function buildLocalMembers(): Member[] {
   return memberMocks.map((member) => ({
     id: member.id,
-    tenantId: member.city === "Sape" ? "1" : member.city === "Mari" ? "2" : "3",
-    caregiverId: member.caregiver === "Maria Oliveira" ? "1" : member.caregiver === "Joao Silva" ? "2" : null,
+    tenantId:
+      normalizeCityKey(member.city).includes("sap")
+        ? "1"
+        : normalizeCityKey(member.city).includes("mari")
+          ? "2"
+          : "3",
+    caregiverId:
+      normalizeCityKey(member.caregiver).includes("maria")
+        ? "1"
+        : normalizeCityKey(member.caregiver).includes("jo")
+          ? "2"
+          : null,
     seedId: null,
     name: member.name,
     phone: member.phone,
@@ -300,13 +331,57 @@ function localCaregiverName(caregiverId: string | null | undefined) {
   return localCaregiversStore.find((caregiver) => caregiver.id === caregiverId)?.name ?? null;
 }
 
-export async function listTenants(): Promise<Tenant[]> {
+function matchesScope(
+  item: { tenantId: string; caregiverId?: string | null },
+  scope?: DataScope
+) {
+  if (scope?.tenantId && item.tenantId !== scope.tenantId) {
+    return false;
+  }
+
+  if (scope?.caregiverId && item.caregiverId !== scope.caregiverId) {
+    return false;
+  }
+
+  return true;
+}
+
+function appendScopedWhereClause(
+  clauses: string[],
+  values: Array<string | boolean>,
+  scope?: DataScope,
+  aliases?: { tenant?: string; caregiver?: string }
+) {
+  const tenantColumn = aliases?.tenant ?? "tenant_id";
+  const caregiverColumn = aliases?.caregiver ?? "caregiver_id";
+
+  if (scope?.tenantId) {
+    values.push(scope.tenantId);
+    clauses.push(`${tenantColumn} = $${values.length}`);
+  }
+
+  if (scope?.caregiverId) {
+    values.push(scope.caregiverId);
+    clauses.push(`${caregiverColumn} = $${values.length}`);
+  }
+}
+
+export async function listTenants(scope?: DataScope): Promise<Tenant[]> {
   if (!isDatabaseReady()) {
-    return [...localTenantsStore];
+    if (!scope?.tenantId) {
+      return [...localTenantsStore];
+    }
+
+    return localTenantsStore.filter((tenant) => tenant.id === scope.tenantId);
   }
 
   const db = ensureDb();
-  const result = await db.query<TenantRow>("select * from tenants order by name");
+  const values: string[] = [];
+  const where = scope?.tenantId ? "where id = $1" : "";
+  if (scope?.tenantId) {
+    values.push(scope.tenantId);
+  }
+  const result = await db.query<TenantRow>(`select * from tenants ${where} order by name`, values);
   return result.rows.map(mapTenant);
 }
 
@@ -364,26 +439,56 @@ export async function updateTenant(id: string, input: UpdateTenantInput): Promis
   return mapTenant(result.rows[0]);
 }
 
-export async function listCaregivers(): Promise<Caregiver[]> {
+export async function listCaregivers(scope?: DataScope): Promise<Caregiver[]> {
   if (!isDatabaseReady()) {
-    return localCaregiversStore.map((caregiver) => ({
+    return localCaregiversStore
+      .filter((caregiver) => {
+        if (scope?.tenantId && caregiver.tenantId !== scope.tenantId) {
+          return false;
+        }
+
+        if (scope?.caregiverId && caregiver.id !== scope.caregiverId) {
+          return false;
+        }
+
+        return true;
+      })
+      .map((caregiver) => ({
       ...caregiver,
       activeMembers: localMembersStore.filter((member) => member.caregiverId === caregiver.id).length,
-    }));
+      }));
   }
 
   const db = ensureDb();
-  const result = await db.query<CaregiverRow>("select * from caregivers order by name");
-  const tenants = await listTenants();
-  const members = await listMembers();
+  const values: string[] = [];
+  const clauses: string[] = [];
+  appendScopedWhereClause(clauses, values, scope, { caregiver: "id" });
+  const where = clauses.length > 0 ? `where ${clauses.join(" and ")}` : "";
+  const [result, tenants, memberCounts] = await Promise.all([
+    db.query<CaregiverRow>(`select * from caregivers ${where} order by name`, values),
+    listTenants(scope?.tenantId ? { tenantId: scope.tenantId } : undefined),
+    db.query<{ caregiver_id: string | null; total: string }>(
+      `select caregiver_id, count(*)::text as total
+       from members
+       ${scope?.tenantId ? "where tenant_id = $1 and caregiver_id is not null" : "where caregiver_id is not null"}
+       group by caregiver_id`
+      ,
+      scope?.tenantId ? [scope.tenantId] : []
+    ),
+  ]);
   const tenantMap = new Map(tenants.map((tenant) => [tenant.id, tenant.city]));
+  const memberCountMap = new Map(
+    memberCounts.rows
+      .filter((row) => row.caregiver_id)
+      .map((row) => [row.caregiver_id as string, Number(row.total)])
+  );
 
   return result.rows.map((row) => {
     const caregiver = mapCaregiver(row);
     return {
       ...caregiver,
       city: tenantMap.get(caregiver.tenantId),
-      activeMembers: members.filter((member) => member.caregiverId === caregiver.id).length,
+      activeMembers: memberCountMap.get(caregiver.id) ?? 0,
     };
   });
 }
@@ -452,18 +557,27 @@ export async function updateCaregiver(id: string, input: UpdateCaregiverInput): 
   return mapCaregiver(result.rows[0]);
 }
 
-export async function listSeeds(): Promise<Seed[]> {
+export async function listSeeds(scope?: DataScope): Promise<Seed[]> {
   if (!isDatabaseReady()) {
-    return localSeedsStore.map((seed) => ({
+    return localSeedsStore
+      .filter((seed) => matchesScope(seed, scope))
+      .map((seed) => ({
       ...seed,
       caregiver: localCaregiverName(seed.caregiverId),
-    }));
+      }));
   }
 
   const db = ensureDb();
+  const values: string[] = [];
+  const clauses: string[] = [];
+  appendScopedWhereClause(clauses, values, scope);
+  const where = clauses.length > 0 ? `where ${clauses.join(" and ")}` : "";
   const [seedsResult, caregivers] = await Promise.all([
-    db.query<SeedRow>("select * from seeds order by created_at desc"),
-    db.query<{ id: string; name: string }>("select id, name from caregivers"),
+    db.query<SeedRow>(`select * from seeds ${where} order by created_at desc`, values),
+    db.query<{ id: string; name: string }>(
+      `select id, name from caregivers ${scope?.tenantId ? "where tenant_id = $1" : ""}`,
+      scope?.tenantId ? [scope.tenantId] : []
+    ),
   ]);
   const caregiverMap = new Map(caregivers.rows.map((caregiver) => [caregiver.id, caregiver.name]));
 
@@ -622,28 +736,34 @@ export async function convertSeedToMember(seedId: string, input: ConvertSeedToMe
   return mapMember(memberResult.rows[0]);
 }
 
-export async function listMembers(): Promise<Member[]> {
+export async function listMembers(scope?: DataScope): Promise<Member[]> {
   if (!isDatabaseReady()) {
     const latestFollowupMap = new Map<string, Followup>();
-    for (const followup of localFollowupsStore) {
+    for (const followup of localFollowupsStore.filter((item) => matchesScope(item, scope))) {
       const current = latestFollowupMap.get(followup.memberId);
       if (!current || new Date(followup.occurredAt) > new Date(current.occurredAt)) {
         latestFollowupMap.set(followup.memberId, followup);
       }
     }
 
-    return localMembersStore.map((member) => ({
+    return localMembersStore
+      .filter((member) => matchesScope(member, scope))
+      .map((member) => ({
       ...member,
       caregiver: localCaregiverName(member.caregiverId),
       lastContact: formatDateLabel(latestFollowupMap.get(member.id)?.occurredAt ?? member.lastContact ?? null),
-    }));
+      }));
   }
 
   const db = ensureDb();
+  const values: string[] = [];
+  const clauses: string[] = [];
+  appendScopedWhereClause(clauses, values, scope);
+  const where = clauses.length > 0 ? `where ${clauses.join(" and ")}` : "";
   const [membersResult, caregivers, followups] = await Promise.all([
-    db.query<MemberRow>("select * from members order by created_at desc"),
-    listCaregivers(),
-    listFollowups(),
+    db.query<MemberRow>(`select * from members ${where} order by created_at desc`, values),
+    listCaregivers(scope),
+    listFollowups(scope),
   ]);
 
   const caregiverMap = new Map(caregivers.map((caregiver) => [caregiver.id, caregiver]));
@@ -759,20 +879,32 @@ export async function assignCaregiverToMember(memberId: string, caregiverId: str
   return mapMember(result.rows[0]);
 }
 
-export async function listFollowups(): Promise<Followup[]> {
+export async function listFollowups(scope?: DataScope): Promise<Followup[]> {
   if (!isDatabaseReady()) {
-    return localFollowupsStore.map((followup) => ({
+    return localFollowupsStore
+      .filter((followup) => matchesScope(followup, scope))
+      .map((followup) => ({
       ...followup,
       member: localMembersStore.find((member) => member.id === followup.memberId)?.name ?? followup.member ?? null,
       caregiver: localCaregiverName(followup.caregiverId),
-    }));
+      }));
   }
 
   const db = ensureDb();
+  const values: string[] = [];
+  const clauses: string[] = [];
+  appendScopedWhereClause(clauses, values, scope);
+  const where = clauses.length > 0 ? `where ${clauses.join(" and ")}` : "";
   const [followupsResult, members, caregivers] = await Promise.all([
-    db.query<FollowupRow>("select * from followups order by occurred_at desc"),
-    db.query<{ id: string; name: string }>("select id, name from members"),
-    db.query<{ id: string; name: string }>("select id, name from caregivers"),
+    db.query<FollowupRow>(`select * from followups ${where} order by occurred_at desc`, values),
+    db.query<{ id: string; name: string }>(
+      `select id, name from members ${scope?.tenantId ? "where tenant_id = $1" : ""}`,
+      scope?.tenantId ? [scope.tenantId] : []
+    ),
+    db.query<{ id: string; name: string }>(
+      `select id, name from caregivers ${scope?.tenantId ? "where tenant_id = $1" : ""}`,
+      scope?.tenantId ? [scope.tenantId] : []
+    ),
   ]);
 
   const memberMap = new Map(members.rows.map((member) => [member.id, member.name]));
@@ -852,24 +984,41 @@ export async function updateFollowup(id: string, input: UpdateFollowupInput): Pr
   return mapFollowup(result.rows[0]);
 }
 
-export async function getDashboardSummary(): Promise<DashboardCard[]> {
+export async function getDashboardSummary(scope?: DataScope): Promise<DashboardCard[]> {
   if (!isDatabaseReady()) {
+    const scopedSeeds = localSeedsStore.filter((seed) => matchesScope(seed, scope));
+    const scopedMembers = localMembersStore.filter((member) => matchesScope(member, scope));
+    const scopedCaregivers = localCaregiversStore.filter((caregiver) => matchesScope(caregiver, scope));
+    const scopedFollowups = localFollowupsStore.filter((followup) => matchesScope(followup, scope));
+    const openContacts = scopedSeeds.filter((seed) => seed.status === "new" || seed.status === "contacted").length;
+    const activeMembers = scopedMembers.filter((member) => member.status === "in_progress").length;
+    const activeCaregivers = scopedCaregivers.filter((caregiver) => caregiver.active).length;
+    const futureActions = scopedFollowups.filter((followup) => {
+      if (!followup.nextActionAt) return false;
+      const parsed = new Date(followup.nextActionAt);
+      return !Number.isNaN(parsed.getTime()) && parsed >= new Date();
+    }).length;
+
     return [
-      ...dashboardSummaryMocks.slice(0, 2),
-      { label: "Novos contatos", value: String(localSeedsStore.length), detail: "Entrada do cuidado" },
-      ...dashboardSummaryMocks.slice(3),
+      { label: "Membros cadastrados", value: String(scopedMembers.length), detail: "Base do tenant atual" },
+      { label: "Membros ativos", value: String(activeMembers), detail: "Em acompanhamento" },
+      { label: "Novos contatos", value: String(openContacts), detail: "Entrada do cuidado" },
+      { label: "Cuidadores ativos", value: String(activeCaregivers), detail: "Prontos para acompanhar" },
+      { label: "Acompanhamentos", value: String(scopedFollowups.length), detail: "Registros de cuidado" },
+      { label: "Proximas acoes", value: String(futureActions), detail: "Pendencias futuras" },
     ];
   }
 
   const [members, caregivers, seeds, followups] = await Promise.all([
-    listMembers(),
-    listCaregivers(),
-    listSeeds(),
-    listFollowups(),
+    listMembers(scope),
+    listCaregivers(scope),
+    listSeeds(scope),
+    listFollowups(scope),
   ]);
 
   const activeMembers = members.filter((member) => member.status === "in_progress").length;
   const activeCaregivers = caregivers.filter((caregiver) => caregiver.active).length;
+  const openContacts = seeds.filter((seed) => seed.status === "new" || seed.status === "contacted").length;
   const futureActions = followups.filter((followup) => {
     if (!followup.nextActionAt) return false;
     const parsed = new Date(followup.nextActionAt);
@@ -879,7 +1028,7 @@ export async function getDashboardSummary(): Promise<DashboardCard[]> {
   return [
     { label: "Membros cadastrados", value: String(members.length), detail: "Base do tenant atual" },
     { label: "Membros ativos", value: String(activeMembers), detail: "Em acompanhamento" },
-    { label: "Novos contatos", value: String(seeds.length), detail: "Entrada do cuidado" },
+    { label: "Novos contatos", value: String(openContacts), detail: "Entrada do cuidado" },
     { label: "Cuidadores ativos", value: String(activeCaregivers), detail: "Prontos para acompanhar" },
     { label: "Acompanhamentos", value: String(followups.length), detail: "Registros de cuidado" },
     { label: "Proximas acoes", value: String(futureActions), detail: "Pendencias futuras" },

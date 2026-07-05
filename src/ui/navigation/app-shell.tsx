@@ -3,36 +3,103 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/auth/auth-context";
+import { Avatar } from "@/ui/v2-components/ui";
+import {
+  IconHome,
+  IconMapPin,
+  IconPlus,
+  IconUsers,
+  IconHeart,
+  IconCalendar,
+  IconLogout,
+  IconBuilding,
+} from "@/ui/v2-components/icons";
 
+// Mapeamento de rotas e seus respectivos ícones da V2
 const navItems = [
-  { href: "/coord", label: "Dashboard", icon: "dashboard" },
-  { href: "/coord/cidades", label: "Cidades", icon: "location_city" },
-  { href: "/coord/contatos", label: "Novos contatos", icon: "person_add" },
-  { href: "/coord/membros", label: "Membros", icon: "group" },
-  { href: "/coord/cuidadores", label: "Cuidadores", icon: "volunteer_activism" },
-  { href: "/coord/acompanhamentos", label: "Acompanhamentos", icon: "event_note" },
+  { href: "/coord", label: "Dashboard", icon: <IconHome size={20} /> },
+  { href: "/coord/cidades", label: "Cidades", icon: <IconBuilding size={20} /> },
+  { href: "/coord/contatos", label: "Novos contatos", icon: <IconPlus size={20} /> },
+  { href: "/coord/membros", label: "Membros", icon: <IconUsers size={20} /> },
+  { href: "/coord/cuidadores", label: "Cuidadores", icon: <IconHeart size={20} /> },
+  { href: "/coord/acompanhamentos", label: "Acompanhamentos", icon: <IconCalendar size={20} /> },
 ];
 
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
   const router = useRouter();
-  const { signOut, user } = useAuth();
+  const { signOut, user, session } = useAuth();
 
   async function handleLogout() {
     await signOut();
     router.replace("/login");
   }
 
+  const userDisplayName = user ? `${user.firstName} ${user.lastName}`.trim() : "Sem sessão";
+  const tenantSigla = session?.membership.tenantName ? session.membership.tenantName.substring(0, 2).toUpperCase() : "AD";
+
   return (
-    <div className="flex min-h-screen bg-background-light text-slate-900">
-      <aside className="hidden w-72 shrink-0 border-r border-slate-200 bg-white xl:flex xl:flex-col">
-        <div className="border-b border-slate-200 px-6 py-6">
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-primary">Next Monolith</p>
-          <h2 className="mt-2 text-2xl font-black tracking-tight">Central de Acolhimento</h2>
-          <p className="mt-2 text-sm text-slate-500">Web e backend no mesmo projeto.</p>
+    <div
+      style={{
+        display: "flex",
+        minHeight: "100vh",
+        background: "var(--bg)",
+        color: "var(--text)",
+        fontFamily: "var(--font-sans)",
+      }}
+    >
+      {/* Sidebar aside */}
+      <aside
+        style={{
+          width: 280,
+          flexShrink: 0,
+          background: "var(--surface)",
+          borderRight: "1px solid var(--border)",
+          display: "flex",
+          flexDirection: "column",
+        }}
+        className="hidden xl:flex"
+      >
+        {/* Sidebar Header */}
+        <div
+          style={{
+            padding: "24px",
+            borderBottom: "1px solid var(--border)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+          }}
+        >
+          <p
+            style={{
+              margin: 0,
+              fontSize: 10,
+              fontWeight: 800,
+              textTransform: "uppercase",
+              letterSpacing: "0.2em",
+              color: "var(--accent)",
+            }}
+          >
+            Acolhimento V2
+          </p>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: 20,
+              fontWeight: 800,
+              letterSpacing: "-0.025em",
+              color: "var(--text)",
+            }}
+          >
+            Central de Acolhimento
+          </h2>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--text-3)" }}>
+            Gestão local integrada
+          </p>
         </div>
 
-        <nav className="flex-1 space-y-1 px-4 py-6">
+        {/* Navigation Items */}
+        <nav style={{ flex: 1, padding: "20px 16px", display: "flex", flexDirection: "column", gap: 6 }}>
           {navItems.map((item) => {
             const isActive = pathname === item.href;
 
@@ -40,33 +107,145 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-                  isActive ? "bg-primary text-white" : "text-slate-600 hover:bg-slate-100"
-                }`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  borderRadius: 14,
+                  padding: "12px 16px",
+                  fontSize: 14.5,
+                  fontWeight: 600,
+                  textDecoration: "none",
+                  transition: "background-color 0.15s, color 0.15s",
+                  background: isActive ? "var(--accent-bg)" : "transparent",
+                  color: isActive ? "var(--accent)" : "var(--text-2)",
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.background = "var(--surface-2)";
+                    e.currentTarget.style.color = "var(--text)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.color = "var(--text-2)";
+                  }
+                }}
               >
-                <span className="material-symbols-outlined text-lg">{item.icon}</span>
+                <span
+                  style={{
+                    color: isActive ? "var(--accent)" : "var(--text-3)",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  {item.icon}
+                </span>
                 <span>{item.label}</span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="border-t border-slate-200 px-4 py-4">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm font-semibold text-slate-900">{user?.email ?? "Modo local"}</p>
-            <p className="mt-1 text-xs text-slate-500">Autenticacao local temporaria ativa</p>
+        {/* Sidebar Footer (User Info & Logout) */}
+        <div style={{ padding: "16px", borderTop: "1px solid var(--border)" }}>
+          <div
+            style={{
+              padding: "16px",
+              background: "var(--surface-2)",
+              borderRadius: 16,
+              border: "1px solid var(--border)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <Avatar name={userDisplayName} size={40} ring />
+              <div style={{ minWidth: 0 }}>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: "var(--text)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {userDisplayName}
+                </p>
+                <p
+                  style={{
+                    margin: "2px 0 0",
+                    fontSize: 11.5,
+                    color: "var(--text-3)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {user?.email ?? "Sem e-mail"}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ height: 1, background: "var(--border)" }} />
+
+            <div>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 9.5,
+                  fontWeight: 800,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.15em",
+                  color: "var(--accent)",
+                }}
+              >
+                {session?.membership.role === "coordinator" ? "Coordenação" : "Cuidador"}
+              </p>
+              <p style={{ margin: "2px 0 0", fontSize: 13, color: "var(--text-2)", fontWeight: 500 }}>
+                {session?.membership.tenantName ?? "Sem localidade"}
+              </p>
+            </div>
+
             <button
-              type="button"
               onClick={handleLogout}
-              className="mt-4 rounded-xl bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-sm"
+              style={{
+                width: "100%",
+                padding: "10px 14px",
+                borderRadius: 12,
+                border: "1.5px solid var(--border-strong)",
+                background: "var(--surface)",
+                color: "var(--text)",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                transition: "background-color 0.15s, border-color 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--surface-2)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "var(--surface)";
+              }}
             >
+              <IconLogout size={16} style={{ color: "var(--text-3)" }} />
               Sair
             </button>
           </div>
         </div>
       </aside>
 
-      <div className="min-w-0 flex-1">{children}</div>
+      {/* Main Content Area */}
+      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
     </div>
   );
 }

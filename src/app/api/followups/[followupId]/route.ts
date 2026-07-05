@@ -1,4 +1,11 @@
-import { updateFollowup } from "@/server/repositories/mvp-repository";
+import {
+  assertSessionCanAccessRecord,
+  getDataScopeFromSession,
+  resolveCaregiverId,
+  resolveTenantId,
+} from "@/server/auth/access-scope";
+import { requireServerAuthSession } from "@/server/auth/session";
+import { listFollowups, updateFollowup } from "@/server/repositories/mvp-repository";
 
 type RouteContext = {
   params: Promise<{ followupId: string }>;
@@ -6,7 +13,13 @@ type RouteContext = {
 
 export async function PUT(request: Request, context: RouteContext) {
   try {
+    const session = await requireServerAuthSession();
     const { followupId } = await context.params;
+    const currentFollowup = (await listFollowups(getDataScopeFromSession(session))).find((item) => item.id === followupId);
+    if (!currentFollowup) {
+      return Response.json({ error: "Acompanhamento nao encontrado." }, { status: 404 });
+    }
+    assertSessionCanAccessRecord(session, currentFollowup);
     const body = (await request.json()) as {
       tenantId?: string;
       memberId?: string;
@@ -22,9 +35,9 @@ export async function PUT(request: Request, context: RouteContext) {
     }
 
     const followup = await updateFollowup(followupId, {
-      tenantId: body.tenantId,
+      tenantId: resolveTenantId(session, body.tenantId),
       memberId: body.memberId,
-      caregiverId: body.caregiverId ?? null,
+      caregiverId: resolveCaregiverId(session, body.caregiverId ?? null, { allowUnassignedForCoordinator: true }),
       type: body.type,
       occurredAt: body.occurredAt,
       notes: body.notes,

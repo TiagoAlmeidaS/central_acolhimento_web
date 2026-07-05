@@ -2,29 +2,82 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import React from "react";
+import { IconHome, IconUsers, IconCalendar } from "@/ui/v2-components/icons";
 
 const navItems = [
-  { href: "/cuidador", label: "Inicio", icon: "home" },
-  { href: "/cuidador/contatos", label: "Contatos", icon: "person_add" },
-  { href: "/cuidador/acompanhamentos", label: "Acoes", icon: "event_note" },
+  { href: "/cuidador", label: "Início", icon: <IconHome /> },
+  { href: "/cuidador/contatos", label: "Contatos", icon: <IconUsers /> },
+  { href: "/cuidador/acompanhamentos", label: "Ações", icon: <IconCalendar /> },
 ];
 
 export function MobileShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col bg-background-light">
-      <main className="flex-1 pb-24">{children}</main>
-      <nav className="fixed bottom-0 left-0 right-0 mx-auto flex max-w-md items-center justify-between border-t border-slate-200 bg-white/95 px-6 py-3 backdrop-blur">
+    <div style={{
+      maxWidth: 440,
+      margin: "0 auto",
+      minHeight: "100vh",
+      background: "var(--bg)",
+      display: "flex",
+      flexDirection: "column",
+      position: "relative",
+    }}>
+      <main style={{ flex: 1, paddingBottom: 100 }}>{children}</main>
+      
+      <nav style={{
+        position: "fixed",
+        bottom: 0,
+        left: "50%",
+        transform: "translateX(-50%)",
+        width: "100%",
+        maxWidth: 440,
+        paddingTop: 10,
+        paddingBottom: 24,
+        background: "var(--surface)",
+        borderTop: "1px solid var(--border)",
+        display: "flex",
+        justifyContent: "space-around",
+        zIndex: 100,
+        boxShadow: "0 -4px 20px rgba(0,0,0,0.03)",
+        backdropFilter: "blur(10px)",
+      }}>
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center gap-1 text-xs font-semibold ${isActive ? "text-primary" : "text-slate-400"}`}
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 4,
+                textDecoration: "none",
+                color: isActive ? "var(--accent)" : "var(--text-3)",
+                fontSize: 11.5,
+                fontWeight: 600,
+                letterSpacing: "-0.005em",
+                fontFamily: "inherit",
+                cursor: "pointer",
+                transition: "color 0.15s, transform 0.1s",
+              }}
+              onMouseDown={(e) => {
+                e.currentTarget.style.transform = "scale(0.95)";
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.transform = "";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "";
+              }}
             >
-              <span className="material-symbols-outlined text-lg">{item.icon}</span>
+              {React.cloneElement(item.icon as React.ReactElement<{ size?: number; sw?: number }>, {
+                size: 22,
+                sw: isActive ? 2.2 : 1.8,
+              })}
               <span>{item.label}</span>
             </Link>
           );

@@ -1,13 +1,19 @@
+export const dynamic = "force-dynamic";
+
 import { listCaregivers, listFollowups, listMembers, listTenants } from "@/server/repositories/mvp-repository";
+import { getDataScopeFromSession } from "@/server/auth/access-scope";
+import { requireServerAuthSession } from "@/server/auth/session";
 import { MobileShell } from "@/ui/navigation/mobile-shell";
 import { FollowupManager } from "@/ui/mvp/followup-manager";
 
 export default async function CaregiverFollowupsPage() {
+  const session = await requireServerAuthSession("caregiver");
+  const scope = getDataScopeFromSession(session);
   const [followups, tenants, members, caregivers] = await Promise.all([
-    listFollowups(),
-    listTenants(),
-    listMembers(),
-    listCaregivers(),
+    listFollowups(scope),
+    listTenants(scope),
+    listMembers(scope),
+    listCaregivers(scope),
   ]);
 
   return (

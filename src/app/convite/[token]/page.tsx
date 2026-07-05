@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { notFound } from "next/navigation";
 import { getCaregiverInvitationByToken } from "@/server/repositories/invitation-repository";
 import { CaregiverInvitationAcceptForm } from "@/ui/mvp/caregiver-invitation-accept-form";

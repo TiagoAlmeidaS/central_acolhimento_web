@@ -3,7 +3,25 @@
 import { startTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Caregiver, Seed, Tenant } from "@/server/domain/mvp";
-import { PanelShell } from "@/ui/mvp/panel-shell";
+import {
+  Card,
+  Button,
+  Input,
+  Select,
+  Textarea,
+  SectionTitle,
+  Avatar,
+} from "@/ui/v2-components/ui";
+import {
+  IconUser,
+  IconPhone,
+  IconMapPin,
+  IconCheck,
+  IconPlus,
+  IconX,
+  IconHeart,
+  IconUsers,
+} from "@/ui/v2-components/icons";
 
 const statusLabels: Record<Seed["status"], string> = {
   new: "Novo",
@@ -11,6 +29,14 @@ const statusLabels: Record<Seed["status"], string> = {
   in_progress: "Virou membro",
   consolidated: "Consolidado",
   inactive: "Inativo",
+};
+
+const statusColors: Record<Seed["status"], { bg: string; fg: string }> = {
+  new: { bg: "#FFEDD5", fg: "#C2410C" },
+  contacted: { bg: "#DBEAFE", fg: "#1D4ED8" },
+  in_progress: { bg: "#F3E8FF", fg: "#7C3AED" },
+  consolidated: { bg: "#DCFCE7", fg: "#15803D" },
+  inactive: { bg: "#F4F4F5", fg: "#71717A" },
 };
 
 const emptyForm = {
@@ -44,15 +70,13 @@ export function ContactManager({
   const [submitting, setSubmitting] = useState(false);
   const [convertingId, setConvertingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   function resetForm() {
     setEditing(null);
-    setForm({
-      ...emptyForm,
-      tenantId: tenants[0]?.id ?? "",
-      city: tenants[0]?.city ?? "",
-    });
+    setForm({ ...emptyForm, tenantId: tenants[0]?.id ?? "", city: tenants[0]?.city ?? "" });
     setError(null);
+    setSuccess(false);
   }
 
   function openEdit(contact: Seed) {
@@ -69,12 +93,15 @@ export function ContactManager({
       firstContactAt: contact.firstContactAt ? contact.firstContactAt.slice(0, 10) : "",
     });
     setError(null);
+    setSuccess(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
+    setSuccess(false);
 
     const response = await fetch(editing ? `/api/seeds/${editing.id}` : "/api/seeds", {
       method: editing ? "PUT" : "POST",
@@ -94,11 +121,12 @@ export function ContactManager({
 
     if (!response.ok) {
       const payload = (await response.json().catch(() => ({}))) as { error?: string };
-      setError(payload.error ?? "Nao foi possivel salvar o novo contato.");
+      setError(payload.error ?? "Não foi possível salvar o contato.");
       setSubmitting(false);
       return;
     }
 
+    setSuccess(true);
     resetForm();
     setSubmitting(false);
     startTransition(() => router.refresh());
@@ -120,7 +148,7 @@ export function ContactManager({
 
     if (!response.ok) {
       const payload = (await response.json().catch(() => ({}))) as { error?: string };
-      setError(payload.error ?? "Nao foi possivel converter o contato.");
+      setError(payload.error ?? "Não foi possível converter o contato.");
       return;
     }
 
@@ -128,194 +156,276 @@ export function ContactManager({
   }
 
   return (
-    <div className="space-y-6">
-      <PanelShell
-        title={editing ? "Editar novo contato" : "Novo contato"}
-        description="Esse e o ponto de entrada do cuidado. O cuidador registra o contato e depois ele pode virar membro."
-      >
-        <form className="grid gap-4 xl:grid-cols-2" onSubmit={handleSubmit}>
-          <label className="text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Cidade</span>
-            <select
-              required
-              value={form.tenantId}
-              onChange={(event) => {
-                const tenant = tenants.find((item) => item.id === event.target.value);
-                setForm((current) => ({
-                  ...current,
-                  tenantId: event.target.value,
-                  city: tenant?.city ?? current.city,
-                }));
-              }}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-            >
-              <option value="">Selecione</option>
-              {tenants.map((tenant) => (
-                <option key={tenant.id} value={tenant.id}>
-                  {tenant.name}
-                </option>
-              ))}
-            </select>
-          </label>
+    <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+      {/* ── Form ── */}
+      <Card padding={28}>
+        <SectionTitle>
+          {editing ? "Editar contato" : "Registrar novo contato"}
+        </SectionTitle>
+        <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 24, marginTop: -8 }}>
+          Porta de entrada do cuidado. Registre o contato e acompanhe a conversão para membro.
+        </p>
 
-          <label className="text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Cuidador responsavel</span>
-            <select
-              value={form.caregiverId}
-              onChange={(event) => setForm((current) => ({ ...current, caregiverId: event.target.value }))}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-            >
-              <option value="">Sem atribuicao</option>
-              {caregivers.map((caregiver) => (
-                <option key={caregiver.id} value={caregiver.id}>
-                  {caregiver.name}
-                </option>
-              ))}
-            </select>
-          </label>
+        <form
+          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}
+          onSubmit={handleSubmit}
+        >
+          <Select
+            label="Localidade"
+            value={form.tenantId}
+            onChange={(v) => {
+              const tenant = tenants.find((t) => t.id === v);
+              setForm((f) => ({ ...f, tenantId: v, city: tenant?.city ?? f.city }));
+            }}
+            options={tenants.map((t) => ({ value: t.id, label: t.name }))}
+            placeholder="Selecione a localidade"
+            required
+          />
 
-          <label className="text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Nome</span>
-            <input
-              required
-              value={form.referenceName}
-              onChange={(event) => setForm((current) => ({ ...current, referenceName: event.target.value }))}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-            />
-          </label>
+          <Select
+            label="Cuidador responsável"
+            value={form.caregiverId}
+            onChange={(v) => setForm((f) => ({ ...f, caregiverId: v }))}
+            options={[
+              { value: "", label: "Sem atribuição" },
+              ...caregivers.map((c) => ({ value: c.id, label: c.name })),
+            ]}
+          />
 
-          <label className="text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Telefone</span>
-            <input
-              value={form.phone}
-              onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-            />
-          </label>
+          <Input
+            label="Nome da pessoa"
+            value={form.referenceName}
+            onChange={(v) => setForm((f) => ({ ...f, referenceName: v }))}
+            placeholder="Ex: Maria Souza"
+            icon={<IconUser />}
+            required
+          />
 
-          <label className="text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Cidade da pessoa</span>
-            <input
-              value={form.city}
-              onChange={(event) => setForm((current) => ({ ...current, city: event.target.value }))}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-            />
-          </label>
+          <Input
+            label="Telefone"
+            value={form.phone}
+            onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
+            placeholder="(00) 90000-0000"
+            icon={<IconPhone />}
+          />
 
-          <label className="text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Origem</span>
-            <input
-              value={form.source}
-              onChange={(event) => setForm((current) => ({ ...current, source: event.target.value }))}
-              placeholder="Culto, visita, indicacao, mensagem..."
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-            />
-          </label>
+          <Input
+            label="Cidade da pessoa"
+            value={form.city}
+            onChange={(v) => setForm((f) => ({ ...f, city: v }))}
+            placeholder="Curitiba"
+            icon={<IconMapPin />}
+          />
 
-          <label className="text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Status</span>
-            <select
-              value={form.status}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, status: event.target.value as Seed["status"] }))
-              }
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-            >
-              {Object.entries(statusLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Input
+            label="Origem do contato"
+            value={form.source}
+            onChange={(v) => setForm((f) => ({ ...f, source: v }))}
+            placeholder="Culto, visita, indicação..."
+            icon={<IconHeart />}
+          />
 
-          <label className="text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Primeiro contato</span>
-            <input
-              type="date"
-              value={form.firstContactAt}
-              onChange={(event) => setForm((current) => ({ ...current, firstContactAt: event.target.value }))}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-            />
-          </label>
+          <Select
+            label="Status"
+            value={form.status}
+            onChange={(v) => setForm((f) => ({ ...f, status: v as Seed["status"] }))}
+            options={Object.entries(statusLabels).map(([value, label]) => ({ value, label }))}
+          />
 
-          <label className="text-sm xl:col-span-2">
-            <span className="mb-1 block font-medium text-slate-700">Observacoes</span>
-            <textarea
-              rows={4}
+          <div>
+            <label style={{
+              display: "flex", flexDirection: "column", gap: 8,
+              fontSize: 13.5, fontWeight: 600, color: "var(--text)",
+            }}>
+              Primeiro contato
+              <div style={{
+                display: "flex", alignItems: "center", height: 54,
+                padding: "0 18px",
+                background: "var(--surface)",
+                border: "1.5px solid var(--border)",
+                borderRadius: 14,
+              }}>
+                <input
+                  type="date"
+                  value={form.firstContactAt}
+                  onChange={(e) => setForm((f) => ({ ...f, firstContactAt: e.target.value }))}
+                  style={{
+                    flex: 1, border: 0, outline: "none",
+                    background: "transparent", fontFamily: "inherit",
+                    fontSize: 15, color: "var(--text)",
+                  }}
+                />
+              </div>
+            </label>
+          </div>
+
+          <div style={{ gridColumn: "1 / -1" }}>
+            <Textarea
+              label="Observações"
               value={form.notes}
-              onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
+              onChange={(v) => setForm((f) => ({ ...f, notes: v }))}
+              placeholder="Contexto, histórico, dúvidas, necessidades..."
+              rows={3}
             />
-          </label>
+          </div>
 
-          {error && <p className="xl:col-span-2 text-sm text-rose-600">{error}</p>}
+          {error && (
+            <div style={{
+              gridColumn: "1 / -1",
+              padding: "12px 16px", borderRadius: 12,
+              background: "#FFF1F2", border: "1px solid #FECDD3",
+              fontSize: 13, color: "#E11D48",
+              display: "flex", alignItems: "center", gap: 8,
+            }}>
+              <IconX size={14} /> {error}
+            </div>
+          )}
 
-          <div className="xl:col-span-2 flex gap-3">
-            <button
+          {success && (
+            <div style={{
+              gridColumn: "1 / -1",
+              padding: "12px 16px", borderRadius: 12,
+              background: "#F0FDF4", border: "1px solid #BBF7D0",
+              fontSize: 13, color: "#15803D",
+              display: "flex", alignItems: "center", gap: 8,
+            }}>
+              <IconCheck size={14} /> Contato salvo com sucesso!
+            </div>
+          )}
+
+          <div style={{ gridColumn: "1 / -1", display: "flex", gap: 10 }}>
+            <Button
               type="submit"
+              variant="primary"
+              size="md"
               disabled={submitting}
-              className="rounded-2xl bg-primary px-5 py-3 text-sm font-bold text-white disabled:opacity-60"
+              icon={<IconPlus />}
             >
               {submitting ? "Salvando..." : editing ? "Salvar contato" : "Registrar contato"}
-            </button>
-            <button
-              type="button"
-              onClick={resetForm}
-              className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700"
-            >
+            </Button>
+            <Button type="button" variant="secondary" size="md" onClick={resetForm}>
               {editing ? "Cancelar" : "Limpar"}
-            </button>
+            </Button>
           </div>
         </form>
-      </PanelShell>
+      </Card>
 
-      <PanelShell
-        title="Fila de novos contatos"
-        description="Acompanhe o que ja entrou no funil e converta para membro quando o acompanhamento comecar."
-      >
-        <div className="space-y-3">
-          {contacts.map((contact) => (
-            <div key={contact.id} className="rounded-2xl border border-slate-200 p-4">
-              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <p className="font-semibold text-slate-900">{contact.referenceName}</p>
-                  <p className="mt-1 text-sm text-slate-500">
-                    {contact.phone || "Sem telefone"} • {contact.city || "Sem cidade"}
-                  </p>
-                  <p className="mt-2 text-sm text-slate-600">{contact.notes}</p>
-                </div>
-                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
-                  {statusLabels[contact.status]}
-                </span>
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-500">
-                <span>Origem: {contact.source || "Nao informada"}</span>
-                <span>Cuidador: {contact.caregiver ?? "Nao atribuido"}</span>
-              </div>
-
-              <div className="mt-4 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => openEdit(contact)}
-                  className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700"
-                >
-                  Editar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => convertContact(contact)}
-                  disabled={convertingId === contact.id || contact.status === "in_progress"}
-                  className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  {convertingId === contact.id ? "Convertendo..." : "Converter em membro"}
-                </button>
-              </div>
-            </div>
-          ))}
+      {/* ── Contacts list ── */}
+      <Card padding={28}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <SectionTitle>Fila de novos contatos</SectionTitle>
+          <span style={{ fontSize: 12.5, color: "var(--text-3)", fontWeight: 500 }}>
+            {contacts.length} {contacts.length === 1 ? "contato" : "contatos"}
+          </span>
         </div>
-      </PanelShell>
+        <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 20, marginTop: -8 }}>
+          Acompanhe o funil e converta para membro quando o acompanhamento começar.
+        </p>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {contacts.length === 0 && (
+            <p style={{ fontSize: 13, color: "var(--text-3)", textAlign: "center", padding: "32px 0" }}>
+              Nenhum contato registrado ainda.
+            </p>
+          )}
+          {contacts.map((contact) => {
+            const col = statusColors[contact.status] ?? statusColors.new;
+            const caregiver = caregivers.find((c) => c.id === contact.caregiverId);
+            return (
+              <div
+                key={contact.id}
+                style={{
+                  padding: "16px 18px",
+                  borderRadius: 14,
+                  background: "var(--surface-2)",
+                  border: "1px solid var(--border)",
+                }}
+              >
+                <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+                  <Avatar name={contact.referenceName} size={44} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.01em" }}>
+                          {contact.referenceName}
+                        </div>
+                        <div style={{ fontSize: 12.5, color: "var(--text-2)", marginTop: 2 }}>
+                          {contact.phone || "Sem telefone"} • {contact.city || "Sem cidade"}
+                        </div>
+                      </div>
+                      <span style={{
+                        padding: "4px 10px", borderRadius: 999,
+                        background: col.bg, color: col.fg,
+                        fontSize: 11.5, fontWeight: 700, whiteSpace: "nowrap",
+                      }}>
+                        {statusLabels[contact.status]}
+                      </span>
+                    </div>
+
+                    {contact.notes && (
+                      <p style={{
+                        marginTop: 8, fontSize: 13, color: "var(--text-2)",
+                        lineHeight: 1.5,
+                      }}>
+                        {contact.notes}
+                      </p>
+                    )}
+
+                    <div style={{
+                      marginTop: 8, fontSize: 12, color: "var(--text-3)",
+                      display: "flex", gap: 16, flexWrap: "wrap",
+                    }}>
+                      {contact.source && <span>Origem: {contact.source}</span>}
+                      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <IconUsers size={11} />
+                        {caregiver?.name ?? "Sem cuidador"}
+                      </span>
+                    </div>
+
+                    <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        type="button"
+                        onClick={() => openEdit(contact)}
+                        style={{
+                          padding: "6px 14px", borderRadius: 8,
+                          background: "var(--surface)",
+                          border: "1.5px solid var(--border)",
+                          color: "var(--text)",
+                          fontSize: 13, fontWeight: 600, cursor: "pointer",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => convertContact(contact)}
+                        disabled={convertingId === contact.id || contact.status === "in_progress"}
+                        style={{
+                          padding: "6px 14px", borderRadius: 8,
+                          background: contact.status === "in_progress" ? "#F3E8FF" : "var(--accent)",
+                          border: "1.5px solid transparent",
+                          color: contact.status === "in_progress" ? "#7C3AED" : "#fff",
+                          fontSize: 13, fontWeight: 600,
+                          cursor: (convertingId === contact.id || contact.status === "in_progress") ? "not-allowed" : "pointer",
+                          opacity: convertingId === contact.id ? 0.6 : 1,
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        {convertingId === contact.id
+                          ? "Convertendo..."
+                          : contact.status === "in_progress"
+                          ? "Já é membro"
+                          : "→ Converter em membro"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
     </div>
   );
 }

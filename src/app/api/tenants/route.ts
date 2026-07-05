@@ -1,8 +1,13 @@
+export const dynamic = "force-dynamic";
+
+import { assertSessionRole, getDataScopeFromSession } from "@/server/auth/access-scope";
+import { requireServerAuthSession } from "@/server/auth/session";
 import { createTenant, listTenants } from "@/server/repositories/mvp-repository";
 
 export async function GET() {
   try {
-    const tenants = await listTenants();
+    const session = await requireServerAuthSession("coordinator");
+    const tenants = await listTenants(getDataScopeFromSession(session));
     return Response.json(tenants);
   } catch (error) {
     return Response.json(
@@ -14,6 +19,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const session = await requireServerAuthSession();
+    assertSessionRole(session, "coordinator");
     const body = (await request.json()) as {
       name?: string;
       city?: string;

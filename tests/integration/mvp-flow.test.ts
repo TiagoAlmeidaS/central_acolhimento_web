@@ -1,10 +1,34 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { POST as createTenantRoute } from "@/app/api/tenants/route";
-import { POST as createContactRoute } from "@/app/api/seeds/route";
-import { POST as convertContactRoute } from "@/app/api/seeds/[seedId]/convert/route";
-import { POST as assignCaregiverRoute } from "@/app/api/members/[memberId]/assign-caregiver/route";
-import { POST as createFollowupRoute } from "@/app/api/followups/route";
-import { listMembers, listSeeds, listTenants, resetLocalMvpStore } from "@/server/repositories/mvp-repository";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createSessionToken } from "@/server/auth/session";
+import type { AuthSession } from "@/server/domain/mvp";
+import { listMembers, listSeeds, resetLocalMvpStore } from "@/server/repositories/mvp-repository";
+
+const cookieState = {
+  value: "" as string,
+};
+
+const cookieStore = {
+  get(name: string) {
+    if (name !== "central-acolhimento-session" || !cookieState.value) {
+      return undefined;
+    }
+
+    return { name, value: cookieState.value };
+  },
+  set(name: string, value: string) {
+    if (name === "central-acolhimento-session") {
+      cookieState.value = value;
+    }
+  },
+};
+
+vi.mock("next/headers", () => ({
+  cookies: vi.fn(async () => cookieStore),
+}));
+
+function setSession(session: AuthSession) {
+  cookieState.value = createSessionToken(session);
+}
 
 describe("MVP integration flow", () => {
   beforeEach(() => {
@@ -12,37 +36,55 @@ describe("MVP integration flow", () => {
     delete process.env.POSTGRES_URL;
     delete process.env.DATABASE_URL;
     resetLocalMvpStore();
+    cookieState.value = "";
   });
 
-  it("creates a tenant through the API", async () => {
-    const response = await createTenantRoute(
-      new Request("http://localhost/api/tenants", {
-        method: "POST",
-        body: JSON.stringify({
-          name: "Central Cruz do Espirito Santo",
-          city: "Cruz do Espirito Santo",
-          state: "PB",
-          status: "active",
-        }),
-        headers: { "Content-Type": "application/json" },
-      })
-    );
+  it("returns only the selected tenant on the tenant API", async () => {
+    setSession({
+      user: { id: "user-1", email: "tiago@igreja.org", firstName: "Tiago", lastName: "Souza" },
+      membership: {
+        tenantUserId: "tenant-user-1",
+        tenantId: "1",
+        tenantName: "Central Sape",
+        tenantCity: "Sape",
+        tenantState: "PB",
+        role: "coordinator",
+        caregiverId: null,
+      },
+      homePath: "/coord",
+    });
 
-    expect(response.status).toBe(201);
-    const payload = (await response.json()) as { name: string };
-    const tenants = await listTenants();
+    const { GET: getTenants } = await import("@/app/api/tenants/route");
+    const response = await getTenants();
+    const tenants = (await response.json()) as Array<{ id: string }>;
 
-    expect(payload.name).toBe("Central Cruz do Espirito Santo");
-    expect(tenants.some((tenant) => tenant.name === "Central Cruz do Espirito Santo")).toBe(true);
+    expect(response.status).toBe(200);
+    expect(tenants).toHaveLength(1);
+    expect(tenants[0]?.id).toBe("1");
   });
 
-  it("registers a new contact and converts it into a member", async () => {
+  it("registers a new contact and converts it into a member inside the caregiver scope", async () => {
+    setSession({
+      user: { id: "user-2", email: "maria@igreja.org", firstName: "Maria", lastName: "Oliveira" },
+      membership: {
+        tenantUserId: "tenant-user-2",
+        tenantId: "1",
+        tenantName: "Central Sape",
+        tenantCity: "Sape",
+        tenantState: "PB",
+        role: "caregiver",
+        caregiverId: "1",
+      },
+      homePath: "/cuidador",
+    });
+
+    const { POST: createContactRoute } = await import("@/app/api/seeds/route");
     const createResponse = await createContactRoute(
       new Request("http://localhost/api/seeds", {
         method: "POST",
         body: JSON.stringify({
-          tenantId: "1",
-          caregiverId: "1",
+          tenantId: "999",
+          caregiverId: "999",
           referenceName: "Ester Nascimento",
           phone: "(83) 98888-7777",
           city: "Sape",
@@ -55,37 +97,56 @@ describe("MVP integration flow", () => {
     );
 
     expect(createResponse.status).toBe(201);
-    const createdContact = (await createResponse.json()) as { id: string; referenceName: string };
+    const createdContact = (await createResponse.json()) as { id: string; referenceName: string; tenantId: string; caregiverId: string | null };
     expect(createdContact.referenceName).toBe("Ester Nascimento");
+    expect(createdContact.tenantId).toBe("1");
+    expect(createdContact.caregiverId).toBe("1");
 
+    const { POST: convertContactRoute } = await import("@/app/api/seeds/[seedId]/convert/route");
     const convertResponse = await convertContactRoute(
       new Request(`http://localhost/api/seeds/${createdContact.id}/convert`, {
         method: "POST",
-        body: JSON.stringify({ caregiverId: "1" }),
+        body: JSON.stringify({ caregiverId: "999" }),
         headers: { "Content-Type": "application/json" },
       }),
       { params: Promise.resolve({ seedId: createdContact.id }) }
     );
 
     expect(convertResponse.status).toBe(201);
-    const member = (await convertResponse.json()) as { name: string; seedId: string | null };
-    const contacts = await listSeeds();
-    const members = await listMembers();
+    const member = (await convertResponse.json()) as { name: string; seedId: string | null; caregiverId: string | null };
+    const contacts = await listSeeds({ tenantId: "1", caregiverId: "1" });
+    const members = await listMembers({ tenantId: "1", caregiverId: "1" });
 
     expect(member.name).toBe("Ester Nascimento");
     expect(member.seedId).toBe(createdContact.id);
+    expect(member.caregiverId).toBe("1");
     expect(contacts.find((contact) => contact.id === createdContact.id)?.status).toBe("in_progress");
     expect(members.some((item) => item.name === "Ester Nascimento")).toBe(true);
   });
 
-  it("assigns a caregiver and records a followup", async () => {
-    const members = await listMembers();
+  it("lets the coordinator assign a caregiver and record a followup inside the current tenant", async () => {
+    setSession({
+      user: { id: "user-1", email: "tiago@igreja.org", firstName: "Tiago", lastName: "Souza" },
+      membership: {
+        tenantUserId: "tenant-user-1",
+        tenantId: "1",
+        tenantName: "Central Sape",
+        tenantCity: "Sape",
+        tenantState: "PB",
+        role: "coordinator",
+        caregiverId: null,
+      },
+      homePath: "/coord",
+    });
+
+    const members = await listMembers({ tenantId: "1" });
     const targetMember = members[0];
 
+    const { POST: assignCaregiverRoute } = await import("@/app/api/members/[memberId]/assign-caregiver/route");
     const assignResponse = await assignCaregiverRoute(
       new Request(`http://localhost/api/members/${targetMember.id}/assign-caregiver`, {
         method: "POST",
-        body: JSON.stringify({ caregiverId: "2" }),
+        body: JSON.stringify({ caregiverId: "1" }),
         headers: { "Content-Type": "application/json" },
       }),
       { params: Promise.resolve({ memberId: targetMember.id }) }
@@ -93,15 +154,16 @@ describe("MVP integration flow", () => {
 
     expect(assignResponse.status).toBe(200);
     const assignedMember = (await assignResponse.json()) as { caregiverId: string | null };
-    expect(assignedMember.caregiverId).toBe("2");
+    expect(assignedMember.caregiverId).toBe("1");
 
+    const { POST: createFollowupRoute } = await import("@/app/api/followups/route");
     const followupResponse = await createFollowupRoute(
       new Request("http://localhost/api/followups", {
         method: "POST",
         body: JSON.stringify({
-          tenantId: targetMember.tenantId,
+          tenantId: "1",
           memberId: targetMember.id,
-          caregiverId: "2",
+          caregiverId: "1",
           type: "call",
           notes: "Contato feito e proxima visita agendada.",
         }),
@@ -110,9 +172,10 @@ describe("MVP integration flow", () => {
     );
 
     expect(followupResponse.status).toBe(201);
-    const followup = (await followupResponse.json()) as { memberId: string; caregiverId: string | null; type: string };
+    const followup = (await followupResponse.json()) as { memberId: string; caregiverId: string | null; tenantId: string; type: string };
     expect(followup.memberId).toBe(targetMember.id);
-    expect(followup.caregiverId).toBe("2");
+    expect(followup.caregiverId).toBe("1");
+    expect(followup.tenantId).toBe("1");
     expect(followup.type).toBe("call");
   });
 });

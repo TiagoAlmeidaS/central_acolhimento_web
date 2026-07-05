@@ -1,8 +1,13 @@
+export const dynamic = "force-dynamic";
+
+import { getDataScopeFromSession } from "@/server/auth/access-scope";
+import { requireServerAuthSession } from "@/server/auth/session";
 import { getDashboardSummary } from "@/server/repositories/mvp-repository";
 
 export async function GET() {
   try {
-    const cards = await getDashboardSummary();
+    const session = await requireServerAuthSession();
+    const cards = await getDashboardSummary(getDataScopeFromSession(session));
     return Response.json(cards);
   } catch (error) {
     return Response.json(

@@ -1,11 +1,10 @@
-"use client";
+import { requireServerAuthSession } from "@/server/auth/session";
 
-import { RequireAuth } from "@/auth/require-auth";
-
-export default function ProtectedLayout({
+export default async function ProtectedLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <RequireAuth>{children}</RequireAuth>;
+  await requireServerAuthSession();
+  return <>{children}</>;
 }

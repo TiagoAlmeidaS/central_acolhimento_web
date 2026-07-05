@@ -1,155 +1,293 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import type { UserMembership } from "@/server/domain/mvp";
 import { useAuth } from "@/auth/auth-context";
+import { BrandMark } from "@/ui/v2-components/icons";
+import { Input, Button, Card } from "@/ui/v2-components/ui";
+
+function roleLabel(role: UserMembership["role"]) {
+  return role === "coordinator" ? "Coordenacao" : "Cuidador";
+}
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") ?? "/coord";
+  const next = searchParams.get("next");
   const invited = searchParams.get("invited") === "1";
+  const registered = searchParams.get("registered") === "1";
   const prefilledEmail = searchParams.get("email") ?? "";
+  
   const [email, setEmail] = useState(prefilledEmail);
   const [password, setPassword] = useState("");
+  const [memberships, setMemberships] = useState<UserMembership[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { signInWithPassword, signInWithGoogle, isConfigured } = useAuth();
+  const { signInWithPassword } = useAuth();
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
+  const showMembershipStep = memberships.length > 0;
+  const title = useMemo(
+    () => (showMembershipStep ? "Selecione a cidade" : "Entrar na Central"),
+    [showMembershipStep]
+  );
 
-    if (!isConfigured) {
-      router.replace(next);
-      return;
-    }
-
+  async function finishLogin(tenantUserId?: string | null) {
     setLoading(true);
-    const { error: authError } = await signInWithPassword(email, password);
-    setLoading(false);
-
-    if (authError) {
-      setError(authError.message === "Invalid login credentials" ? "E-mail ou senha incorretos." : authError.message);
-      return;
-    }
-
-    router.replace(next);
-  }
-
-  async function handleGoogleLogin() {
-    setError(null);
-
-    if (!isConfigured) {
-      router.replace(next);
-      return;
-    }
-
-    setLoading(true);
-    const { error: authError } = await signInWithGoogle();
+    const { error: authError, result } = await signInWithPassword(email, password, tenantUserId);
     setLoading(false);
 
     if (authError) {
       setError(authError.message);
+      return;
     }
+
+    if (!result) {
+      setError("Não foi possível concluir o login.");
+      return;
+    }
+
+    if (result.type === "select-membership") {
+      setMemberships(result.memberships);
+      return;
+    }
+
+    const target = next ?? result.session.homePath;
+    router.replace(target);
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setMemberships([]);
+    await finishLogin(null);
   }
 
   return (
-    <div className="bg-mesh flex min-h-screen items-center justify-center px-4 py-10 text-slate-900">
-      <div className="w-full max-w-md">
-        <div className="mb-8 flex flex-col items-center">
-          <div className="mb-4 flex size-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <span className="material-symbols-outlined text-4xl">hub</span>
-          </div>
-          <h1 className="text-center text-3xl font-black tracking-tight">Central de Acolhimento</h1>
-          <p className="mt-2 text-center text-sm text-slate-500">Monólito em Next.js para coordenação e cuidado.</p>
-        </div>
-
-        <div className="rounded-3xl border border-white/60 bg-white/90 p-8 shadow-panel backdrop-blur">
-          {invited && (
-            <div className="mb-5 rounded-2xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-emerald-700">
-              Cadastro concluido. Entre com o e-mail e a senha que voce acabou de criar.
-            </div>
-          )}
-
-          <div className="mb-5 rounded-2xl border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-amber-700">
-            Autenticacao externa desativada. O sistema esta em modo de acesso local para a fase de migracao.
-          </div>
-
-          {error && (
-            <div className="mb-5 rounded-2xl border border-danger/15 bg-danger/10 px-4 py-3 text-sm text-rose-700">
-              {error}
-            </div>
-          )}
-
-          <form className="space-y-5" onSubmit={handleSubmit}>
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700" htmlFor="email">
-                E-mail
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="voce@igreja.org"
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-primary focus:bg-white"
-              />
-            </div>
-
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <label className="block text-sm font-semibold text-slate-700" htmlFor="password">
-                  Senha
-                </label>
-                <button type="button" className="text-xs font-semibold text-primary">
-                  Esqueci minha senha
-                </button>
-              </div>
-              <input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="••••••••"
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-primary focus:bg-white"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "100vh",
+        background: "var(--bg)",
+        padding: "40px 24px",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <div style={{ width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", gap: 32 }}>
+        {/* Header Section */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
+          <BrandMark size={80} />
+          <div style={{ textAlign: "center" }}>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: 28,
+                fontWeight: 800,
+                letterSpacing: "-0.03em",
+                color: "var(--text)",
+                lineHeight: 1.15,
+              }}
             >
-              {loading ? "Entrando..." : "Entrar em modo local"}
-            </button>
-          </form>
-
-          <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-slate-400">
-            <div className="h-px flex-1 bg-slate-200" />
-            <span>ou</span>
-            <div className="h-px flex-1 bg-slate-200" />
+              Central de Acolhimento
+            </h1>
+            <p
+              style={{
+                margin: "10px 0 0",
+                fontSize: 14.5,
+                lineHeight: 1.5,
+                color: "var(--text-2)",
+                letterSpacing: "-0.005em",
+              }}
+            >
+              Acompanhe pessoas, cuidadores e indicadores com amor e eficiência.
+            </p>
           </div>
-
-          <button
-            type="button"
-            onClick={handleGoogleLogin}
-            disabled={loading}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <span className="material-symbols-outlined text-lg text-primary">login</span>
-            Google desativado
-          </button>
         </div>
 
-        <div className="mt-6 flex items-center justify-between text-xs text-slate-500">
-          <span>A serviço do Reino.</span>
-          <Link className="font-semibold text-primary" href="/coord">
-            Ver estrutura do MVP
-          </Link>
+        {/* Form Card */}
+        <Card padding={24}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {/* Step & Title */}
+            <div>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 11,
+                  fontWeight: 800,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.15em",
+                  color: "var(--accent)",
+                }}
+              >
+                {showMembershipStep ? "Etapa 2 de 2" : "Etapa 1 de 2"}
+              </p>
+              <h2
+                style={{
+                  margin: "6px 0 0",
+                  fontSize: 20,
+                  fontWeight: 700,
+                  color: "var(--text)",
+                }}
+              >
+                {title}
+              </h2>
+            </div>
+
+            {invited && (
+              <div
+                style={{
+                  padding: "12px 16px",
+                  borderRadius: 12,
+                  background: "var(--status-concluido-bg)",
+                  color: "var(--status-concluido)",
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                Cadastro concluído. Entre com o e-mail e a senha que você acabou de criar.
+              </div>
+            )}
+
+            {registered && (
+              <div
+                style={{
+                  padding: "12px 16px",
+                  borderRadius: 12,
+                  background: "var(--status-concluido-bg)",
+                  color: "var(--status-concluido)",
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                Acesso da coordenação criado. Entre para iniciar a configuração da sua central.
+              </div>
+            )}
+
+            {error && (
+              <div
+                style={{
+                  padding: "12px 16px",
+                  borderRadius: 12,
+                  background: "var(--status-urgente-bg)",
+                  color: "var(--status-urgente)",
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            {!showMembershipStep ? (
+              <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <Input
+                  label="E-mail"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={setEmail}
+                  placeholder="voce@igreja.org"
+                />
+
+                <Input
+                  label="Senha"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={setPassword}
+                  placeholder="Digite sua senha"
+                />
+
+                <Button type="submit" variant="primary" full disabled={loading}>
+                  {loading ? "Entrando..." : "Continuar"}
+                </Button>
+              </form>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {memberships.map((membership) => (
+                  <button
+                    key={membership.tenantUserId}
+                    type="button"
+                    onClick={() => {
+                      setError(null);
+                      void finishLogin(membership.tenantUserId);
+                    }}
+                    disabled={loading}
+                    style={{
+                      width: "100%",
+                      padding: 16,
+                      borderRadius: 14,
+                      border: "1.5px solid var(--border)",
+                      background: "var(--surface-2)",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      fontFamily: "inherit",
+                      transition: "border-color 0.15s, background-color 0.15s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = "var(--accent)";
+                      e.currentTarget.style.background = "var(--surface)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "var(--border)";
+                      e.currentTarget.style.background = "var(--surface-2)";
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "between", gap: 12 }}>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ margin: 0, fontWeight: 700, color: "var(--text)" }}>
+                          {membership.tenantName}
+                        </p>
+                        <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-2)" }}>
+                          {membership.tenantCity} - {membership.tenantState}
+                        </p>
+                      </div>
+                      <span
+                        style={{
+                          padding: "4px 10px",
+                          borderRadius: 8,
+                          background: "var(--accent-bg)",
+                          color: "var(--accent)",
+                          fontSize: 12,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {roleLabel(membership.role)}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+
+                <Button onClick={() => setMemberships([])} variant="secondary" full>
+                  Voltar e alterar credenciais
+                </Button>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Footer Link / Coord Register */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, alignItems: "center" }}>
+          {!showMembershipStep && (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, width: "100%" }}>
+              <div style={{ fontSize: 13, color: "var(--text-2)", textAlign: "center" }}>
+                Ainda não possui central?{" "}
+                <Link
+                  href="/cadastro/coordenacao"
+                  style={{ color: "var(--accent)", fontWeight: 700, textDecoration: "none" }}
+                >
+                  Cadastre-se aqui
+                </Link>
+              </div>
+              <div style={{ height: 1, background: "var(--border)", width: "100%" }} />
+              <div style={{ fontSize: 11.5, color: "var(--text-3)", textAlign: "center", lineHeight: 1.5 }}>
+                Os cuidadores recebem acesso por convite da coordenação local.
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

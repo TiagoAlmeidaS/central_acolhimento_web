@@ -3,13 +3,40 @@
 import { startTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Caregiver, Member, Tenant } from "@/server/domain/mvp";
-import { PanelShell } from "@/ui/mvp/panel-shell";
+import {
+  Card,
+  Button,
+  Input,
+  Select,
+  Textarea,
+  SectionTitle,
+  StatusPill,
+  Avatar,
+} from "@/ui/v2-components/ui";
+import {
+  IconUser,
+  IconPhone,
+  IconMapPin,
+  IconCheck,
+  IconPlus,
+  IconX,
+  IconUsers,
+  IconBuilding,
+} from "@/ui/v2-components/icons";
 
 const statusLabels: Record<Member["status"], string> = {
   new: "Novo",
   in_progress: "Em acompanhamento",
   consolidated: "Consolidado",
   inactive: "Inativo",
+};
+
+// Maps the member status to the V2 StatusPill keys
+const STATUS_MAP: Record<Member["status"], string> = {
+  new: "aguardando",
+  in_progress: "acompanhamento",
+  consolidated: "concluido",
+  inactive: "aguardando",
 };
 
 const emptyForm = {
@@ -40,11 +67,14 @@ export function MemberManager({
   const [savingAssignId, setSavingAssignId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   function resetForm() {
     setEditing(null);
     setForm({ ...emptyForm, tenantId: tenants[0]?.id ?? "", city: tenants[0]?.city ?? "" });
     setError(null);
+    setSuccess(false);
   }
 
   function openEdit(member: Member) {
@@ -61,12 +91,15 @@ export function MemberManager({
       notes: member.notes,
     });
     setError(null);
+    setSuccess(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
+    setSuccess(false);
 
     const response = await fetch(editing ? `/api/members/${editing.id}` : "/api/members", {
       method: editing ? "PUT" : "POST",
@@ -86,11 +119,12 @@ export function MemberManager({
 
     if (!response.ok) {
       const payload = (await response.json().catch(() => ({}))) as { error?: string };
-      setError(payload.error ?? "Nao foi possivel salvar o membro.");
+      setError(payload.error ?? "Não foi possível salvar o membro.");
       setSubmitting(false);
       return;
     }
 
+    setSuccess(true);
     resetForm();
     setSubmitting(false);
     startTransition(() => router.refresh());
@@ -107,209 +141,303 @@ export function MemberManager({
 
     setSavingAssignId(null);
 
-    if (!response.ok) {
-      return;
-    }
+    if (!response.ok) return;
 
     setAssigningMemberId(null);
     startTransition(() => router.refresh());
   }
 
+  const filteredMembers = members.filter((m) =>
+    `${m.name} ${m.city} ${m.phone}`.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="space-y-6">
-      <PanelShell
-        title={editing ? "Editar membro" : "Novo membro"}
-        description="Cadastre pessoas acompanhadas e mantenha o fluxo do MVP concentrado no monólito."
-      >
-        <form className="grid gap-4 xl:grid-cols-2" onSubmit={handleSubmit}>
-          <label className="text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Cidade</span>
-            <select
-              required
-              value={form.tenantId}
-              onChange={(event) => {
-                const nextTenant = tenants.find((tenant) => tenant.id === event.target.value);
-                setForm((current) => ({
-                  ...current,
-                  tenantId: event.target.value,
-                  city: current.city || nextTenant?.city || "",
-                }));
-              }}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-            >
-              <option value="">Selecione</option>
-              {tenants.map((tenant) => (
-                <option key={tenant.id} value={tenant.id}>
-                  {tenant.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Cuidador</span>
-            <select
-              value={form.caregiverId}
-              onChange={(event) => setForm((current) => ({ ...current, caregiverId: event.target.value }))}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-            >
-              <option value="">Sem atribuição</option>
-              {caregivers.map((caregiver) => (
-                <option key={caregiver.id} value={caregiver.id}>
-                  {caregiver.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Nome</span>
-            <input
-              required
-              value={form.name}
-              onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-            />
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Telefone</span>
-            <input
-              value={form.phone}
-              onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-            />
-          </label>
-          <label className="text-sm xl:col-span-2">
-            <span className="mb-1 block font-medium text-slate-700">Endereco</span>
-            <input
+    <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+      {/* ── Form ── */}
+      <Card padding={28}>
+        <SectionTitle>
+          {editing ? "Editar membro" : "Novo membro em acolhimento"}
+        </SectionTitle>
+        <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 24, marginTop: -8 }}>
+          Cadastre pessoas acompanhadas e mantenha o fluxo concentrado no monólito.
+        </p>
+
+        <form
+          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}
+          onSubmit={handleSubmit}
+        >
+          <Select
+            label="Localidade"
+            value={form.tenantId}
+            onChange={(v) => {
+              const next = tenants.find((t) => t.id === v);
+              setForm((f) => ({ ...f, tenantId: v, city: f.city || next?.city || "" }));
+            }}
+            options={tenants.map((t) => ({ value: t.id, label: t.name }))}
+            placeholder="Selecione a localidade"
+            required
+          />
+
+          <Select
+            label="Cuidador responsável"
+            value={form.caregiverId}
+            onChange={(v) => setForm((f) => ({ ...f, caregiverId: v }))}
+            options={[
+              { value: "", label: "Sem atribuição" },
+              ...caregivers.map((c) => ({ value: c.id, label: c.name })),
+            ]}
+          />
+
+          <Input
+            label="Nome completo"
+            value={form.name}
+            onChange={(v) => setForm((f) => ({ ...f, name: v }))}
+            placeholder="Ex: João da Silva"
+            icon={<IconUser />}
+            required
+          />
+
+          <Input
+            label="Telefone (WhatsApp)"
+            value={form.phone}
+            onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
+            placeholder="(00) 90000-0000"
+            icon={<IconPhone />}
+          />
+
+          <div style={{ gridColumn: "1 / -1" }}>
+            <Input
+              label="Endereço"
               value={form.address}
-              onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
+              onChange={(v) => setForm((f) => ({ ...f, address: v }))}
+              placeholder="Rua, número, bairro"
+              icon={<IconMapPin />}
             />
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Cidade da pessoa</span>
-            <input
-              value={form.city}
-              onChange={(event) => setForm((current) => ({ ...current, city: event.target.value }))}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-            />
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Nascimento</span>
-            <input
-              type="date"
-              value={form.birthDate}
-              onChange={(event) => setForm((current) => ({ ...current, birthDate: event.target.value }))}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-            />
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Status</span>
-            <select
-              value={form.status}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, status: event.target.value as Member["status"] }))
-              }
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
-            >
-              {Object.entries(statusLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm xl:col-span-2">
-            <span className="mb-1 block font-medium text-slate-700">Observacoes</span>
-            <textarea
-              rows={4}
+          </div>
+
+          <Input
+            label="Cidade da pessoa"
+            value={form.city}
+            onChange={(v) => setForm((f) => ({ ...f, city: v }))}
+            placeholder="Curitiba"
+          />
+
+          <Input
+            label="Data de nascimento"
+            type="date"
+            value={form.birthDate}
+            onChange={(v) => setForm((f) => ({ ...f, birthDate: v }))}
+          />
+
+          <Select
+            label="Status pastoral"
+            value={form.status}
+            onChange={(v) => setForm((f) => ({ ...f, status: v as Member["status"] }))}
+            options={Object.entries(statusLabels).map(([value, label]) => ({ value, label }))}
+          />
+
+          <div style={{ gridColumn: "1 / -1" }}>
+            <Textarea
+              label="Observações"
               value={form.notes}
-              onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-primary"
+              onChange={(v) => setForm((f) => ({ ...f, notes: v }))}
+              placeholder="Contexto, necessidades, indicações, histórico..."
+              rows={3}
             />
-          </label>
+          </div>
 
-          {error && <p className="xl:col-span-2 text-sm text-rose-600">{error}</p>}
+          {error && (
+            <div style={{
+              gridColumn: "1 / -1",
+              padding: "12px 16px", borderRadius: 12,
+              background: "#FFF1F2", border: "1px solid #FECDD3",
+              fontSize: 13, color: "#E11D48",
+              display: "flex", alignItems: "center", gap: 8,
+            }}>
+              <IconX size={14} /> {error}
+            </div>
+          )}
 
-          <div className="xl:col-span-2 flex gap-3">
-            <button
+          {success && (
+            <div style={{
+              gridColumn: "1 / -1",
+              padding: "12px 16px", borderRadius: 12,
+              background: "#F0FDF4", border: "1px solid #BBF7D0",
+              fontSize: 13, color: "#15803D",
+              display: "flex", alignItems: "center", gap: 8,
+            }}>
+              <IconCheck size={14} /> Membro salvo com sucesso!
+            </div>
+          )}
+
+          <div style={{ gridColumn: "1 / -1", display: "flex", gap: 10 }}>
+            <Button
               type="submit"
+              variant="primary"
+              size="md"
               disabled={submitting}
-              className="rounded-2xl bg-primary px-5 py-3 text-sm font-bold text-white disabled:opacity-60"
+              icon={<IconPlus />}
             >
               {submitting ? "Salvando..." : editing ? "Salvar membro" : "Criar membro"}
-            </button>
-            <button
-              type="button"
-              onClick={resetForm}
-              className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700"
-            >
+            </Button>
+            <Button type="button" variant="secondary" size="md" onClick={resetForm}>
               {editing ? "Cancelar" : "Limpar"}
-            </button>
+            </Button>
           </div>
         </form>
-      </PanelShell>
+      </Card>
 
-      <PanelShell title="Editar e atribuir" description="Atribua cuidadores diretamente na lista e abra a edição completa quando precisar.">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-            <thead className="bg-slate-50">
-              <tr className="text-xs font-black uppercase tracking-[0.3em] text-slate-500">
-                <th className="px-4 py-3">Nome</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Cuidador</th>
-                <th className="px-4 py-3">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {members.map((member) => (
-                <tr key={member.id}>
-                  <td className="px-4 py-4">
-                    <p className="font-semibold text-slate-900">{member.name}</p>
-                    <p className="text-xs text-slate-500">{member.phone}</p>
-                  </td>
-                  <td className="px-4 py-4 text-slate-600">{statusLabels[member.status]}</td>
-                  <td className="px-4 py-4">
-                    {assigningMemberId === member.id ? (
-                      <div className="flex items-center gap-2">
-                        <select
-                          defaultValue={member.caregiverId ?? ""}
-                          onChange={(event) => assignCaregiver(member.id, event.target.value)}
-                          className="rounded-xl border border-slate-200 px-3 py-2"
-                        >
-                          <option value="">Sem atribuição</option>
-                          {caregivers.map((caregiver) => (
-                            <option key={caregiver.id} value={caregiver.id}>
-                              {caregiver.name}
-                            </option>
-                          ))}
-                        </select>
-                        {savingAssignId === member.id && <span className="text-xs text-slate-500">Salvando...</span>}
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setAssigningMemberId(member.id)}
-                        className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700"
-                      >
-                        {member.caregiver ?? "Atribuir"}
-                      </button>
-                    )}
-                  </td>
-                  <td className="px-4 py-4">
-                    <button
-                      type="button"
-                      onClick={() => openEdit(member)}
-                      className="rounded-xl bg-primary/10 px-3 py-2 text-sm font-semibold text-primary"
-                    >
-                      Editar
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* ── List & assign ── */}
+      <Card padding={28}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <SectionTitle>
+            Membros em acolhimento
+          </SectionTitle>
+          <span style={{
+            fontSize: 12.5, color: "var(--text-3)", fontWeight: 500,
+          }}>
+            {filteredMembers.length} de {members.length}
+          </span>
         </div>
-      </PanelShell>
+
+        {/* Search */}
+        <div style={{ marginBottom: 20 }}>
+          <Input
+            placeholder="Buscar por nome, cidade ou telefone"
+            value={searchQuery}
+            onChange={setSearchQuery}
+            icon={<IconUsers />}
+          />
+        </div>
+
+        {/* Table */}
+        {filteredMembers.length === 0 ? (
+          <p style={{ fontSize: 13, color: "var(--text-3)", textAlign: "center", padding: "32px 0" }}>
+            {searchQuery ? "Nenhum resultado para a busca." : "Nenhum membro cadastrado ainda."}
+          </p>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ minWidth: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  {["Pessoa", "Status", "Cuidador", "Localidade", "Ações"].map((h) => (
+                    <th key={h} style={{
+                      padding: "10px 14px",
+                      fontSize: 11, fontWeight: 700,
+                      letterSpacing: "0.06em", textTransform: "uppercase",
+                      color: "var(--text-3)", textAlign: "left",
+                      borderBottom: "1.5px solid var(--border)",
+                    }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredMembers.map((member) => {
+                  const tenant = tenants.find((t) => t.id === member.tenantId);
+                  return (
+                    <tr
+                      key={member.id}
+                      style={{
+                        borderBottom: "1px solid var(--border)",
+                        transition: "background .1s",
+                      }}
+                    >
+                      {/* Name */}
+                      <td style={{ padding: "14px 14px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <Avatar name={member.name} size={38} />
+                          <div>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.01em" }}>
+                              {member.name}
+                            </div>
+                            <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 1 }}>
+                              {member.phone}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Status */}
+                      <td style={{ padding: "14px 14px" }}>
+                        <StatusPill status={STATUS_MAP[member.status]} size="sm" />
+                      </td>
+
+                      {/* Caregiver assign */}
+                      <td style={{ padding: "14px 14px" }}>
+                        {assigningMemberId === member.id ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <select
+                              defaultValue={member.caregiverId ?? ""}
+                              onChange={(e) => assignCaregiver(member.id, e.target.value)}
+                              style={{
+                                padding: "6px 10px", borderRadius: 8,
+                                border: "1.5px solid var(--border)",
+                                background: "var(--surface)", color: "var(--text)",
+                                fontFamily: "inherit", fontSize: 13, outline: "none",
+                              }}
+                            >
+                              <option value="">Sem atribuição</option>
+                              {caregivers.map((c) => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                              ))}
+                            </select>
+                            {savingAssignId === member.id && (
+                              <span style={{ fontSize: 12, color: "var(--text-3)" }}>Salvando...</span>
+                            )}
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setAssigningMemberId(member.id)}
+                            style={{
+                              padding: "6px 12px", borderRadius: 8,
+                              border: "1.5px solid var(--border)",
+                              background: "var(--surface-2)",
+                              color: member.caregiver ? "var(--text)" : "var(--accent)",
+                              fontSize: 13, fontWeight: 600, cursor: "pointer",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            {member.caregiver ?? "+ Atribuir"}
+                          </button>
+                        )}
+                      </td>
+
+                      {/* City/Tenant */}
+                      <td style={{ padding: "14px 14px" }}>
+                        <div style={{ fontSize: 13, color: "var(--text-2)", display: "flex", alignItems: "center", gap: 4 }}>
+                          <IconBuilding size={12} color="var(--accent)" />
+                          {tenant?.name ?? member.city}
+                        </div>
+                      </td>
+
+                      {/* Actions */}
+                      <td style={{ padding: "14px 14px" }}>
+                        <button
+                          type="button"
+                          onClick={() => openEdit(member)}
+                          style={{
+                            padding: "6px 14px", borderRadius: 8,
+                            background: "var(--accent-bg)",
+                            border: "1px solid rgba(45,127,249,0.2)",
+                            color: "var(--accent)",
+                            fontSize: 13, fontWeight: 600, cursor: "pointer",
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          Editar
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

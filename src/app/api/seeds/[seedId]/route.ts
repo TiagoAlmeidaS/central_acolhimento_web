@@ -1,4 +1,11 @@
-import { updateSeed } from "@/server/repositories/mvp-repository";
+import {
+  assertSessionCanAccessRecord,
+  getDataScopeFromSession,
+  resolveCaregiverId,
+  resolveTenantId,
+} from "@/server/auth/access-scope";
+import { requireServerAuthSession } from "@/server/auth/session";
+import { listSeeds, updateSeed } from "@/server/repositories/mvp-repository";
 
 type RouteContext = {
   params: Promise<{ seedId: string }>;
@@ -6,7 +13,13 @@ type RouteContext = {
 
 export async function PUT(request: Request, context: RouteContext) {
   try {
+    const session = await requireServerAuthSession();
     const { seedId } = await context.params;
+    const currentSeed = (await listSeeds(getDataScopeFromSession(session))).find((item) => item.id === seedId);
+    if (!currentSeed) {
+      return Response.json({ error: "Novo contato nao encontrado." }, { status: 404 });
+    }
+    assertSessionCanAccessRecord(session, currentSeed);
     const body = (await request.json()) as {
       tenantId?: string;
       caregiverId?: string | null;
@@ -27,8 +40,8 @@ export async function PUT(request: Request, context: RouteContext) {
     }
 
     const seed = await updateSeed(seedId, {
-      tenantId: body.tenantId,
-      caregiverId: body.caregiverId ?? null,
+      tenantId: resolveTenantId(session, body.tenantId),
+      caregiverId: resolveCaregiverId(session, body.caregiverId ?? null, { allowUnassignedForCoordinator: true }),
       referenceName: body.referenceName,
       phone: body.phone,
       city: body.city,

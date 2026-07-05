@@ -1,78 +1,118 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-} from "react";
-
-type LocalUser = {
-  id: string;
-  email: string;
-  firstName?: string;
-  lastName?: string;
-};
-
-type LocalSession = {
-  user: LocalUser;
-};
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import type { AuthSession, LoginResult } from "@/server/domain/mvp";
 
 type AuthContextValue = {
-  session: LocalSession | null;
-  user: LocalUser | null;
+  session: AuthSession | null;
+  user: AuthSession["user"] | null;
   loading: boolean;
   isConfigured: boolean;
-  signInWithPassword: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signInWithPassword: (
+    email: string,
+    password: string,
+    tenantUserId?: string | null
+  ) => Promise<{ error: Error | null; result: LoginResult | null }>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  refreshSession: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-const STORAGE_KEY = "central-acolhimento-local-session";
 
 export function AuthProvider({ children }: Readonly<{ children: React.ReactNode }>) {
-  const [session, setSession] = useState<LocalSession | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const refreshSession = useCallback(async () => {
+    setLoading(true);
 
     try {
-      const serialized = window.localStorage.getItem(STORAGE_KEY);
-      return serialized ? (JSON.parse(serialized) as LocalSession) : null;
-    } catch {
-      window.localStorage.removeItem(STORAGE_KEY);
-      return null;
+      const response = await fetch("/api/auth/session", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        setSession(null);
+        return;
+      }
+
+      const payload = (await response.json()) as { session: AuthSession | null };
+      setSession(payload.session);
+    } finally {
+      setLoading(false);
     }
-  });
-  const [loading] = useState(false);
-
-  const signInWithPassword = useCallback(async (email: string, _password: string) => {
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password: _password }),
-    });
-
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => ({}))) as { error?: string };
-      return { error: new Error(payload.error ?? "Nao foi possivel entrar.") };
-    }
-
-    const payload = (await response.json()) as { user: LocalUser };
-    const nextSession = { user: payload.user };
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextSession));
-    setSession(nextSession);
-    return { error: null };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+
+    async function loadSession() {
+      try {
+        const response = await fetch("/api/auth/session", {
+          method: "GET",
+          cache: "no-store",
+        });
+
+        if (!active) {
+          return;
+        }
+
+        if (!response.ok) {
+          setSession(null);
+          return;
+        }
+
+        const payload = (await response.json()) as { session: AuthSession | null };
+        if (active) {
+          setSession(payload.session);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadSession();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const signInWithPassword = useCallback(
+    async (email: string, password: string, tenantUserId?: string | null) => {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, tenantUserId: tenantUserId ?? null }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+        return { error: new Error(payload.error ?? "Nao foi possivel entrar."), result: null };
+      }
+
+      const payload = (await response.json()) as LoginResult;
+      if (payload.type === "authenticated") {
+        setSession(payload.session);
+      }
+
+      return { error: null, result: payload };
+    },
+    []
+  );
+
   const signInWithGoogle = useCallback(async () => {
-    return { error: new Error("Login com Google foi desativado nesta etapa. Use o acesso local.") };
+    return { error: new Error("Login com Google foi desativado nesta etapa.") };
   }, []);
 
   const signOut = useCallback(async () => {
-    window.localStorage.removeItem(STORAGE_KEY);
+    await fetch("/api/auth/logout", {
+      method: "POST",
+    });
     setSession(null);
   }, []);
 
@@ -85,8 +125,9 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
       signInWithPassword,
       signInWithGoogle,
       signOut,
+      refreshSession,
     }),
-    [loading, session, signInWithGoogle, signInWithPassword, signOut]
+    [loading, refreshSession, session, signInWithGoogle, signInWithPassword, signOut]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

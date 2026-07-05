@@ -1,8 +1,13 @@
+export const dynamic = "force-dynamic";
+
+import { getDataScopeFromSession, resolveCaregiverId, resolveTenantId } from "@/server/auth/access-scope";
+import { requireServerAuthSession } from "@/server/auth/session";
 import { createMember, listMembers } from "@/server/repositories/mvp-repository";
 
 export async function GET() {
   try {
-    const members = await listMembers();
+    const session = await requireServerAuthSession();
+    const members = await listMembers(getDataScopeFromSession(session));
     return Response.json(members);
   } catch (error) {
     return Response.json(
@@ -14,6 +19,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const session = await requireServerAuthSession();
     const body = (await request.json()) as {
       tenantId?: string;
       caregiverId?: string | null;
@@ -35,8 +41,8 @@ export async function POST(request: Request) {
     }
 
     const member = await createMember({
-      tenantId: body.tenantId,
-      caregiverId: body.caregiverId ?? null,
+      tenantId: resolveTenantId(session, body.tenantId),
+      caregiverId: resolveCaregiverId(session, body.caregiverId ?? null, { allowUnassignedForCoordinator: true }),
       seedId: body.seedId ?? null,
       name: body.name,
       phone: body.phone,

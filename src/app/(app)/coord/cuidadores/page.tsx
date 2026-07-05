@@ -1,52 +1,152 @@
+export const dynamic = "force-dynamic";
+
 import { listCaregivers, listTenants } from "@/server/repositories/mvp-repository";
+import { getDataScopeFromSession } from "@/server/auth/access-scope";
+import { requireServerAuthSession } from "@/server/auth/session";
 import { CaregiverManager } from "@/ui/mvp/caregiver-manager";
 
 export default async function CaregiversPage() {
-  const [caregivers, tenants] = await Promise.all([listCaregivers(), listTenants()]);
+  const session = await requireServerAuthSession("coordinator");
+  const scope = getDataScopeFromSession(session);
+  const [caregivers, tenants] = await Promise.all([listCaregivers(scope), listTenants(scope)]);
+
+  const activeCount = caregivers.filter((c) => c.active).length;
+  const totalMembers = caregivers.reduce((sum, c) => sum + (c.activeMembers ?? 0), 0);
 
   return (
-    <div className="min-h-screen bg-background-light px-6 py-8 md:px-8">
-      <div className="max-w-6xl space-y-6">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-primary">Coordenação</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Cuidadores</h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-500">
-            Esta tela substitui a versão antiga acoplada ao Vite e já fica alinhada ao domínio do monólito.
-          </p>
-        </div>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", padding: "0 0 48px" }}>
+      {/* Page header */}
+      <div style={{
+        padding: "32px 40px 24px",
+        borderBottom: "1px solid var(--border)",
+        background: "var(--surface)",
+        marginBottom: 32,
+      }}>
+        <p style={{
+          fontSize: 11, fontWeight: 700,
+          letterSpacing: "0.08em", textTransform: "uppercase",
+          color: "var(--accent)", marginBottom: 6,
+        }}>
+          Coordenação · Equipe
+        </p>
+        <h1 style={{
+          margin: 0,
+          fontSize: 28, fontWeight: 800,
+          letterSpacing: "-0.03em", color: "var(--text)",
+          lineHeight: 1.1,
+        }}>
+          Cuidadores
+        </h1>
+        <p style={{ marginTop: 8, fontSize: 14, color: "var(--text-2)", maxWidth: 520 }}>
+          Gerencie a equipe de cuidadores e suas localidades. Cada cuidador acompanha ativamente as pessoas em seu território.
+        </p>
+      </div>
 
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {caregivers.map((caregiver) => (
-            <article key={caregiver.id} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-panel">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900">{caregiver.name}</h2>
-                  <p className="mt-1 text-sm text-slate-500">{caregiver.phone}</p>
-                </div>
-                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
-                  {caregiver.active ? "Ativo" : "Inativo"}
-                </span>
+      <div style={{ padding: "0 40px", display: "flex", flexDirection: "column", gap: 40 }}>
+        {/* KPI cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 16 }}>
+          {[
+            { label: "Total de cuidadores", value: caregivers.length, color: "var(--accent)" },
+            { label: "Cuidadores ativos", value: activeCount, color: "#16A34A" },
+            { label: "Pessoas assistidas", value: totalMembers, color: "#C2410C" },
+            { label: "Localidades", value: tenants.length, color: "#7C3AED" },
+          ].map((kpi) => (
+            <div
+              key={kpi.label}
+              style={{
+                padding: "20px 22px", borderRadius: 16,
+                background: "var(--surface)", border: "1px solid var(--border)",
+                boxShadow: "var(--shadow-card)",
+              }}
+            >
+              <div style={{ fontSize: 12, color: "var(--text-2)", fontWeight: 500, marginBottom: 8 }}>
+                {kpi.label}
               </div>
-
-              <dl className="mt-6 space-y-3 text-sm text-slate-600">
-                <div className="flex justify-between gap-3">
-                  <dt>E-mail</dt>
-                  <dd className="font-semibold text-slate-900">{caregiver.email}</dd>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <dt>Cidade</dt>
-                  <dd className="font-semibold text-slate-900">{caregiver.city ?? "Nao vinculada"}</dd>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <dt>Pessoas</dt>
-                  <dd className="font-semibold text-slate-900">{caregiver.activeMembers ?? 0}</dd>
-                </div>
-              </dl>
-            </article>
+              <div style={{
+                fontSize: 32, fontWeight: 800,
+                color: kpi.color, letterSpacing: "-0.04em",
+                fontVariantNumeric: "tabular-nums", lineHeight: 1,
+              }}>
+                {kpi.value}
+              </div>
+            </div>
           ))}
         </div>
 
-        <CaregiverManager caregivers={caregivers} tenants={tenants} />
+        {/* Overview cards */}
+        {caregivers.length > 0 && (
+          <section>
+            <h2 style={{
+              margin: "0 0 16px", fontSize: 14, fontWeight: 700,
+              color: "var(--text-2)", letterSpacing: "0.04em", textTransform: "uppercase",
+            }}>
+              Visão geral da equipe
+            </h2>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+              gap: 16,
+            }}>
+              {caregivers.map((caregiver) => {
+                const tenant = tenants.find((t) => t.id === caregiver.tenantId);
+                return (
+                  <div
+                    key={caregiver.id}
+                    style={{
+                      padding: "20px 22px", borderRadius: 16,
+                      background: "var(--surface)", border: "1px solid var(--border)",
+                      boxShadow: "var(--shadow-card)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 15.5, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.015em" }}>
+                          {caregiver.name}
+                        </div>
+                        <div style={{ fontSize: 12.5, color: "var(--text-2)", marginTop: 3 }}>
+                          {caregiver.email ?? caregiver.phone}
+                        </div>
+                      </div>
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 999,
+                        background: caregiver.active ? "#DCFCE7" : "#F4F4F5",
+                        color: caregiver.active ? "#15803D" : "#71717A",
+                        whiteSpace: "nowrap", marginTop: 2,
+                      }}>
+                        {caregiver.active ? "Ativo" : "Inativo"}
+                      </span>
+                    </div>
+                    <div style={{
+                      marginTop: 16, display: "flex", gap: 20,
+                      fontSize: 12.5, color: "var(--text-3)",
+                    }}>
+                      <span>
+                        <span style={{ fontWeight: 700, color: "var(--text)", fontSize: 18 }}>
+                          {caregiver.activeMembers ?? 0}
+                        </span>{" "}
+                        pessoas
+                      </span>
+                      <span style={{ color: "var(--accent)" }}>
+                        {tenant?.city ?? "—"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Manager form */}
+        <section>
+          <h2 style={{
+            margin: "0 0 16px", fontSize: 14, fontWeight: 700,
+            color: "var(--text-2)", letterSpacing: "0.04em", textTransform: "uppercase",
+          }}>
+            Gerenciar cuidadores
+          </h2>
+          <CaregiverManager caregivers={caregivers} tenants={tenants} />
+        </section>
       </div>
     </div>
   );

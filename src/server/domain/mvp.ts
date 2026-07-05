@@ -102,6 +102,11 @@ export type DashboardCard = {
   detail: string;
 };
 
+export type DataScope = {
+  tenantId?: string;
+  caregiverId?: string | null;
+};
+
 export type CaregiverInvitation = {
   id: string;
   tenantId: string;
@@ -203,4 +208,41 @@ export type AcceptCaregiverInvitationInput = {
 export type LoginInput = {
   email: string;
   password: string;
+  tenantUserId?: string | null;
 };
+
+export type AuthUser = {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+};
+
+export type UserMembership = {
+  tenantUserId: string;
+  tenantId: string;
+  tenantName: string;
+  tenantCity: string;
+  tenantState: string;
+  role: AppRole;
+  caregiverId: string | null;
+};
+
+export type AuthSession = {
+  user: AuthUser;
+  membership: UserMembership;
+  homePath: string;
+};
+
+export type LoginSuccessResult = {
+  type: "authenticated";
+  session: AuthSession;
+};
+
+export type LoginTenantSelectionResult = {
+  type: "select-membership";
+  user: AuthUser;
+  memberships: UserMembership[];
+};
+
+export type LoginResult = LoginSuccessResult | LoginTenantSelectionResult;

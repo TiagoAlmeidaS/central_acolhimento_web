@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getCaregiverInvitationByToken } from "@/server/repositories/invitation-repository";
 
 type RouteContext = {

@@ -1,9 +1,16 @@
+export const dynamic = "force-dynamic";
+
+import { assertSessionRole, getDataScopeFromSession, resolveTenantId } from "@/server/auth/access-scope";
+import { requireServerAuthSession } from "@/server/auth/session";
 import { createCaregiverInvitation, listCaregiverInvitations } from "@/server/repositories/invitation-repository";
 
 export async function GET(request: Request) {
   try {
+    const session = await requireServerAuthSession();
+    assertSessionRole(session, "coordinator");
     const { searchParams } = new URL(request.url);
-    const tenantId = searchParams.get("tenantId") ?? undefined;
+    const requestedTenantId = searchParams.get("tenantId") ?? undefined;
+    const tenantId = resolveTenantId(session, requestedTenantId);
     const invitations = await listCaregiverInvitations(tenantId);
     return Response.json(invitations);
   } catch (error) {
@@ -16,6 +23,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await requireServerAuthSession();
+    assertSessionRole(session, "coordinator");
     const body = (await request.json()) as {
       tenantId?: string;
       email?: string | null;
@@ -27,9 +36,10 @@ export async function POST(request: Request) {
     }
 
     const invitation = await createCaregiverInvitation({
-      tenantId: body.tenantId,
+      tenantId: resolveTenantId(session, body.tenantId),
       email: body.email ?? null,
       expiresInDays: body.expiresInDays,
+      createdByTenantUserId: session.membership.tenantUserId,
     });
 
     return Response.json(invitation, { status: 201 });

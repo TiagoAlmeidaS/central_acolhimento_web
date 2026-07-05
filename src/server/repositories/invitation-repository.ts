@@ -161,6 +161,14 @@ export async function acceptCaregiverInvitation(token: string, input: AcceptCare
   }
 
   if (!isDatabaseConfigured()) {
+    const appUser = await createAppUser({
+      firstName: input.firstName,
+      lastName: input.lastName,
+      email: input.email,
+      phone: input.phone,
+      password: input.password,
+    });
+
     const fullName = `${input.firstName} ${input.lastName}`.trim();
     const nextInvitation: CaregiverInvitation = {
       ...invitation,
@@ -171,14 +179,7 @@ export async function acceptCaregiverInvitation(token: string, input: AcceptCare
 
     return {
       invitation: nextInvitation,
-      appUser: {
-        id: crypto.randomUUID(),
-        firstName: input.firstName,
-        lastName: input.lastName,
-        email: input.email,
-        phone: input.phone,
-        active: true,
-      },
+      appUser,
       tenantUserId: crypto.randomUUID(),
       caregiverName: fullName,
     };

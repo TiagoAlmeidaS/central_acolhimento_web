@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Central de Acolhimento</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  }
+
+  /* ── Light tokens (DS Acolhimento) ─────────────────────────── */
+  .app-light {
+    --bg: #F5F5F7;
+    --surface: #FFFFFF;
+    --surface-2: #F8F9FB;
+    --border: #E8EAEE;
+    --border-strong: #D5D9E0;
+
+    --text: #0F172A;
+    --text-2: #4B5563;
+    --text-3: #94A3B8;
+
+    --accent: #2D7FF9;
+    --accent-strong: #1F6BE0;
+    --accent-bg: #E8F1FE;
+
+    --shadow-card: 0 1px 2px rgba(15,23,42,0.04), 0 1px 0 rgba(15,23,42,0.02);
+
+    color-scheme: light;
+  }
+
+  /* ── Dark tokens ───────────────────────────────────────────── */
+  .app-dark {
+    --bg: #0B1220;
+    --surface: #131A2A;
+    --surface-2: #1B2336;
+    --border: #232C42;
+    --border-strong: #344058;
+
+    --text: #F1F5F9;
+    --text-2: #94A3B8;
+    --text-3: #64748B;
+
+    --accent: #60A5FA;
+    --accent-strong: #3B82F6;
+    --accent-bg: rgba(96,165,250,0.14);
+
+    --shadow-card: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.25);
+
+    color-scheme: dark;
+  }
+
+  html, body {
+    margin: 0; padding: 0; background: #ECEEF2;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  button { font-family: inherit; }
+
+  *::-webkit-scrollbar { width: 0; height: 0; }
+  select { font-family: inherit; }
+  select option { color: #0F172A; background: #fff; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+
+<script type="text/babel" src="app/data.jsx"></script>
+<script type="text/babel" src="app/icons.jsx"></script>
+<script type="text/babel" src="app/ui.jsx"></script>
+<script type="text/babel" src="app/screens-onboarding.jsx"></script>
+<script type="text/babel" src="app/screens-main.jsx"></script>
+<script type="text/babel" src="app/screens-team.jsx"></script>
+<script type="text/babel" src="app/screens-billing.jsx"></script>
+<script type="text/babel" src="app/screens-tenant-setup.jsx"></script>
+<script type="text/babel" src="app/screens-dashboard.jsx"></script>
+<script type="text/babel" src="app/app.jsx"></script>
+
+<script type="text/babel">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "dark": true
+}/*EDITMODE-END*/;
+
+function ArtboardWrap({ theme, children }) {
+  return (
+    <div className={theme === 'dark' ? 'app-dark' : 'app-light'}
+         style={{
+           width: '100%', height: '100%',
+           display: 'flex', alignItems: 'center', justifyContent: 'center',
+           background: '#ECEEF2',
+           color: 'var(--text)', fontFamily: 'var(--font-sans)',
+         }}>
+      {children}
+    </div>
+  );
+}
+
+function Root() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const theme = t.dark ? 'dark' : 'light';
+  const setDark = (v) => setTweak('dark', v);
+
+  return (
+    <>
+      <DesignCanvas>
+        <DCSection id="entrada"
+                   title="Fluxo de entrada"
+                   subtitle="Login → Cadastro → Aguardando análise. Cada localidade (tenant) tem seu canal fechado.">
+          <DCArtboard id="login" label="T1 · Login" width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="login" dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+
+          <DCArtboard id="cadastro" label="T2 · Cadastro do Cuidador"
+                      width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="cadastro" dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+
+          <DCArtboard id="analise" label="T2.5 · Em Análise"
+                      width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="analise" dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="convite"
+                   title="Fluxo do convite (Líder convida cuidador)"
+                   subtitle="Líder envia o link · pessoa convidada recebe e entra direto, sem análise.">
+          <DCArtboard id="equipe" label="Líder · Equipe" width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="app" initialRole="lider"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+
+          <DCArtboard id="conv-recebido" label="Convite recebido"
+                      width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="convite-recebido"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+
+          <DCArtboard id="conv-confirmar" label="Confirmar dados"
+                      width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="convite-confirmar"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+
+          <DCArtboard id="conv-bemvinda" label="Bem-vinda"
+                      width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="convite-bemvinda"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="criar-localidade"
+                   title="Criar nova localidade (Líder fundador)"
+                   subtitle="Fluxo completo: identidade → OTP → dados → personalização → revisão → assinatura → bem-vindo. 8 telas.">
+          <DCArtboard id="t-escolha" label="Escolher perfil" width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="escolha-perfil"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+
+          <DCArtboard id="t-identidade" label="1 · Líder" width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="tenant-identidade"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+
+          <DCArtboard id="t-otp" label="2 · Código WhatsApp"
+                      width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="tenant-otp"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+
+          <DCArtboard id="t-localidade" label="3 · Localidade"
+                      width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="tenant-localidade"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+
+          <DCArtboard id="t-personaliza" label="4 · Personalização"
+                      width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="tenant-personaliza"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+
+          <DCArtboard id="t-revisao" label="5 · Revisão"
+                      width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="tenant-revisao"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+
+          <DCArtboard id="t-bemvindo" label="Bem-vindo, líder"
+                      width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="tenant-bemvindo"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="cuidador-acao"
+                   title="Cuidador em ação · Perfil completo"
+                   subtitle="Adicionar notas, marcar como contatado, agendar reuniões e editar contexto pastoral.">
+          <DCArtboard id="perfil" label="Perfil enriquecido"
+                      width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="app" initialRole="cuidador"
+                         initialSubscreen="detalhes" initialSelectedId="carlos"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+
+          <DCArtboard id="editar" label="Editar informações"
+                      width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="app" initialRole="cuidador"
+                         initialSubscreen="editar-assistido" initialSelectedId="carlos"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+
+          <DCArtboard id="agendar" label="Agendar reunião"
+                      width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="app" initialRole="cuidador"
+                         initialSubscreen="agendar-reuniao" initialSelectedId="carlos"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="lider-dashboard"
+                   title="Dashboard do Líder"
+                   subtitle="KPIs operacionais, gráfico de visitas, distribuição por status e capacidade da equipe.">
+          <DCArtboard id="dashboard" label="Dashboard · Adrianópolis"
+                      width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="app" initialRole="lider"
+                         initialSubscreen="dashboard"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="assinatura"
+                   title="Assinatura da localidade · Stripe"
+                   subtitle="Líder responsável paga R$ 19,90 ou R$ 29,90/mês para manter o tenant ativo. 14 dias grátis.">
+          <DCArtboard id="planos" label="Planos" width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="app" initialRole="lider"
+                         initialSubscreen="planos"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+
+          <DCArtboard id="checkout" label="Checkout (cartão)"
+                      width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="app" initialRole="lider"
+                         initialSubscreen="checkout"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+
+          <DCArtboard id="sucesso-assin" label="Sucesso"
+                      width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="app" initialRole="lider"
+                         initialSubscreen="sucesso-assinatura"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+
+          <DCArtboard id="assinatura-ativa" label="Gerenciar assinatura"
+                      width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="app" initialRole="lider"
+                         initialSubscreen="assinatura"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+
+          <DCArtboard id="faturas" label="Faturas"
+                      width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="app" initialRole="lider"
+                         initialSubscreen="faturas"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+
+          <DCArtboard id="cancelar" label="Cancelar"
+                      width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="app" initialRole="lider"
+                         initialSubscreen="cancelar"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="app"
+                   title="App principal"
+                   subtitle="4 abas · Início · Agenda · Mensagens · Ajustes. Interativo — clique nos cards, troque de aba, converse com a IA.">
+          <DCArtboard id="cuidador" label="Cuidador · Adrianópolis"
+                      width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="app" initialRole="cuidador"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+
+          <DCArtboard id="lider" label="Líder · Adrianópolis"
+                      width={420} height={860}>
+            <ArtboardWrap theme={theme}>
+              <PhoneFrame dark={t.dark}>
+                <FullApp initialStage="app" initialRole="lider"
+                         dark={t.dark} onDark={setDark} />
+              </PhoneFrame>
+            </ArtboardWrap>
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+
+      <TweaksPanel title="Tweaks — Acolhimento">
+        <TweakSection label="Tema" />
+        <TweakToggle label="Modo escuro" value={t.dark}
+                     onChange={setDark} />
+      </TweaksPanel>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<Root />);
+</script>
+</body>
+</html>

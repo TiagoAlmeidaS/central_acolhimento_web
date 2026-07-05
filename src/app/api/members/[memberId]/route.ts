@@ -1,4 +1,11 @@
-import { updateMember } from "@/server/repositories/mvp-repository";
+import {
+  assertSessionCanAccessRecord,
+  getDataScopeFromSession,
+  resolveCaregiverId,
+  resolveTenantId,
+} from "@/server/auth/access-scope";
+import { requireServerAuthSession } from "@/server/auth/session";
+import { listMembers, updateMember } from "@/server/repositories/mvp-repository";
 
 type RouteContext = {
   params: Promise<{ memberId: string }>;
@@ -6,7 +13,13 @@ type RouteContext = {
 
 export async function PUT(request: Request, context: RouteContext) {
   try {
+    const session = await requireServerAuthSession();
     const { memberId } = await context.params;
+    const currentMember = (await listMembers(getDataScopeFromSession(session))).find((item) => item.id === memberId);
+    if (!currentMember) {
+      return Response.json({ error: "Membro nao encontrado." }, { status: 404 });
+    }
+    assertSessionCanAccessRecord(session, currentMember);
     const body = (await request.json()) as {
       tenantId?: string;
       caregiverId?: string | null;
@@ -25,8 +38,8 @@ export async function PUT(request: Request, context: RouteContext) {
     }
 
     const member = await updateMember(memberId, {
-      tenantId: body.tenantId,
-      caregiverId: body.caregiverId ?? null,
+      tenantId: resolveTenantId(session, body.tenantId),
+      caregiverId: resolveCaregiverId(session, body.caregiverId ?? null, { allowUnassignedForCoordinator: true }),
       seedId: body.seedId ?? null,
       name: body.name,
       phone: body.phone,
