@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { UserMembership } from "@/server/domain/mvp";
 import { useAuth } from "@/auth/auth-context";
 import { BrandMark } from "@/ui/v2-components/icons";
-import { Input, Button, Card } from "@/ui/v2-components/ui";
+import { Button, Card, Input } from "@/ui/v2-components/ui";
 
 function roleLabel(role: UserMembership["role"]) {
   return role === "coordinator" ? "Coordenacao" : "Cuidador";
@@ -19,7 +19,7 @@ export function LoginForm() {
   const invited = searchParams.get("invited") === "1";
   const registered = searchParams.get("registered") === "1";
   const prefilledEmail = searchParams.get("email") ?? "";
-  
+
   const [email, setEmail] = useState(prefilledEmail);
   const [password, setPassword] = useState("");
   const [memberships, setMemberships] = useState<UserMembership[]>([]);
@@ -44,7 +44,7 @@ export function LoginForm() {
     }
 
     if (!result) {
-      setError("Não foi possível concluir o login.");
+      setError("Nao foi possivel concluir o login.");
       return;
     }
 
@@ -77,7 +77,6 @@ export function LoginForm() {
       }}
     >
       <div style={{ width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", gap: 32 }}>
-        {/* Header Section */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
           <BrandMark size={80} />
           <div style={{ textAlign: "center" }}>
@@ -102,15 +101,13 @@ export function LoginForm() {
                 letterSpacing: "-0.005em",
               }}
             >
-              Acompanhe pessoas, cuidadores e indicadores com amor e eficiência.
+              Acompanhe pessoas, cuidadores e indicadores com clareza operacional.
             </p>
           </div>
         </div>
 
-        {/* Form Card */}
         <Card padding={24}>
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            {/* Step & Title */}
             <div>
               <p
                 style={{
@@ -136,7 +133,7 @@ export function LoginForm() {
               </h2>
             </div>
 
-            {invited && (
+            {invited ? (
               <div
                 style={{
                   padding: "12px 16px",
@@ -147,11 +144,11 @@ export function LoginForm() {
                   fontWeight: 600,
                 }}
               >
-                Cadastro concluído. Entre com o e-mail e a senha que você acabou de criar.
+                Cadastro concluido. Entre com o e-mail e a senha que voce acabou de criar.
               </div>
-            )}
+            ) : null}
 
-            {registered && (
+            {registered ? (
               <div
                 style={{
                   padding: "12px 16px",
@@ -162,11 +159,11 @@ export function LoginForm() {
                   fontWeight: 600,
                 }}
               >
-                Acesso da coordenação criado. Entre para iniciar a configuração da sua central.
+                Acesso da coordenacao criado. Entre para iniciar a configuracao da sua central.
               </div>
-            )}
+            ) : null}
 
-            {error && (
+            {error ? (
               <div
                 style={{
                   padding: "12px 16px",
@@ -179,7 +176,7 @@ export function LoginForm() {
               >
                 {error}
               </div>
-            )}
+            ) : null}
 
             {!showMembershipStep ? (
               <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -227,16 +224,16 @@ export function LoginForm() {
                       fontFamily: "inherit",
                       transition: "border-color 0.15s, background-color 0.15s",
                     }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = "var(--accent)";
-                      e.currentTarget.style.background = "var(--surface)";
+                    onMouseEnter={(event) => {
+                      event.currentTarget.style.borderColor = "var(--accent)";
+                      event.currentTarget.style.background = "var(--surface)";
                     }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = "var(--border)";
-                      e.currentTarget.style.background = "var(--surface-2)";
+                    onMouseLeave={(event) => {
+                      event.currentTarget.style.borderColor = "var(--border)";
+                      event.currentTarget.style.background = "var(--surface-2)";
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "between", gap: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       <div style={{ flex: 1 }}>
                         <p style={{ margin: 0, fontWeight: 700, color: "var(--text)" }}>
                           {membership.tenantName}
@@ -269,26 +266,23 @@ export function LoginForm() {
           </div>
         </Card>
 
-        {/* Footer Link / Coord Register */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16, alignItems: "center" }}>
-          {!showMembershipStep && (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, width: "100%" }}>
-              <div style={{ fontSize: 13, color: "var(--text-2)", textAlign: "center" }}>
-                Ainda não possui central?{" "}
-                <Link
-                  href="/cadastro/coordenacao"
-                  style={{ color: "var(--accent)", fontWeight: 700, textDecoration: "none" }}
-                >
-                  Cadastre-se aqui
-                </Link>
-              </div>
-              <div style={{ height: 1, background: "var(--border)", width: "100%" }} />
-              <div style={{ fontSize: 11.5, color: "var(--text-3)", textAlign: "center", lineHeight: 1.5 }}>
-                Os cuidadores recebem acesso por convite da coordenação local.
-              </div>
+        {!showMembershipStep ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "center", width: "100%" }}>
+            <div style={{ fontSize: 13, color: "var(--text-2)", textAlign: "center" }}>
+              Ainda nao possui central?{" "}
+              <Link
+                href="/cadastro/coordenacao"
+                style={{ color: "var(--accent)", fontWeight: 700, textDecoration: "none" }}
+              >
+                Cadastre-se aqui
+              </Link>
             </div>
-          )}
-        </div>
+            <div style={{ height: 1, background: "var(--border)", width: "100%" }} />
+            <div style={{ fontSize: 11.5, color: "var(--text-3)", textAlign: "center", lineHeight: 1.5 }}>
+              Os cuidadores recebem acesso por convite da coordenacao local.
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

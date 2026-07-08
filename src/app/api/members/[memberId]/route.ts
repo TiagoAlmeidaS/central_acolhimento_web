@@ -31,6 +31,9 @@ export async function PUT(request: Request, context: RouteContext) {
       birthDate?: string | null;
       status?: "new" | "in_progress" | "consolidated" | "inactive";
       notes?: string;
+      latitude?: number | null;
+      longitude?: number | null;
+      isUrgent?: boolean;
     };
 
     if (!body.tenantId || !body.name) {
@@ -48,6 +51,9 @@ export async function PUT(request: Request, context: RouteContext) {
       birthDate: body.birthDate ?? null,
       status: body.status,
       notes: body.notes,
+      latitude: body.latitude,
+      longitude: body.longitude,
+      isUrgent: body.isUrgent,
     });
 
     return Response.json(member);

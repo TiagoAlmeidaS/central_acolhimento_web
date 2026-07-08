@@ -4,7 +4,8 @@ import type {
   CaregiverInvitation,
   CreateCaregiverInvitationInput,
 } from "@/server/domain/mvp";
-import { createAppUser, findAppUserByEmail } from "@/server/repositories/auth-repository";
+import { appendLocalUserMembership, createAppUser, findAppUserByEmail } from "@/server/repositories/auth-repository";
+import { createCaregiver, listTenants } from "@/server/repositories/mvp-repository";
 import { generateInvitationToken } from "@/server/security/password";
 
 type InvitationRow = {
@@ -99,12 +100,13 @@ export async function createCaregiverInvitation(input: CreateCaregiverInvitation
   const token = generateInvitationToken();
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + (input.expiresInDays ?? 7));
+  const role = input.role ?? "caregiver";
 
   if (!isDatabaseConfigured()) {
     const invitation: CaregiverInvitation = {
       id: crypto.randomUUID(),
       tenantId: input.tenantId,
-      role: "caregiver",
+      role,
       email: input.email ?? null,
       token,
       status: "pending",
@@ -121,9 +123,9 @@ export async function createCaregiverInvitation(input: CreateCaregiverInvitation
   const result = await db.query<InvitationRow>(
     `insert into caregiver_invitations
       (tenant_id, created_by_tenant_user_id, accepted_app_user_id, role, email, token, status, expires_at)
-     values ($1, $2, null, 'caregiver', $3, $4, 'pending', $5)
+     values ($1, $2, null, $3, $4, $5, 'pending', $6)
      returning *`,
-    [input.tenantId, input.createdByTenantUserId ?? null, input.email ?? null, token, expiresAt.toISOString()]
+    [input.tenantId, input.createdByTenantUserId ?? null, role, input.email ?? null, token, expiresAt.toISOString()]
   );
 
   return mapInvitation(result.rows[0]);
@@ -170,6 +172,28 @@ export async function acceptCaregiverInvitation(token: string, input: AcceptCare
     });
 
     const fullName = `${input.firstName} ${input.lastName}`.trim();
+    const tenantUserId = crypto.randomUUID();
+    const caregiver = await createCaregiver({
+      tenantId: invitation.tenantId,
+      tenantUserId,
+      name: fullName,
+      phone: input.phone,
+      email: input.email,
+      active: true,
+      notes: "",
+    });
+    const tenant = (await listTenants({ tenantId: invitation.tenantId }))[0];
+
+    appendLocalUserMembership(input.email, {
+      tenantUserId,
+      tenantId: invitation.tenantId,
+      tenantName: tenant?.name ?? "Central",
+      tenantCity: tenant?.city ?? "",
+      tenantState: tenant?.state ?? "",
+      role: invitation.role,
+      caregiverId: caregiver.id,
+    });
+
     const nextInvitation: CaregiverInvitation = {
       ...invitation,
       status: "accepted",
@@ -180,7 +204,7 @@ export async function acceptCaregiverInvitation(token: string, input: AcceptCare
     return {
       invitation: nextInvitation,
       appUser,
-      tenantUserId: crypto.randomUUID(),
+      tenantUserId,
       caregiverName: fullName,
     };
   }
@@ -203,9 +227,9 @@ export async function acceptCaregiverInvitation(token: string, input: AcceptCare
 
     const tenantUserResult = await client.query<{ id: string }>(
       `insert into tenant_users (tenant_id, auth_user_id, app_user_id, name, email, role, active)
-       values ($1, $2, $3, $4, $5, 'caregiver', true)
+       values ($1, $2, $3, $4, $5, $6, true)
        returning id`,
-      [invitation.tenantId, appUser.id, appUser.id, fullName, appUser.email]
+      [invitation.tenantId, appUser.id, appUser.id, fullName, appUser.email, invitation.role]
     );
 
     const tenantUserId = tenantUserResult.rows[0]?.id;

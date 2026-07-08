@@ -29,6 +29,7 @@ export async function POST(request: Request) {
       tenantId?: string;
       email?: string | null;
       expiresInDays?: number;
+      role?: "coordinator" | "caregiver";
     };
 
     if (!body.tenantId) {
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
       email: body.email ?? null,
       expiresInDays: body.expiresInDays,
       createdByTenantUserId: session.membership.tenantUserId,
+      role: body.role,
     });
 
     return Response.json(invitation, { status: 201 });

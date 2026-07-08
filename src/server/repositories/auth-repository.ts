@@ -194,6 +194,20 @@ export function resetLocalAuthStore() {
   }
 }
 
+export function appendLocalUserMembership(
+  email: string,
+  membership: UserMembership
+) {
+  const key = email.trim().toLowerCase();
+  const record = localAuthStore.get(key);
+  if (!record) {
+    throw new Error("Usuario local nao encontrado para vincular membership.");
+  }
+
+  record.memberships = [...record.memberships, membership];
+  localAuthStore.set(key, record);
+}
+
 export async function findAppUserByEmail(email: string) {
   if (!isDatabaseConfigured()) {
     const record = getLocalRecordByEmail(email);

@@ -55,11 +55,22 @@ type SeedRow = {
   reference_name: string;
   phone: string;
   city: string;
+  postal_code: string;
+  open_house: boolean;
+  address: string;
+  street: string;
+  neighborhood: string;
+  address_number: string;
+  state: string;
+  house_front_image_url: string | null;
   source: string;
   status: Seed["status"];
   notes: string;
   first_contact_at: string | null;
   created_at: string;
+  latitude: number | null;
+  longitude: number | null;
+  is_urgent: boolean;
 };
 
 type MemberRow = {
@@ -75,6 +86,9 @@ type MemberRow = {
   status: Member["status"];
   notes: string;
   created_at: string;
+  latitude: number | null;
+  longitude: number | null;
+  is_urgent: boolean;
 };
 
 type FollowupRow = {
@@ -135,11 +149,22 @@ function mapSeed(row: SeedRow): Seed {
     referenceName: row.reference_name,
     phone: row.phone,
     city: row.city,
+    postalCode: row.postal_code,
+    openHouse: row.open_house,
+    address: row.address,
+    street: row.street,
+    neighborhood: row.neighborhood,
+    addressNumber: row.address_number,
+    state: row.state,
+    houseFrontImageUrl: row.house_front_image_url,
     source: row.source,
     status: row.status,
     notes: row.notes,
     firstContactAt: serializeDateValue(row.first_contact_at),
     createdAt: serializeDateValue(row.created_at) ?? undefined,
+    latitude: row.latitude !== null ? Number(row.latitude) : null,
+    longitude: row.longitude !== null ? Number(row.longitude) : null,
+    isUrgent: !!row.is_urgent,
   };
 }
 
@@ -157,6 +182,9 @@ function mapMember(row: MemberRow): Member {
     status: row.status,
     notes: row.notes,
     createdAt: serializeDateValue(row.created_at) ?? undefined,
+    latitude: row.latitude !== null ? Number(row.latitude) : null,
+    longitude: row.longitude !== null ? Number(row.longitude) : null,
+    isUrgent: !!row.is_urgent,
   };
 }
 
@@ -218,11 +246,21 @@ function buildLocalSeeds(): Seed[] {
       referenceName: "Pedro Lima",
       phone: "(83) 98888-4444",
       city: "Sape",
+      postalCode: "",
+      openHouse: false,
+      address: "",
+      street: "",
+      neighborhood: "",
+      addressNumber: "",
+      state: "",
+      houseFrontImageUrl: null,
       source: "Contato no culto",
       status: "contacted",
       notes: "Primeiro acolhimento feito pelo cuidador.",
       firstContactAt: new Date().toISOString(),
       caregiver: "Maria Oliveira",
+      latitude: null,
+      longitude: null,
     },
     {
       id: "local-seed-2",
@@ -231,11 +269,21 @@ function buildLocalSeeds(): Seed[] {
       referenceName: "Raquel Costa",
       phone: "(83) 98888-5555",
       city: "Mari",
+      postalCode: "",
+      openHouse: false,
+      address: "",
+      street: "",
+      neighborhood: "",
+      addressNumber: "",
+      state: "",
+      houseFrontImageUrl: null,
       source: "Visita residencial",
       status: "new",
       notes: "Novo contato aguardando primeiro retorno.",
       firstContactAt: null,
       caregiver: "Joao Silva",
+      latitude: null,
+      longitude: null,
     },
   ];
 }
@@ -270,6 +318,8 @@ function buildLocalMembers(): Member[] {
     notes: "",
     caregiver: member.caregiver,
     lastContact: member.lastContact,
+    latitude: null,
+    longitude: null,
   }));
 }
 
@@ -329,6 +379,24 @@ function localTenantCity(tenantId: string) {
 function localCaregiverName(caregiverId: string | null | undefined) {
   if (!caregiverId) return null;
   return localCaregiversStore.find((caregiver) => caregiver.id === caregiverId)?.name ?? null;
+}
+
+function composeContactAddress(input: {
+  street?: string;
+  addressNumber?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+}) {
+  const streetLine = [input.street, input.addressNumber].filter(Boolean).join(", ");
+  const neighborhood = input.neighborhood?.trim();
+  const cityState = [input.city?.trim(), input.state?.trim()].filter(Boolean).join(" - ");
+  const postalCode = input.postalCode?.trim();
+
+  return [streetLine, neighborhood, cityState, postalCode ? `CEP ${postalCode}` : ""]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function matchesScope(
@@ -599,11 +667,22 @@ export async function createSeed(input: CreateSeedInput): Promise<Seed> {
       referenceName: input.referenceName,
       phone: input.phone ?? "",
       city: input.city ?? "",
+      postalCode: input.postalCode ?? "",
+      openHouse: input.openHouse ?? false,
+      address: input.address ?? composeContactAddress(input),
+      street: input.street ?? "",
+      neighborhood: input.neighborhood ?? "",
+      addressNumber: input.addressNumber ?? "",
+      state: input.state ?? "",
+      houseFrontImageUrl: input.houseFrontImageUrl ?? null,
       source: input.source ?? "",
       status: input.status ?? "new",
       notes: input.notes ?? "",
       firstContactAt: input.firstContactAt ?? null,
       caregiver: localCaregiverName(input.caregiverId),
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
+      isUrgent: input.isUrgent ?? false,
     };
     localSeedsStore.unshift(seed);
     return seed;
@@ -611,8 +690,8 @@ export async function createSeed(input: CreateSeedInput): Promise<Seed> {
 
   const db = ensureDb();
   const result = await db.query<SeedRow>(
-    `insert into seeds (tenant_id, caregiver_id, reference_name, phone, city, source, status, notes, first_contact_at)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `insert into seeds (tenant_id, caregiver_id, reference_name, phone, city, postal_code, open_house, address, street, neighborhood, address_number, state, house_front_image_url, source, status, notes, first_contact_at, latitude, longitude, is_urgent)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
      returning *`,
     [
       input.tenantId,
@@ -620,10 +699,21 @@ export async function createSeed(input: CreateSeedInput): Promise<Seed> {
       input.referenceName,
       input.phone ?? "",
       input.city ?? "",
+      input.postalCode ?? "",
+      input.openHouse ?? false,
+      input.address ?? composeContactAddress(input),
+      input.street ?? "",
+      input.neighborhood ?? "",
+      input.addressNumber ?? "",
+      input.state ?? "",
+      input.houseFrontImageUrl ?? null,
       input.source ?? "",
       input.status ?? "new",
       input.notes ?? "",
       input.firstContactAt ?? null,
+      input.latitude ?? null,
+      input.longitude ?? null,
+      input.isUrgent ?? false,
     ]
   );
   return mapSeed(result.rows[0]);
@@ -638,11 +728,22 @@ export async function updateSeed(id: string, input: UpdateSeedInput): Promise<Se
       referenceName: input.referenceName,
       phone: input.phone ?? "",
       city: input.city ?? "",
+      postalCode: input.postalCode ?? "",
+      openHouse: input.openHouse ?? false,
+      address: input.address ?? composeContactAddress(input),
+      street: input.street ?? "",
+      neighborhood: input.neighborhood ?? "",
+      addressNumber: input.addressNumber ?? "",
+      state: input.state ?? "",
+      houseFrontImageUrl: input.houseFrontImageUrl ?? null,
       source: input.source ?? "",
       status: input.status ?? "new",
       notes: input.notes ?? "",
       firstContactAt: input.firstContactAt ?? null,
       caregiver: localCaregiverName(input.caregiverId),
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
+      isUrgent: input.isUrgent ?? false,
     };
     const index = localSeedsStore.findIndex((item) => item.id === id);
     if (index >= 0) localSeedsStore[index] = seed;
@@ -657,10 +758,21 @@ export async function updateSeed(id: string, input: UpdateSeedInput): Promise<Se
             reference_name = $4,
             phone = $5,
             city = $6,
-            source = $7,
-            status = $8,
-            notes = $9,
-            first_contact_at = $10
+            postal_code = $7,
+            open_house = $8,
+            address = $9,
+            street = $10,
+            neighborhood = $11,
+            address_number = $12,
+            state = $13,
+            house_front_image_url = $14,
+            source = $15,
+            status = $16,
+            notes = $17,
+            first_contact_at = $18,
+            latitude = $19,
+            longitude = $20,
+            is_urgent = $21
       where id = $1
       returning *`,
     [
@@ -670,10 +782,21 @@ export async function updateSeed(id: string, input: UpdateSeedInput): Promise<Se
       input.referenceName,
       input.phone ?? "",
       input.city ?? "",
+      input.postalCode ?? "",
+      input.openHouse ?? false,
+      input.address ?? composeContactAddress(input),
+      input.street ?? "",
+      input.neighborhood ?? "",
+      input.addressNumber ?? "",
+      input.state ?? "",
+      input.houseFrontImageUrl ?? null,
       input.source ?? "",
       input.status ?? "new",
       input.notes ?? "",
       input.firstContactAt ?? null,
+      input.latitude ?? null,
+      input.longitude ?? null,
+      input.isUrgent ?? false,
     ]
   );
   return mapSeed(result.rows[0]);
@@ -693,13 +816,16 @@ export async function convertSeedToMember(seedId: string, input: ConvertSeedToMe
       seedId: seed.id,
       name: seed.referenceName,
       phone: seed.phone,
-      address: input.address ?? "",
+      address: input.address ?? seed.address ?? "",
       city: seed.city,
       birthDate: input.birthDate ?? null,
       status: "new",
       notes: input.notes ?? seed.notes,
       caregiver: localCaregiverName(input.caregiverId ?? seed.caregiverId),
       lastContact: formatDateLabel(seed.firstContactAt),
+      latitude: input.latitude ?? seed.latitude ?? null,
+      longitude: input.longitude ?? seed.longitude ?? null,
+      isUrgent: input.isUrgent ?? seed.isUrgent ?? false,
     };
 
     localMembersStore.unshift(member);
@@ -716,8 +842,8 @@ export async function convertSeedToMember(seedId: string, input: ConvertSeedToMe
   }
 
   const memberResult = await db.query<MemberRow>(
-    `insert into members (tenant_id, caregiver_id, seed_id, name, phone, address, city, birth_date, status, notes)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, 'new', $9)
+    `insert into members (tenant_id, caregiver_id, seed_id, name, phone, address, city, birth_date, status, notes, latitude, longitude, is_urgent)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, 'new', $9, $10, $11, $12)
      returning *`,
     [
       row.tenant_id,
@@ -725,10 +851,13 @@ export async function convertSeedToMember(seedId: string, input: ConvertSeedToMe
       row.id,
       row.reference_name,
       row.phone,
-      input.address ?? "",
+      input.address ?? row.address,
       row.city,
       input.birthDate ?? null,
       input.notes ?? row.notes,
+      input.latitude ?? row.latitude ?? null,
+      input.longitude ?? row.longitude ?? null,
+      input.isUrgent ?? row.is_urgent ?? false,
     ]
   );
 
@@ -801,6 +930,9 @@ export async function createMember(input: CreateMemberInput): Promise<Member> {
       notes: input.notes ?? "",
       caregiver: localCaregiverName(input.caregiverId),
       lastContact: null,
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
+      isUrgent: input.isUrgent ?? false,
     };
     localMembersStore.unshift(member);
     return member;
@@ -808,15 +940,55 @@ export async function createMember(input: CreateMemberInput): Promise<Member> {
 
   const db = ensureDb();
   const result = await db.query<MemberRow>(
-    `insert into members (tenant_id, caregiver_id, seed_id, name, phone, address, city, birth_date, status, notes)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    `insert into members (tenant_id, caregiver_id, seed_id, name, phone, address, city, birth_date, status, notes, latitude, longitude, is_urgent)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
      returning *`,
-    [input.tenantId, input.caregiverId ?? null, input.seedId ?? null, input.name, input.phone ?? "", input.address ?? "", input.city ?? "", input.birthDate ?? null, input.status ?? "new", input.notes ?? ""]
+    [
+      input.tenantId,
+      input.caregiverId ?? null,
+      input.seedId ?? null,
+      input.name,
+      input.phone ?? "",
+      input.address ?? "",
+      input.city ?? "",
+      input.birthDate ?? null,
+      input.status ?? "new",
+      input.notes ?? "",
+      input.latitude ?? null,
+      input.longitude ?? null,
+      input.isUrgent ?? false,
+    ]
   );
   return mapMember(result.rows[0]);
 }
 
 export async function updateMember(id: string, input: UpdateMemberInput): Promise<Member> {
+  let oldStatus: string = "new";
+  let oldCaregiverId: string | null = null;
+  let oldIsUrgent: boolean = false;
+
+  if (isDatabaseReady()) {
+    const db = ensureDb();
+    const currentMemberRes = await db.query<MemberRow>("select status, caregiver_id, is_urgent from members where id = $1 limit 1", [id]);
+    const currentMember = currentMemberRes.rows[0];
+    if (currentMember) {
+      oldStatus = currentMember.status;
+      oldCaregiverId = currentMember.caregiver_id;
+      oldIsUrgent = !!currentMember.is_urgent;
+    }
+  } else {
+    const currentMember = localMembersStore.find((m) => m.id === id);
+    if (currentMember) {
+      oldStatus = currentMember.status;
+      oldCaregiverId = currentMember.caregiverId;
+      oldIsUrgent = !!currentMember.isUrgent;
+    }
+  }
+
+  const newStatus = input.status ?? "new";
+  const newCaregiverId = input.caregiverId ?? null;
+  const newIsUrgent = input.isUrgent ?? false;
+
   if (!isDatabaseReady()) {
     const member: Member = {
       id,
@@ -832,10 +1004,43 @@ export async function updateMember(id: string, input: UpdateMemberInput): Promis
       notes: input.notes ?? "",
       caregiver: localCaregiverName(input.caregiverId),
       lastContact: null,
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
+      isUrgent: input.isUrgent ?? false,
     };
     const index = localMembersStore.findIndex((item) => item.id === id);
     if (index >= 0) {
       localMembersStore[index] = { ...localMembersStore[index], ...member };
+    }
+
+    const auditLogs: string[] = [];
+    if (newStatus !== oldStatus) {
+      const statusLabelsMap: Record<string, string> = {
+        new: "Novo",
+        in_progress: "Em Acompanhamento",
+        consolidated: "Consolidado",
+        inactive: "Inativo",
+      };
+      auditLogs.push(`Status pastoral alterado de "${statusLabelsMap[oldStatus] ?? oldStatus}" para "${statusLabelsMap[newStatus] ?? newStatus}"`);
+    }
+    if (newCaregiverId !== oldCaregiverId) {
+      auditLogs.push(`Cuidador responsável alterado de "${localCaregiverName(oldCaregiverId) ?? "Sem atribuição"}" para "${localCaregiverName(newCaregiverId) ?? "Sem atribuição"}"`);
+    }
+    if (newIsUrgent !== oldIsUrgent) {
+      auditLogs.push(newIsUrgent ? "Assistido marcado como caso URGENTE" : "Marcação de urgência removida deste assistido");
+    }
+
+    for (const logText of auditLogs) {
+      localFollowupsStore.push({
+        id: crypto.randomUUID(),
+        tenantId: input.tenantId,
+        memberId: id,
+        caregiverId: input.caregiverId || null,
+        type: "other",
+        occurredAt: new Date().toISOString(),
+        notes: logText,
+        nextActionAt: null,
+      });
     }
     return member;
   }
@@ -852,15 +1057,88 @@ export async function updateMember(id: string, input: UpdateMemberInput): Promis
             city = $8,
             birth_date = $9,
             status = $10,
-            notes = $11
+            notes = $11,
+            latitude = $12,
+            longitude = $13,
+            is_urgent = $14
       where id = $1
       returning *`,
-    [id, input.tenantId, input.caregiverId ?? null, input.seedId ?? null, input.name, input.phone ?? "", input.address ?? "", input.city ?? "", input.birthDate ?? null, input.status ?? "new", input.notes ?? ""]
+    [
+      id,
+      input.tenantId,
+      input.caregiverId ?? null,
+      input.seedId ?? null,
+      input.name,
+      input.phone ?? "",
+      input.address ?? "",
+      input.city ?? "",
+      input.birthDate ?? null,
+      input.status ?? "new",
+      input.notes ?? "",
+      input.latitude ?? null,
+      input.longitude ?? null,
+      input.isUrgent ?? false,
+    ]
   );
+
+  const auditLogs: string[] = [];
+  if (newStatus !== oldStatus) {
+    const statusLabelsMap: Record<string, string> = {
+      new: "Novo",
+      in_progress: "Em Acompanhamento",
+      consolidated: "Consolidado",
+      inactive: "Inativo",
+    };
+    auditLogs.push(`Status pastoral alterado de "${statusLabelsMap[oldStatus] ?? oldStatus}" para "${statusLabelsMap[newStatus] ?? newStatus}"`);
+  }
+  if (newCaregiverId !== oldCaregiverId) {
+    let oldName = "Sem atribuição";
+    let newName = "Sem atribuição";
+    if (oldCaregiverId) {
+      const oldCG = await db.query("select name from caregivers where id = $1 limit 1", [oldCaregiverId]);
+      if (oldCG.rows[0]) oldName = oldCG.rows[0].name;
+    }
+    if (newCaregiverId) {
+      const newCG = await db.query("select name from caregivers where id = $1 limit 1", [newCaregiverId]);
+      if (newCG.rows[0]) newName = newCG.rows[0].name;
+    }
+    auditLogs.push(`Cuidador responsável alterado de "${oldName}" para "${newName}"`);
+  }
+  if (newIsUrgent !== oldIsUrgent) {
+    auditLogs.push(newIsUrgent ? "Assistido marcado como caso URGENTE" : "Marcação de urgência removida deste assistido");
+  }
+
+  for (const logText of auditLogs) {
+    await db.query(
+      `insert into followups (tenant_id, member_id, caregiver_id, type, occurred_at, notes)
+       values ($1, $2, $3, 'other', now(), $4)`,
+      [input.tenantId, id, input.caregiverId || null, logText]
+    );
+  }
+
   return mapMember(result.rows[0]);
 }
 
 export async function assignCaregiverToMember(memberId: string, caregiverId: string | null): Promise<Member> {
+  let oldCaregiverId: string | null = null;
+  let tenantId = "";
+  if (isDatabaseReady()) {
+    const db = ensureDb();
+    const currentMemberRes = await db.query<MemberRow>("select tenant_id, caregiver_id from members where id = $1 limit 1", [memberId]);
+    const currentMember = currentMemberRes.rows[0];
+    if (currentMember) {
+      oldCaregiverId = currentMember.caregiver_id;
+      tenantId = currentMember.tenant_id;
+    }
+  } else {
+    const currentMember = localMembersStore.find((m) => m.id === memberId);
+    if (currentMember) {
+      oldCaregiverId = currentMember.caregiverId;
+      tenantId = currentMember.tenantId;
+    }
+  }
+
+  let updatedMember: Member;
   if (!isDatabaseReady()) {
     const member = localMembersStore.find((item) => item.id === memberId);
     if (!member) {
@@ -868,15 +1146,51 @@ export async function assignCaregiverToMember(memberId: string, caregiverId: str
     }
     member.caregiverId = caregiverId;
     member.caregiver = localCaregiverName(caregiverId);
-    return member;
+    updatedMember = member;
+  } else {
+    const db = ensureDb();
+    const result = await db.query<MemberRow>(
+      `update members set caregiver_id = $2 where id = $1 returning *`,
+      [memberId, caregiverId]
+    );
+    updatedMember = mapMember(result.rows[0]);
   }
 
-  const db = ensureDb();
-  const result = await db.query<MemberRow>(
-    `update members set caregiver_id = $2 where id = $1 returning *`,
-    [memberId, caregiverId]
-  );
-  return mapMember(result.rows[0]);
+  if (caregiverId !== oldCaregiverId) {
+    let oldName = "Sem atribuição";
+    let newName = "Sem atribuição";
+    if (isDatabaseReady()) {
+      const db = ensureDb();
+      if (oldCaregiverId) {
+        const oldCG = await db.query("select name from caregivers where id = $1 limit 1", [oldCaregiverId]);
+        if (oldCG.rows[0]) oldName = oldCG.rows[0].name;
+      }
+      if (caregiverId) {
+        const newCG = await db.query("select name from caregivers where id = $1 limit 1", [caregiverId]);
+        if (newCG.rows[0]) newName = newCG.rows[0].name;
+      }
+      await db.query(
+        `insert into followups (tenant_id, member_id, caregiver_id, type, occurred_at, notes)
+         values ($1, $2, $3, 'other', now(), $4)`,
+        [tenantId, memberId, caregiverId, `Cuidador responsável alterado de "${oldName}" para "${newName}"`]
+      );
+    } else {
+      if (oldCaregiverId) oldName = localCaregiverName(oldCaregiverId) ?? "Sem atribuição";
+      if (caregiverId) newName = localCaregiverName(caregiverId) ?? "Sem atribuição";
+      localFollowupsStore.push({
+        id: crypto.randomUUID(),
+        tenantId,
+        memberId,
+        caregiverId,
+        type: "other",
+        occurredAt: new Date().toISOString(),
+        notes: `Cuidador responsável alterado de "${oldName}" para "${newName}"`,
+        nextActionAt: null,
+      });
+    }
+  }
+
+  return updatedMember;
 }
 
 export async function listFollowups(scope?: DataScope): Promise<Followup[]> {
@@ -921,6 +1235,35 @@ export async function listFollowups(scope?: DataScope): Promise<Followup[]> {
 }
 
 export async function createFollowup(input: CreateFollowupInput): Promise<Followup> {
+  // Load member and check status
+  let memberToUpdate: Member | undefined;
+  if (!isDatabaseReady()) {
+    memberToUpdate = localMembersStore.find((m) => m.id === input.memberId);
+  } else {
+    const db = ensureDb();
+    const res = await db.query<MemberRow>("select * from members where id = $1 limit 1", [input.memberId]);
+    if (res.rows[0]) memberToUpdate = mapMember(res.rows[0]);
+  }
+
+  if (memberToUpdate && memberToUpdate.status === "new") {
+    // Transition status to in_progress!
+    await updateMember(memberToUpdate.id, {
+      tenantId: memberToUpdate.tenantId,
+      caregiverId: memberToUpdate.caregiverId,
+      seedId: memberToUpdate.seedId,
+      name: memberToUpdate.name,
+      phone: memberToUpdate.phone,
+      address: memberToUpdate.address,
+      city: memberToUpdate.city,
+      birthDate: memberToUpdate.birthDate,
+      status: "in_progress",
+      notes: memberToUpdate.notes,
+      latitude: memberToUpdate.latitude,
+      longitude: memberToUpdate.longitude,
+      isUrgent: memberToUpdate.isUrgent,
+    });
+  }
+
   if (!isDatabaseReady()) {
     const followup: Followup = {
       id: crypto.randomUUID(),

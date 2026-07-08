@@ -20,6 +20,8 @@ export async function POST(request: Request, context: RouteContext) {
       address?: string;
       birthDate?: string | null;
       notes?: string;
+      latitude?: number | null;
+      longitude?: number | null;
     };
 
     const member = await convertSeedToMember(seedId, {
@@ -29,6 +31,8 @@ export async function POST(request: Request, context: RouteContext) {
       address: body.address,
       birthDate: body.birthDate ?? null,
       notes: body.notes,
+      latitude: body.latitude,
+      longitude: body.longitude,
     });
 
     return Response.json(member, { status: 201 });

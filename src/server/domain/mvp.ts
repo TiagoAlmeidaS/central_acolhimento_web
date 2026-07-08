@@ -57,12 +57,23 @@ export type Seed = {
   referenceName: string;
   phone: string;
   city: string;
+  postalCode: string;
+  openHouse: boolean;
+  address: string;
+  street: string;
+  neighborhood: string;
+  addressNumber: string;
+  state: string;
+  houseFrontImageUrl: string | null;
   source: string;
   status: SeedStatus;
   notes: string;
   firstContactAt: string | null;
   caregiver?: string | null;
   createdAt?: string;
+  latitude: number | null;
+  longitude: number | null;
+  isUrgent?: boolean;
 };
 
 export type Member = {
@@ -80,6 +91,9 @@ export type Member = {
   caregiver?: string | null;
   lastContact?: string | null;
   createdAt?: string;
+  latitude: number | null;
+  longitude: number | null;
+  isUrgent?: boolean;
 };
 
 export type Followup = {
@@ -148,10 +162,21 @@ export type CreateSeedInput = {
   referenceName: string;
   phone?: string;
   city?: string;
+  postalCode?: string;
+  openHouse?: boolean;
+  address?: string;
+  street?: string;
+  neighborhood?: string;
+  addressNumber?: string;
+  state?: string;
+  houseFrontImageUrl?: string | null;
   source?: string;
   status?: SeedStatus;
   notes?: string;
   firstContactAt?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  isUrgent?: boolean;
 };
 
 export type UpdateSeedInput = CreateSeedInput;
@@ -161,6 +186,9 @@ export type ConvertSeedToMemberInput = {
   address?: string;
   birthDate?: string | null;
   notes?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  isUrgent?: boolean;
 };
 
 export type CreateMemberInput = {
@@ -174,6 +202,9 @@ export type CreateMemberInput = {
   birthDate?: string | null;
   status?: MemberStatus;
   notes?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  isUrgent?: boolean;
 };
 
 export type UpdateMemberInput = CreateMemberInput;
@@ -195,6 +226,7 @@ export type CreateCaregiverInvitationInput = {
   email?: string | null;
   expiresInDays?: number;
   createdByTenantUserId?: string | null;
+  role?: AppRole;
 };
 
 export type AcceptCaregiverInvitationInput = {

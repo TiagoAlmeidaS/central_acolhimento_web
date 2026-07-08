@@ -12,7 +12,17 @@ import {
   SectionTitle,
   StatusPill,
   Avatar,
+  SearchableSelect,
 } from "@/ui/v2-components/ui";
+
+const CIDADES_LIST = [
+  "Sapé", "Mari", "Sobrado", "João Pessoa", "Campina Grande", "Guarabira", 
+  "Cabedelo", "Bayeux", "Santa Rita", "Rio Tinto", "Mamaguape", "Cruz do Espírito Santo", 
+  "Caldas Brandão", "Gurinhém", "Mulungu", "Alagoinha", "Araçagi", "Itabaiana", 
+  "Pilar", "Bananeiras", "Solânea", "Patos", "Sousa", "Cajazeiras", "Recife", 
+  "Natal", "Fortaleza", "Salvador", "Rio de Janeiro", "São Paulo", "Belo Horizonte", 
+  "Brasília", "Curitiba", "Porto Alegre"
+].sort();
 import {
   IconUser,
   IconPhone,
@@ -49,6 +59,9 @@ const emptyForm = {
   birthDate: "",
   status: "new" as Member["status"],
   notes: "",
+  latitude: null as number | null,
+  longitude: null as number | null,
+  isUrgent: false,
 };
 
 export function MemberManager({
@@ -89,10 +102,52 @@ export function MemberManager({
       birthDate: member.birthDate ?? "",
       status: member.status,
       notes: member.notes,
+      latitude: member.latitude,
+      longitude: member.longitude,
+      isUrgent: member.isUrgent ?? false,
     });
     setError(null);
     setSuccess(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function triggerGeocode(address: string, city: string) {
+    if (!address || !city) return;
+    try {
+      const q = `${address}, ${city}, Brazil`;
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`);
+      if (response.ok) {
+        const data = await response.json() as Array<{ lat: string; lon: string }>;
+        if (data && data[0]) {
+          setForm((current) => ({
+            ...current,
+            latitude: parseFloat(data[0].lat),
+            longitude: parseFloat(data[0].lon),
+          }));
+        }
+      }
+    } catch (e) {
+      console.error("Erro na geocodificação:", e);
+    }
+  }
+
+  function triggerGPS() {
+    if (!navigator.geolocation) {
+      setError("Geolocalização não é suportada.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setForm((current) => ({
+          ...current,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        }));
+      },
+      (err) => {
+        setError(`Erro ao obter GPS: ${err.message}`);
+      }
+    );
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -114,6 +169,9 @@ export function MemberManager({
         birthDate: form.birthDate || null,
         status: form.status,
         notes: form.notes,
+        latitude: form.latitude,
+        longitude: form.longitude,
+        isUrgent: form.isUrgent,
       }),
     });
 
@@ -206,20 +264,35 @@ export function MemberManager({
           />
 
           <div style={{ gridColumn: "1 / -1" }}>
-            <Input
-              label="Endereço"
-              value={form.address}
-              onChange={(v) => setForm((f) => ({ ...f, address: v }))}
-              placeholder="Rua, número, bairro"
-              icon={<IconMapPin />}
-            />
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+              <div style={{ flex: 1 }}>
+                <Input
+                  label="Endereço"
+                  value={form.address}
+                  onChange={(v) => setForm((f) => ({ ...f, address: v }))}
+                  onBlur={() => triggerGeocode(form.address, form.city)}
+                  placeholder="Rua, número, bairro"
+                  icon={<IconMapPin />}
+                />
+              </div>
+              <Button type="button" variant="secondary" size="md" onClick={triggerGPS} style={{ height: 54 }}>
+                GPS Atual
+              </Button>
+            </div>
           </div>
 
-          <Input
+          <SearchableSelect
             label="Cidade da pessoa"
             value={form.city}
-            onChange={(v) => setForm((f) => ({ ...f, city: v }))}
-            placeholder="Curitiba"
+            onChange={(v) => {
+              setForm((f) => {
+                const next = { ...f, city: v };
+                triggerGeocode(next.address, next.city);
+                return next;
+              });
+            }}
+            options={CIDADES_LIST}
+            placeholder="Selecione a cidade"
           />
 
           <Input
@@ -235,6 +308,46 @@ export function MemberManager({
             onChange={(v) => setForm((f) => ({ ...f, status: v as Member["status"] }))}
             options={Object.entries(statusLabels).map(([value, label]) => ({ value, label }))}
           />
+
+          <div style={{ gridColumn: "1 / -1" }}>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "10px 0" }}>
+              <input
+                type="checkbox"
+                checked={form.isUrgent}
+                onChange={(e) => setForm((f) => ({ ...f, isUrgent: e.target.checked }))}
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 6,
+                  accentColor: "#E11D48",
+                  cursor: "pointer",
+                }}
+              />
+              <span style={{ fontSize: 14.5, fontWeight: 700, color: "var(--text)" }}>
+                Caso URGENTE (Sinaliza que este assistido necessita de atenção prioritária)
+              </span>
+            </label>
+          </div>
+
+          {form.latitude !== null && form.longitude !== null ? (
+            <div
+              style={{
+                gridColumn: "1 / -1",
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: "#F0FDF4",
+                border: "1px solid #BBF7D0",
+                fontSize: 12.5,
+                color: "#15803D",
+              }}
+            >
+              📍 Coordenadas obtidas: <b>{form.latitude.toFixed(6)}, {form.longitude.toFixed(6)}</b>
+            </div>
+          ) : (
+            <div style={{ gridColumn: "1 / -1", fontSize: 12, color: "var(--text-3)" }}>
+              Preencha o Endereço e Cidade para obter as coordenadas automáticas.
+            </div>
+          )}
 
           <div style={{ gridColumn: "1 / -1" }}>
             <Textarea
@@ -349,8 +462,17 @@ export function MemberManager({
                         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                           <Avatar name={member.name} size={38} />
                           <div>
-                            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.01em" }}>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 6 }}>
                               {member.name}
+                              {member.isUrgent && (
+                                <span style={{
+                                  background: "#FFF1F2", color: "#E11D48",
+                                  fontSize: 10, fontWeight: 800, padding: "2px 6px",
+                                  borderRadius: 4, textTransform: "uppercase", border: "1px solid #FECDD3"
+                                }}>
+                                  Urgente
+                                </span>
+                              )}
                             </div>
                             <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 1 }}>
                               {member.phone}

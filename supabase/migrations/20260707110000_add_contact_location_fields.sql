@@ -1,0 +1,8 @@
+ALTER TABLE public.seeds
+  ADD COLUMN IF NOT EXISTS postal_code TEXT NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS open_house BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS address TEXT NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS house_front_image_url TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_seeds_postal_code
+  ON public.seeds(postal_code);

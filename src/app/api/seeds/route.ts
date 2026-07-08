@@ -26,10 +26,20 @@ export async function POST(request: Request) {
       referenceName?: string;
       phone?: string;
       city?: string;
+      postalCode?: string;
+      openHouse?: boolean;
+      address?: string;
+      street?: string;
+      neighborhood?: string;
+      addressNumber?: string;
+      state?: string;
+      houseFrontImageUrl?: string | null;
       source?: string;
       status?: "new" | "contacted" | "in_progress" | "consolidated" | "inactive";
       notes?: string;
       firstContactAt?: string | null;
+      latitude?: number | null;
+      longitude?: number | null;
     };
 
     if (!body.tenantId || !body.referenceName) {
@@ -45,10 +55,20 @@ export async function POST(request: Request) {
       referenceName: body.referenceName,
       phone: body.phone,
       city: body.city,
+      postalCode: body.postalCode,
+      openHouse: body.openHouse,
+      address: body.address,
+      street: body.street,
+      neighborhood: body.neighborhood,
+      addressNumber: body.addressNumber,
+      state: body.state,
+      houseFrontImageUrl: body.houseFrontImageUrl ?? null,
       source: body.source,
       status: body.status,
       notes: body.notes,
       firstContactAt: body.firstContactAt ?? null,
+      latitude: body.latitude,
+      longitude: body.longitude,
     });
 
     return Response.json(seed, { status: 201 });

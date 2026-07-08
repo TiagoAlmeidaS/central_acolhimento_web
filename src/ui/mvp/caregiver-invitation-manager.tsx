@@ -76,6 +76,7 @@ export function CaregiverInvitationManager({
   const [tenantId, setTenantId] = useState(tenants[0]?.id ?? "");
   const [email, setEmail] = useState("");
   const [expiresInDays, setExpiresInDays] = useState(String(defaultExpiresInDays));
+  const [role, setRole] = useState<"caregiver" | "coordinator">("caregiver");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [latestLink, setLatestLink] = useState<string | null>(null);
@@ -100,6 +101,7 @@ export function CaregiverInvitationManager({
         tenantId,
         email: email || null,
         expiresInDays: Number(expiresInDays) || defaultExpiresInDays,
+        role,
       }),
     });
 
@@ -144,6 +146,16 @@ export function CaregiverInvitationManager({
             onChange={setEmail}
             placeholder="opcional — trava o convite a um e-mail"
             icon={<IconPhone />}
+          />
+
+          <Select
+            label="Função (Permissão)"
+            value={role}
+            onChange={(v) => setRole(v as "caregiver" | "coordinator")}
+            options={[
+              { value: "caregiver", label: "Cuidador (Acesso restrito)" },
+              { value: "coordinator", label: "Coordenador (Acesso total)" },
+            ]}
           />
 
           <Select
@@ -234,8 +246,16 @@ export function CaregiverInvitationManager({
               >
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 14.5, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.01em" }}>
+                    <div style={{ fontSize: 14.5, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 6 }}>
                       {tenant?.name ?? "Localidade"}
+                      <span style={{
+                        background: inv.role === "coordinator" ? "#F5F3FF" : "#F0F9FF",
+                        color: inv.role === "coordinator" ? "#7C3AED" : "#0369A1",
+                        fontSize: 9.5, fontWeight: 700, padding: "1px 5px", borderRadius: 4,
+                        border: `1px solid ${inv.role === "coordinator" ? "#DDD6FE" : "#BAE6FD"}`
+                      }}>
+                        {inv.role === "coordinator" ? "Coordenador" : "Cuidador"}
+                      </span>
                     </div>
                     <div style={{ fontSize: 12.5, color: "var(--text-2)", marginTop: 2 }}>
                       {inv.email ?? "Convite aberto (sem e-mail fixo)"}

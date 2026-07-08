@@ -31,6 +31,8 @@ export async function POST(request: Request) {
       birthDate?: string | null;
       status?: "new" | "in_progress" | "consolidated" | "inactive";
       notes?: string;
+      latitude?: number | null;
+      longitude?: number | null;
     };
 
     if (!body.tenantId || !body.name) {
@@ -51,6 +53,8 @@ export async function POST(request: Request) {
       birthDate: body.birthDate ?? null,
       status: body.status,
       notes: body.notes,
+      latitude: body.latitude,
+      longitude: body.longitude,
     });
 
     return Response.json(member, { status: 201 });

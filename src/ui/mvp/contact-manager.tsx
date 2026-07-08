@@ -1,27 +1,25 @@
 "use client";
 
-import { startTransition, useState } from "react";
+import { startTransition, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import type { Caregiver, Seed, Tenant } from "@/server/domain/mvp";
-import {
-  Card,
-  Button,
-  Input,
-  Select,
-  Textarea,
-  SectionTitle,
-  Avatar,
-} from "@/ui/v2-components/ui";
-import {
-  IconUser,
-  IconPhone,
-  IconMapPin,
-  IconCheck,
-  IconPlus,
-  IconX,
-  IconHeart,
-  IconUsers,
-} from "@/ui/v2-components/icons";
+import type { Seed, Tenant } from "@/server/domain/mvp";
+import { composeAddress, formatPhone, formatPostalCode, normalizePhone, normalizePostalCode } from "@/ui/mvp/contact-form-utils";
+import { Avatar, Button, Card, Input, SectionTitle, Textarea, SearchableSelect } from "@/ui/v2-components/ui";
+import { IconCheck, IconHeart, IconMapPin, IconPhone, IconPlus, IconUser, IconX } from "@/ui/v2-components/icons";
+
+const ESTADOS_BRASIL = [
+  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", 
+  "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"
+];
+
+const CIDADES_LIST = [
+  "Sapé", "Mari", "Sobrado", "João Pessoa", "Campina Grande", "Guarabira", 
+  "Cabedelo", "Bayeux", "Santa Rita", "Rio Tinto", "Mamaguape", "Cruz do Espírito Santo", 
+  "Caldas Brandão", "Gurinhém", "Mulungu", "Alagoinha", "Araçagi", "Itabaiana", 
+  "Pilar", "Bananeiras", "Solânea", "Patos", "Sousa", "Cajazeiras", "Recife", 
+  "Natal", "Fortaleza", "Salvador", "Rio de Janeiro", "São Paulo", "Belo Horizonte", 
+  "Brasília", "Curitiba", "Porto Alegre"
+].sort();
 
 const statusLabels: Record<Seed["status"], string> = {
   new: "Novo",
@@ -39,42 +37,64 @@ const statusColors: Record<Seed["status"], { bg: string; fg: string }> = {
   inactive: { bg: "#F4F4F5", fg: "#71717A" },
 };
 
+const getTodayString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const emptyForm = {
   tenantId: "",
-  caregiverId: "",
   referenceName: "",
   phone: "",
   city: "",
+  postalCode: "",
   source: "",
   status: "new" as Seed["status"],
   notes: "",
-  firstContactAt: "",
+  firstContactAt: getTodayString(),
+  openHouse: false,
+  address: "",
+  street: "",
+  neighborhood: "",
+  addressNumber: "",
+  state: "",
+  houseFrontImageUrl: "",
+  latitude: null as number | null,
+  longitude: null as number | null,
 };
 
 export function ContactManager({
   contacts,
   tenants,
-  caregivers,
 }: Readonly<{
   contacts: Seed[];
   tenants: Tenant[];
-  caregivers: Caregiver[];
 }>) {
   const router = useRouter();
+  const currentTenant = tenants[0] ?? null;
   const [editing, setEditing] = useState<Seed | null>(null);
   const [form, setForm] = useState({
     ...emptyForm,
-    tenantId: tenants[0]?.id ?? "",
-    city: tenants[0]?.city ?? "",
+    tenantId: currentTenant?.id ?? "",
+    city: currentTenant?.city ?? "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [convertingId, setConvertingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  const addressPreview = useMemo(() => composeAddress(form), [form]);
+
   function resetForm() {
     setEditing(null);
-    setForm({ ...emptyForm, tenantId: tenants[0]?.id ?? "", city: tenants[0]?.city ?? "" });
+    setForm({
+      ...emptyForm,
+      tenantId: currentTenant?.id ?? "",
+      city: currentTenant?.city ?? "",
+    });
     setError(null);
     setSuccess(false);
   }
@@ -83,21 +103,116 @@ export function ContactManager({
     setEditing(contact);
     setForm({
       tenantId: contact.tenantId,
-      caregiverId: contact.caregiverId ?? "",
       referenceName: contact.referenceName,
       phone: contact.phone,
       city: contact.city,
+      postalCode: contact.postalCode,
       source: contact.source,
       status: contact.status,
       notes: contact.notes,
       firstContactAt: contact.firstContactAt ? contact.firstContactAt.slice(0, 10) : "",
+      openHouse: contact.openHouse,
+      address: contact.address,
+      street: contact.street,
+      neighborhood: contact.neighborhood,
+      addressNumber: contact.addressNumber,
+      state: contact.state,
+      houseFrontImageUrl: contact.houseFrontImageUrl ?? "",
+      latitude: contact.latitude,
+      longitude: contact.longitude,
     });
     setError(null);
     setSuccess(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleCameraFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const result = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(new Error("Falha ao ler a imagem."));
+      reader.readAsDataURL(file);
+    }).catch(() => "");
+
+    if (!result) {
+      setError("Não foi possível carregar a foto da frente da casa.");
+      return;
+    }
+
+    setForm((current) => ({ ...current, houseFrontImageUrl: result }));
+  }
+
+  async function triggerGeocode(street: string, city: string, number: string, state: string, postalCode: string) {
+    if (!street || !city) return;
+    try {
+      const q = `${street}, ${number || ""} ${city} ${state || ""} ${postalCode || ""}, Brazil`;
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`);
+      if (response.ok) {
+        const data = await response.json() as Array<{ lat: string; lon: string }>;
+        if (data && data[0]) {
+          setForm((current) => ({
+            ...current,
+            latitude: parseFloat(data[0].lat),
+            longitude: parseFloat(data[0].lon),
+          }));
+        }
+      }
+    } catch (e) {
+      console.error("Erro na geocodificação:", e);
+    }
+  }
+
+  async function handleCEPLookup(cep: string) {
+    const cleanCEP = cep.replace(/\D/g, "");
+    if (cleanCEP.length !== 8) return;
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCEP}/json/`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data && !data.erro) {
+          setForm((current) => {
+            const updated = {
+              ...current,
+              street: data.logradouro || current.street,
+              neighborhood: data.bairro || current.neighborhood,
+              city: data.localidade || current.city,
+              state: data.uf || current.state,
+            };
+            triggerGeocode(updated.street, updated.city, updated.addressNumber, updated.state, cleanCEP);
+            return updated;
+          });
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao buscar CEP:", e);
+    }
+    triggerGeocode(form.street, form.city, form.addressNumber, form.state, form.postalCode);
+  }
+
+  function triggerGPS() {
+    if (!navigator.geolocation) {
+      setError("Geolocalização não é suportada.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setForm((current) => ({
+          ...current,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        }));
+      },
+      (err) => {
+        setError(`Erro ao obter GPS: ${err.message}`);
+      }
+    );
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
@@ -108,14 +223,24 @@ export function ContactManager({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         tenantId: form.tenantId,
-        caregiverId: form.caregiverId || null,
+        caregiverId: null,
         referenceName: form.referenceName,
-        phone: form.phone,
+        phone: normalizePhone(form.phone),
         city: form.city,
+        postalCode: normalizePostalCode(form.postalCode),
         source: form.source,
         status: form.status,
         notes: form.notes,
         firstContactAt: form.firstContactAt || null,
+        openHouse: form.openHouse,
+        address: form.openHouse ? addressPreview : "",
+        street: form.openHouse ? form.street.trim() : "",
+        neighborhood: form.openHouse ? form.neighborhood.trim() : "",
+        addressNumber: form.openHouse ? form.addressNumber.trim() : "",
+        state: form.openHouse ? form.state.trim().toUpperCase().slice(0, 2) : "",
+        houseFrontImageUrl: form.openHouse ? form.houseFrontImageUrl || null : null,
+        latitude: form.openHouse ? form.latitude : null,
+        longitude: form.openHouse ? form.longitude : null,
       }),
     });
 
@@ -139,8 +264,11 @@ export function ContactManager({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        caregiverId: contact.caregiverId ?? null,
+        caregiverId: null,
+        address: contact.address || undefined,
         notes: contact.notes,
+        latitude: contact.latitude,
+        longitude: contact.longitude,
       }),
     });
 
@@ -156,46 +284,35 @@ export function ContactManager({
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
-      {/* ── Form ── */}
-      <Card padding={28}>
-        <SectionTitle>
-          {editing ? "Editar contato" : "Registrar novo contato"}
-        </SectionTitle>
-        <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 24, marginTop: -8 }}>
-          Porta de entrada do cuidado. Registre o contato e acompanhe a conversão para membro.
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <Card padding={20}>
+        <SectionTitle>{editing ? "Editar contato" : "Novo contato em acolhimento"}</SectionTitle>
+        <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 20, marginTop: -8, lineHeight: 1.5 }}>
+          Captura inicial mobile first. O cuidador será designado depois, dentro da plataforma.
         </p>
 
-        <form
-          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}
-          onSubmit={handleSubmit}
-        >
-          <Select
-            label="Localidade"
-            value={form.tenantId}
-            onChange={(v) => {
-              const tenant = tenants.find((t) => t.id === v);
-              setForm((f) => ({ ...f, tenantId: v, city: tenant?.city ?? f.city }));
+        {currentTenant ? (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: "12px 14px",
+              borderRadius: 14,
+              background: "var(--surface-2)",
+              border: "1px solid var(--border)",
             }}
-            options={tenants.map((t) => ({ value: t.id, label: t.name }))}
-            placeholder="Selecione a localidade"
-            required
-          />
+          >
+            <div style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 4 }}>Localidade ativa</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>
+              {currentTenant.name} · {currentTenant.city} - {currentTenant.state}
+            </div>
+          </div>
+        ) : null}
 
-          <Select
-            label="Cuidador responsável"
-            value={form.caregiverId}
-            onChange={(v) => setForm((f) => ({ ...f, caregiverId: v }))}
-            options={[
-              { value: "", label: "Sem atribuição" },
-              ...caregivers.map((c) => ({ value: c.id, label: c.name })),
-            ]}
-          />
-
+        <form style={{ display: "flex", flexDirection: "column", gap: 14 }} onSubmit={handleSubmit}>
           <Input
-            label="Nome da pessoa"
+            label="Nome"
             value={form.referenceName}
-            onChange={(v) => setForm((f) => ({ ...f, referenceName: v }))}
+            onChange={(value) => setForm((current) => ({ ...current, referenceName: value }))}
             placeholder="Ex: Maria Souza"
             icon={<IconUser />}
             required
@@ -203,221 +320,421 @@ export function ContactManager({
 
           <Input
             label="Telefone"
-            value={form.phone}
-            onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
+            value={formatPhone(form.phone)}
+            onChange={(value) => setForm((current) => ({ ...current, phone: normalizePhone(value) }))}
             placeholder="(00) 90000-0000"
             icon={<IconPhone />}
+            inputMode="numeric"
           />
 
-          <Input
-            label="Cidade da pessoa"
+          <SearchableSelect
+            label="Cidade"
             value={form.city}
-            onChange={(v) => setForm((f) => ({ ...f, city: v }))}
-            placeholder="Curitiba"
-            icon={<IconMapPin />}
+            onChange={(value) => setForm((current) => ({ ...current, city: value }))}
+            options={CIDADES_LIST}
+            placeholder="Selecione a cidade"
           />
 
           <Input
             label="Origem do contato"
             value={form.source}
-            onChange={(v) => setForm((f) => ({ ...f, source: v }))}
-            placeholder="Culto, visita, indicação..."
+            onChange={(value) => setForm((current) => ({ ...current, source: value }))}
+            placeholder="Culto, visita, indicação, ligação..."
             icon={<IconHeart />}
           />
 
-          <Select
-            label="Status"
-            value={form.status}
-            onChange={(v) => setForm((f) => ({ ...f, status: v as Seed["status"] }))}
-            options={Object.entries(statusLabels).map(([value, label]) => ({ value, label }))}
-          />
-
           <div>
-            <label style={{
-              display: "flex", flexDirection: "column", gap: 8,
-              fontSize: 13.5, fontWeight: 600, color: "var(--text)",
-            }}>
+            <label
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+                fontSize: 13.5,
+                fontWeight: 600,
+                color: "var(--text)",
+              }}
+            >
               Primeiro contato
-              <div style={{
-                display: "flex", alignItems: "center", height: 54,
-                padding: "0 18px",
-                background: "var(--surface)",
-                border: "1.5px solid var(--border)",
-                borderRadius: 14,
-              }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  height: 54,
+                  padding: "0 18px",
+                  background: "var(--surface)",
+                  border: "1.5px solid var(--border)",
+                  borderRadius: 14,
+                }}
+              >
                 <input
                   type="date"
                   value={form.firstContactAt}
-                  onChange={(e) => setForm((f) => ({ ...f, firstContactAt: e.target.value }))}
+                  onChange={(event) => setForm((current) => ({ ...current, firstContactAt: event.target.value }))}
                   style={{
-                    flex: 1, border: 0, outline: "none",
-                    background: "transparent", fontFamily: "inherit",
-                    fontSize: 15, color: "var(--text)",
+                    flex: 1,
+                    border: 0,
+                    outline: "none",
+                    background: "transparent",
+                    fontFamily: "inherit",
+                    fontSize: 15,
+                    color: "var(--text)",
                   }}
                 />
               </div>
             </label>
           </div>
 
-          <div style={{ gridColumn: "1 / -1" }}>
-            <Textarea
-              label="Observações"
-              value={form.notes}
-              onChange={(v) => setForm((f) => ({ ...f, notes: v }))}
-              placeholder="Contexto, histórico, dúvidas, necessidades..."
-              rows={3}
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "14px 16px",
+              borderRadius: 14,
+              border: "1px solid var(--border)",
+              background: form.openHouse ? "var(--accent-bg)" : "var(--surface)",
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={form.openHouse}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  openHouse: event.target.checked,
+                  address: event.target.checked ? current.address : "",
+                  street: event.target.checked ? current.street : "",
+                  neighborhood: event.target.checked ? current.neighborhood : "",
+                  addressNumber: event.target.checked ? current.addressNumber : "",
+                  state: event.target.checked ? current.state : "",
+                  postalCode: event.target.checked ? current.postalCode : "",
+                  houseFrontImageUrl: event.target.checked ? current.houseFrontImageUrl : "",
+                }))
+              }
             />
-          </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Casa aberta para visita</div>
+              <div style={{ fontSize: 12.5, color: "var(--text-2)", marginTop: 2 }}>
+                Se marcado, abrimos o bloco completo de endereço e a captura da foto da casa.
+              </div>
+            </div>
+          </label>
 
-          {error && (
-            <div style={{
-              gridColumn: "1 / -1",
-              padding: "12px 16px", borderRadius: 12,
-              background: "#FFF1F2", border: "1px solid #FECDD3",
-              fontSize: 13, color: "#E11D48",
-              display: "flex", alignItems: "center", gap: 8,
-            }}>
+          {form.openHouse ? (
+            <>
+              <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+                <div style={{ flex: 1 }}>
+                  <Input
+                    label="CEP"
+                    value={formatPostalCode(form.postalCode)}
+                    onChange={(value) => setForm((current) => ({ ...current, postalCode: normalizePostalCode(value) }))}
+                    onBlur={() => handleCEPLookup(form.postalCode)}
+                    placeholder="00000-000"
+                    icon={<IconMapPin />}
+                    inputMode="numeric"
+                  />
+                </div>
+                <Button type="button" variant="secondary" size="md" onClick={triggerGPS} style={{ height: 54 }}>
+                  GPS Atual
+                </Button>
+              </div>
+
+              <Input
+                label="Rua"
+                value={form.street}
+                onChange={(value) => setForm((current) => ({ ...current, street: value }))}
+                onBlur={() => triggerGeocode(form.street, form.city, form.addressNumber, form.state, form.postalCode)}
+                placeholder="Ex: Rua das Flores"
+                icon={<IconMapPin />}
+              />
+
+              <Input
+                label="Bairro"
+                value={form.neighborhood}
+                onChange={(value) => setForm((current) => ({ ...current, neighborhood: value }))}
+                onBlur={() => triggerGeocode(form.street, form.city, form.addressNumber, form.state, form.postalCode)}
+                placeholder="Ex: Centro"
+                icon={<IconMapPin />}
+              />
+
+              <Input
+                label="Número"
+                value={form.addressNumber}
+                onChange={(value) =>
+                  setForm((current) => ({ ...current, addressNumber: value.replace(/\D/g, "").slice(0, 10) }))
+                }
+                onBlur={() => triggerGeocode(form.street, form.city, form.addressNumber, form.state, form.postalCode)}
+                placeholder="123"
+                inputMode="numeric"
+              />
+
+              <SearchableSelect
+                label="Estado"
+                value={form.state}
+                onChange={(value) => {
+                  setForm((current) => {
+                    const next = { ...current, state: value };
+                    triggerGeocode(next.street, next.city, next.addressNumber, next.state, next.postalCode);
+                    return next;
+                  });
+                }}
+                options={ESTADOS_BRASIL}
+                placeholder="UF"
+              />
+
+              {form.latitude !== null && form.longitude !== null ? (
+                <div
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    background: "#F0FDF4",
+                    border: "1px solid #BBF7D0",
+                    fontSize: 12.5,
+                    color: "#15803D",
+                  }}
+                >
+                  📍 Coordenadas obtidas: <b>{form.latitude.toFixed(6)}, {form.longitude.toFixed(6)}</b>
+                </div>
+              ) : (
+                <div style={{ fontSize: 12, color: "var(--text-3)" }}>
+                  Preencha o CEP, Rua e Número para obter as coordenadas automáticas.
+                </div>
+              )}
+
+              {addressPreview ? (
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    background: "var(--surface-2)",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  <div style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 4 }}>Endereço consolidado</div>
+                  <div style={{ fontSize: 13.5, color: "var(--text)", lineHeight: 1.5 }}>{addressPreview}</div>
+                </div>
+              ) : null}
+
+              <div
+                style={{
+                  padding: "14px 16px",
+                  borderRadius: 14,
+                  border: "1px solid var(--border)",
+                  background: "var(--surface)",
+                }}
+              >
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text)", marginBottom: 10 }}>
+                  Foto da frente da casa
+                </div>
+                <label
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minHeight: 44,
+                    padding: "0 16px",
+                    borderRadius: 12,
+                    background: "var(--accent-bg)",
+                    color: "var(--accent)",
+                    fontSize: 13.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Abrir câmera ou galeria
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    style={{ display: "none" }}
+                    onChange={handleCameraFileChange}
+                  />
+                </label>
+                <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 8 }}>
+                  Em celulares compatíveis, o navegador pode abrir a câmera traseira diretamente.
+                </div>
+
+                {form.houseFrontImageUrl ? (
+                  <div style={{ marginTop: 12 }}>
+                    <img
+                      src={form.houseFrontImageUrl}
+                      alt="Preview da frente da casa"
+                      style={{
+                        width: "100%",
+                        borderRadius: 14,
+                        border: "1px solid var(--border)",
+                        objectFit: "cover",
+                        maxHeight: 220,
+                      }}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </>
+          ) : null}
+
+          <Textarea
+            label="Observação"
+            value={form.notes}
+            onChange={(value) => setForm((current) => ({ ...current, notes: value }))}
+            placeholder="Contexto, histórico, necessidades, ponto de atenção..."
+            rows={4}
+          />
+
+          {error ? (
+            <div
+              style={{
+                padding: "12px 16px",
+                borderRadius: 12,
+                background: "#FFF1F2",
+                border: "1px solid #FECDD3",
+                fontSize: 13,
+                color: "#E11D48",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
               <IconX size={14} /> {error}
             </div>
-          )}
+          ) : null}
 
-          {success && (
-            <div style={{
-              gridColumn: "1 / -1",
-              padding: "12px 16px", borderRadius: 12,
-              background: "#F0FDF4", border: "1px solid #BBF7D0",
-              fontSize: 13, color: "#15803D",
-              display: "flex", alignItems: "center", gap: 8,
-            }}>
-              <IconCheck size={14} /> Contato salvo com sucesso!
-            </div>
-          )}
-
-          <div style={{ gridColumn: "1 / -1", display: "flex", gap: 10 }}>
-            <Button
-              type="submit"
-              variant="primary"
-              size="md"
-              disabled={submitting}
-              icon={<IconPlus />}
+          {success ? (
+            <div
+              style={{
+                padding: "12px 16px",
+                borderRadius: 12,
+                background: "#F0FDF4",
+                border: "1px solid #BBF7D0",
+                fontSize: 13,
+                color: "#15803D",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
             >
+              <IconCheck size={14} /> Contato salvo com sucesso.
+            </div>
+          ) : null}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4 }}>
+            <Button type="submit" variant="primary" size="md" disabled={submitting} icon={<IconPlus />} full>
               {submitting ? "Salvando..." : editing ? "Salvar contato" : "Registrar contato"}
             </Button>
-            <Button type="button" variant="secondary" size="md" onClick={resetForm}>
-              {editing ? "Cancelar" : "Limpar"}
+            <Button type="button" variant="secondary" size="md" onClick={resetForm} full>
+              {editing ? "Cancelar edição" : "Limpar formulário"}
             </Button>
           </div>
         </form>
       </Card>
 
-      {/* ── Contacts list ── */}
-      <Card padding={28}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+      <Card padding={20}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, gap: 12 }}>
           <SectionTitle>Fila de novos contatos</SectionTitle>
           <span style={{ fontSize: 12.5, color: "var(--text-3)", fontWeight: 500 }}>
             {contacts.length} {contacts.length === 1 ? "contato" : "contatos"}
           </span>
         </div>
-        <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 20, marginTop: -8 }}>
-          Acompanhe o funil e converta para membro quando o acompanhamento começar.
+        <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 16, marginTop: -8, lineHeight: 1.5 }}>
+          Depois do primeiro acolhimento, o contato pode ser convertido em membro e distribuído para a equipe.
         </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {contacts.length === 0 && (
-            <p style={{ fontSize: 13, color: "var(--text-3)", textAlign: "center", padding: "32px 0" }}>
+          {contacts.length === 0 ? (
+            <p style={{ fontSize: 13, color: "var(--text-3)", textAlign: "center", padding: "24px 0", margin: 0 }}>
               Nenhum contato registrado ainda.
             </p>
-          )}
+          ) : null}
+
           {contacts.map((contact) => {
-            const col = statusColors[contact.status] ?? statusColors.new;
-            const caregiver = caregivers.find((c) => c.id === contact.caregiverId);
+            const color = statusColors[contact.status] ?? statusColors.new;
             return (
               <div
                 key={contact.id}
                 style={{
-                  padding: "16px 18px",
-                  borderRadius: 14,
+                  padding: "16px",
+                  borderRadius: 16,
                   background: "var(--surface-2)",
                   border: "1px solid var(--border)",
                 }}
               >
-                <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-                  <Avatar name={contact.referenceName} size={44} />
+                <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  <Avatar name={contact.referenceName} size={42} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-                      <div>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.01em" }}>
-                          {contact.referenceName}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+                        <div>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{contact.referenceName}</div>
+                          <div style={{ fontSize: 12.5, color: "var(--text-2)", marginTop: 2 }}>
+                            {contact.phone ? formatPhone(contact.phone) : "Sem telefone"} · {contact.city || "Sem cidade"}
+                          </div>
                         </div>
-                        <div style={{ fontSize: 12.5, color: "var(--text-2)", marginTop: 2 }}>
-                          {contact.phone || "Sem telefone"} • {contact.city || "Sem cidade"}
-                        </div>
+                        <span
+                          style={{
+                            padding: "4px 10px",
+                            borderRadius: 999,
+                            background: color.bg,
+                            color: color.fg,
+                            fontSize: 11.5,
+                            fontWeight: 700,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {statusLabels[contact.status]}
+                        </span>
                       </div>
-                      <span style={{
-                        padding: "4px 10px", borderRadius: 999,
-                        background: col.bg, color: col.fg,
-                        fontSize: 11.5, fontWeight: 700, whiteSpace: "nowrap",
-                      }}>
-                        {statusLabels[contact.status]}
-                      </span>
-                    </div>
 
-                    {contact.notes && (
-                      <p style={{
-                        marginTop: 8, fontSize: 13, color: "var(--text-2)",
-                        lineHeight: 1.5,
-                      }}>
-                        {contact.notes}
-                      </p>
-                    )}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, fontSize: 12, color: "var(--text-3)" }}>
+                        {contact.source ? <span>Origem: {contact.source}</span> : null}
+                        {contact.openHouse ? <span>Casa aberta</span> : null}
+                      </div>
 
-                    <div style={{
-                      marginTop: 8, fontSize: 12, color: "var(--text-3)",
-                      display: "flex", gap: 16, flexWrap: "wrap",
-                    }}>
-                      {contact.source && <span>Origem: {contact.source}</span>}
-                      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        <IconUsers size={11} />
-                        {caregiver?.name ?? "Sem cuidador"}
-                      </span>
-                    </div>
+                      {contact.address ? (
+                        <div style={{ fontSize: 12.5, color: "var(--text-2)", lineHeight: 1.5 }}>
+                          Endereço: {contact.address}
+                        </div>
+                      ) : null}
 
-                    <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <button
-                        type="button"
-                        onClick={() => openEdit(contact)}
-                        style={{
-                          padding: "6px 14px", borderRadius: 8,
-                          background: "var(--surface)",
-                          border: "1.5px solid var(--border)",
-                          color: "var(--text)",
-                          fontSize: 13, fontWeight: 600, cursor: "pointer",
-                          fontFamily: "inherit",
-                        }}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => convertContact(contact)}
-                        disabled={convertingId === contact.id || contact.status === "in_progress"}
-                        style={{
-                          padding: "6px 14px", borderRadius: 8,
-                          background: contact.status === "in_progress" ? "#F3E8FF" : "var(--accent)",
-                          border: "1.5px solid transparent",
-                          color: contact.status === "in_progress" ? "#7C3AED" : "#fff",
-                          fontSize: 13, fontWeight: 600,
-                          cursor: (convertingId === contact.id || contact.status === "in_progress") ? "not-allowed" : "pointer",
-                          opacity: convertingId === contact.id ? 0.6 : 1,
-                          fontFamily: "inherit",
-                        }}
-                      >
-                        {convertingId === contact.id
-                          ? "Convertendo..."
-                          : contact.status === "in_progress"
-                          ? "Já é membro"
-                          : "→ Converter em membro"}
-                      </button>
+                      {contact.houseFrontImageUrl ? (
+                        <img
+                          src={contact.houseFrontImageUrl}
+                          alt="Casa do contato"
+                          style={{
+                            width: "100%",
+                            borderRadius: 14,
+                            border: "1px solid var(--border)",
+                            objectFit: "cover",
+                            maxHeight: 180,
+                          }}
+                        />
+                      ) : null}
+
+                      {contact.notes ? (
+                        <p style={{ margin: 0, fontSize: 13, color: "var(--text-2)", lineHeight: 1.5 }}>
+                          {contact.notes}
+                        </p>
+                      ) : null}
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
+                        <Button type="button" variant="secondary" size="sm" onClick={() => openEdit(contact)} full>
+                          Editar contato
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="sm"
+                          onClick={() => convertContact(contact)}
+                          disabled={convertingId === contact.id || contact.status === "in_progress"}
+                          full
+                        >
+                          {convertingId === contact.id
+                            ? "Convertendo..."
+                            : contact.status === "in_progress"
+                              ? "Já convertido em membro"
+                              : "Converter em membro"}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>

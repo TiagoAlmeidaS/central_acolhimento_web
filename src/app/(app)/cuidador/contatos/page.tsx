@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { listCaregivers, listSeeds, listTenants } from "@/server/repositories/mvp-repository";
+import { listSeeds, listTenants } from "@/server/repositories/mvp-repository";
 import { getDataScopeFromSession } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
 import { MobileShell } from "@/ui/navigation/mobile-shell";
@@ -9,10 +9,9 @@ import { ContactManager } from "@/ui/mvp/contact-manager";
 export default async function CaregiverContactsPage() {
   const session = await requireServerAuthSession("caregiver");
   const scope = getDataScopeFromSession(session);
-  const [contacts, tenants, caregivers] = await Promise.all([
+  const [contacts, tenants] = await Promise.all([
     listSeeds(scope),
     listTenants(scope),
-    listCaregivers(scope),
   ]);
 
   return (
@@ -24,7 +23,7 @@ export default async function CaregiverContactsPage() {
           <p className="mt-2 text-sm text-slate-500">Registre rapidamente quem acabou de entrar no fluxo de acolhimento.</p>
         </div>
 
-        <ContactManager contacts={contacts} tenants={tenants} caregivers={caregivers} />
+        <ContactManager contacts={contacts} tenants={tenants} />
       </div>
     </MobileShell>
   );

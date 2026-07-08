@@ -88,6 +88,12 @@ describe("MVP integration flow", () => {
           referenceName: "Ester Nascimento",
           phone: "(83) 98888-7777",
           city: "Sape",
+          postalCode: "58240000",
+          openHouse: true,
+          street: "Rua do Acolhimento",
+          neighborhood: "Centro",
+          addressNumber: "120",
+          state: "PB",
           source: "Mensagem no WhatsApp",
           notes: "Pediu oracao e aceitou retorno.",
           status: "new",
@@ -97,10 +103,22 @@ describe("MVP integration flow", () => {
     );
 
     expect(createResponse.status).toBe(201);
-    const createdContact = (await createResponse.json()) as { id: string; referenceName: string; tenantId: string; caregiverId: string | null };
+    const createdContact = (await createResponse.json()) as {
+      id: string;
+      referenceName: string;
+      tenantId: string;
+      caregiverId: string | null;
+      openHouse: boolean;
+      postalCode: string;
+      address: string;
+    };
     expect(createdContact.referenceName).toBe("Ester Nascimento");
     expect(createdContact.tenantId).toBe("1");
     expect(createdContact.caregiverId).toBe("1");
+    expect(createdContact.openHouse).toBe(true);
+    expect(createdContact.postalCode).toBe("58240000");
+    expect(createdContact.address).toContain("Rua do Acolhimento, 120");
+    expect(createdContact.address).toContain("CEP 58240000");
 
     const { POST: convertContactRoute } = await import("@/app/api/seeds/[seedId]/convert/route");
     const convertResponse = await convertContactRoute(
@@ -113,13 +131,19 @@ describe("MVP integration flow", () => {
     );
 
     expect(convertResponse.status).toBe(201);
-    const member = (await convertResponse.json()) as { name: string; seedId: string | null; caregiverId: string | null };
+    const member = (await convertResponse.json()) as {
+      name: string;
+      seedId: string | null;
+      caregiverId: string | null;
+      address: string;
+    };
     const contacts = await listSeeds({ tenantId: "1", caregiverId: "1" });
     const members = await listMembers({ tenantId: "1", caregiverId: "1" });
 
     expect(member.name).toBe("Ester Nascimento");
     expect(member.seedId).toBe(createdContact.id);
     expect(member.caregiverId).toBe("1");
+    expect(member.address).toBe(createdContact.address);
     expect(contacts.find((contact) => contact.id === createdContact.id)?.status).toBe("in_progress");
     expect(members.some((item) => item.name === "Ester Nascimento")).toBe(true);
   });

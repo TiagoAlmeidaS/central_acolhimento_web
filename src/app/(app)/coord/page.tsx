@@ -11,6 +11,7 @@ import {
   listSeeds,
 } from "@/server/repositories/mvp-repository";
 import { Avatar, Card, StatusDot, Button } from "@/ui/v2-components/ui";
+import { DashboardMap } from "@/ui/mvp/dashboard-map";
 import {
   IconUsers,
   IconHeart,
@@ -340,6 +341,37 @@ export default async function CoordDashboardPage() {
     };
   });
 
+  const mapItems = [
+    ...members.map((m) => {
+      const caregiver = m.caregiverId ? caregivers.find((c) => c.id === m.caregiverId)?.name ?? null : null;
+      return {
+        id: m.id,
+        name: m.name,
+        city: m.city || "",
+        address: m.address || "",
+        status: m.status === "new" ? "urgente" : m.status === "in_progress" ? "acompanhamento" : m.status === "consolidated" ? "concluido" : "concluido",
+        caregiver,
+        lastContact: m.lastContact ?? null,
+        latitude: m.latitude,
+        longitude: m.longitude,
+      };
+    }),
+    ...seeds.map((s) => {
+      const caregiver = s.caregiverId ? caregivers.find((c) => c.id === s.caregiverId)?.name ?? null : null;
+      return {
+        id: s.id,
+        name: s.referenceName,
+        city: s.city || "",
+        address: s.address || "",
+        status: "aguardando",
+        caregiver,
+        lastContact: "Novo contato",
+        latitude: s.latitude,
+        longitude: s.longitude,
+      };
+    }),
+  ];
+
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: "var(--bg)" }}>
       {/* Header */}
@@ -495,6 +527,9 @@ export default async function CoordDashboardPage() {
             bg="rgba(124,58,237,0.12)"
           />
         </section>
+
+        {/* Map View */}
+        <DashboardMap items={mapItems} />
 
         {/* Charts Section */}
         <section

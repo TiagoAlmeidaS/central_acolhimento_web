@@ -278,15 +278,6 @@ export const Button: React.FC<ButtonProps> = ({
         ...style,
       }}
       {...rest}
-      onMouseDown={(e) => {
-        e.currentTarget.style.transform = "scale(0.985)";
-      }}
-      onMouseUp={(e) => {
-        e.currentTarget.style.transform = "";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "";
-      }}
     >
       {icon && React.cloneElement(icon as React.ReactElement<{ size?: number }>, { size: sizes.ic })}
       {children}
@@ -398,6 +389,8 @@ interface InputProps {
   disabled?: boolean;
   readOnly?: boolean;
   pattern?: string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
 }
 
 
@@ -549,6 +542,164 @@ export const Select: React.FC<SelectProps> = ({
     </div>
   </div>
 );
+
+interface SearchableSelectProps {
+  label?: string;
+  value?: string;
+  onChange?: (v: string) => void;
+  options: string[];
+  placeholder?: string;
+  required?: boolean;
+}
+
+export const SearchableSelect: React.FC<SearchableSelectProps> = ({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+  required,
+}) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [search, setSearch] = React.useState("");
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredOptions = options.filter((opt) =>
+    opt.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div ref={containerRef} style={{ display: "flex", flexDirection: "column", gap: 8, position: "relative", minWidth: 0 }}>
+      {label && (
+        <label
+          style={{
+            fontSize: 13.5,
+            fontWeight: 600,
+            color: "var(--text)",
+            letterSpacing: "-0.005em",
+          }}
+        >
+          {label}
+        </label>
+      )}
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          height: 54,
+          padding: "0 18px",
+          background: "var(--surface)",
+          border: "1.5px solid var(--border)",
+          borderRadius: 14,
+          cursor: "pointer",
+          position: "relative",
+          justifyContent: "space-between",
+        }}
+      >
+        <span
+          style={{
+            fontSize: 15,
+            color: value ? "var(--text)" : "var(--text-3)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {value || placeholder || "Selecione..."}
+        </span>
+        <span style={{ color: "var(--accent)", display: "flex", pointerEvents: "none" }}>
+          <IconChevronDown size={18} />
+        </span>
+      </div>
+
+      {isOpen && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            marginTop: 4,
+            background: "var(--surface)",
+            border: "1.5px solid var(--border)",
+            borderRadius: 14,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            zIndex: 1000,
+            maxHeight: 250,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+          }}
+        >
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar..."
+            style={{
+              padding: "12px 14px",
+              border: 0,
+              borderBottom: "1px solid var(--border)",
+              outline: "none",
+              background: "var(--surface-2)",
+              fontSize: 14,
+              fontFamily: "inherit",
+              color: "var(--text)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+            autoFocus
+          />
+          <div style={{ overflowY: "auto", flex: 1 }}>
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((opt) => (
+                <div
+                  key={opt}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onChange && onChange(opt);
+                    setIsOpen(false);
+                    setSearch("");
+                  }}
+                  style={{
+                    padding: "12px 14px",
+                    fontSize: 14.5,
+                    cursor: "pointer",
+                    background: value === opt ? "var(--accent-bg)" : "transparent",
+                    color: value === opt ? "var(--accent)" : "var(--text)",
+                    transition: "background 0.15s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (value !== opt) e.currentTarget.style.background = "var(--surface-2)";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (value !== opt) e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  {opt}
+                </div>
+              ))
+            ) : (
+              <div style={{ padding: "14px", fontSize: 13.5, color: "var(--text-3)", textAlign: "center" }}>
+                Nenhum resultado
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface TextareaProps {
   label?: string;

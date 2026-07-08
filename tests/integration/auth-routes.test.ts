@@ -139,4 +139,50 @@ describe("auth route integration", () => {
     expect(loginPayload.session.membership.role).toBe("coordinator");
     expect(loginPayload.session.membership.tenantName).toBe("Central Guarabira");
   });
+
+  it("accepts a caregiver invitation and allows the invited user to log in", async () => {
+    const { createCaregiverInvitation } = await import("@/server/repositories/invitation-repository");
+
+    const invitation = await createCaregiverInvitation({
+      tenantId: "1",
+      email: "debora@igreja.org",
+      createdByTenantUserId: "local-tenant-user-tiago-sape",
+    });
+
+    const { POST: acceptInvitation } = await import("@/app/api/invitations/[token]/accept/route");
+    const acceptResponse = await acceptInvitation(
+      new Request(`http://localhost/api/invitations/${invitation.token}/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: "Debora",
+          lastName: "Lima",
+          email: "debora@igreja.org",
+          phone: "(83) 98888-1111",
+          password: "12345678",
+        }),
+      }),
+      { params: Promise.resolve({ token: invitation.token }) }
+    );
+
+    expect(acceptResponse.status).toBe(201);
+
+    const { POST: login } = await import("@/app/api/auth/login/route");
+    const loginResponse = await login(
+      new Request("http://localhost/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "debora@igreja.org",
+          password: "12345678",
+        }),
+      })
+    );
+
+    expect(loginResponse.status).toBe(200);
+    const loginPayload = (await loginResponse.json()) as { type: string; session: AuthSession };
+    expect(loginPayload.type).toBe("authenticated");
+    expect(loginPayload.session.membership.role).toBe("caregiver");
+    expect(loginPayload.session.membership.tenantName).toBe("Central Sapé");
+  });
 });
