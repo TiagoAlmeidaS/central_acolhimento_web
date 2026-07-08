@@ -22,6 +22,28 @@ function shouldUseSsl(connectionString: string) {
   }
 }
 
+function sanitizeConnectionStringForSslOptions(connectionString: string) {
+  if (!connectionString) {
+    return connectionString;
+  }
+
+  try {
+    const url = new URL(connectionString);
+    url.searchParams.delete("sslmode");
+    url.searchParams.delete("sslcert");
+    url.searchParams.delete("sslkey");
+    url.searchParams.delete("sslrootcert");
+    return url.toString();
+  } catch {
+    return connectionString
+      .replace(/([?&])sslmode=[^&]*&?/i, "$1")
+      .replace(/([?&])sslcert=[^&]*&?/i, "$1")
+      .replace(/([?&])sslkey=[^&]*&?/i, "$1")
+      .replace(/([?&])sslrootcert=[^&]*&?/i, "$1")
+      .replace(/[?&]$/i, "");
+  }
+}
+
 export function isDatabaseConfigured() {
   return Boolean(pooledConnectionString);
 }
@@ -63,8 +85,9 @@ export function getDbPool() {
   }
 
   if (!pool) {
+    const sanitizedConnectionString = sanitizeConnectionStringForSslOptions(pooledConnectionString);
     pool = new Pool({
-      connectionString: pooledConnectionString,
+      connectionString: sanitizedConnectionString,
       ssl: shouldUseSsl(pooledConnectionString) ? { rejectUnauthorized: false } : false,
       max: 5,
     });
