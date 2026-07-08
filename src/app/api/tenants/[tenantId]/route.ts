@@ -10,8 +10,12 @@ export async function PUT(request: Request, context: RouteContext) {
   try {
     const session = await requireServerAuthSession("coordinator");
     const { tenantId } = await context.params;
-    const { assertSessionRole } = await import("@/server/auth/access-scope");
-    assertSessionRole(session, "coordinator");
+    const { listUserMemberships } = await import("@/server/repositories/auth-repository");
+    const memberships = await listUserMemberships(session.user.id);
+    const hasAccess = memberships.some((m) => m.tenantId === tenantId);
+    if (!hasAccess) {
+      return Response.json({ error: "Acesso negado para esta localidade." }, { status: 403 });
+    }
     const body = (await request.json()) as {
       name?: string;
       city?: string;

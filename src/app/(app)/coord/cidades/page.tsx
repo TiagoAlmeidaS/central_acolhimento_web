@@ -7,13 +7,19 @@ import { requireServerAuthSession } from "@/server/auth/session";
 import { CaregiverInvitationManager } from "@/ui/mvp/caregiver-invitation-manager";
 import { TenantManager } from "@/ui/mvp/tenant-manager";
 
+import { listUserMemberships } from "@/server/repositories/auth-repository";
+
 export default async function CitiesPage() {
   const session = await requireServerAuthSession("coordinator");
-  const scope = getDataScopeFromSession(session);
-  const [tenants, invitations] = await Promise.all([
-    listTenants(scope),
+  const [memberships, allTenants, invitations] = await Promise.all([
+    listUserMemberships(session.user.id),
+    listTenants(),
     listCaregiverInvitations(session.membership.tenantId),
   ]);
+  const activeTenantId = session.membership.tenantId;
+  const tenants = allTenants.filter(
+    (t) => t.id === activeTenantId || memberships.some((m) => m.tenantId === t.id)
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", padding: "0 0 48px" }}>

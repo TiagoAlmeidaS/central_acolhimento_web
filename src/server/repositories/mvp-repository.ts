@@ -435,10 +435,8 @@ function appendScopedWhereClause(
 }
 
 export async function listTenants(scope?: DataScope): Promise<Tenant[]> {
-  const restrict = !!scope?.caregiverId;
-
   if (!isDatabaseReady()) {
-    if (!restrict || !scope?.tenantId) {
+    if (!scope?.tenantId) {
       return [...localTenantsStore].sort((a, b) => a.name.localeCompare(b.name));
     }
     return localTenantsStore
@@ -448,8 +446,8 @@ export async function listTenants(scope?: DataScope): Promise<Tenant[]> {
 
   const db = ensureDb();
   const values: string[] = [];
-  const where = (restrict && scope?.tenantId) ? "where id = $1" : "";
-  if (restrict && scope?.tenantId) {
+  const where = scope?.tenantId ? "where id = $1" : "";
+  if (scope?.tenantId) {
     values.push(scope.tenantId);
   }
   const result = await db.query<TenantRow>(`select * from tenants ${where} order by name`, values);
