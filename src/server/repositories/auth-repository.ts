@@ -1,5 +1,5 @@
 import type { Pool, PoolClient, QueryResult } from "pg";
-import { getDbPool, isDatabaseConfigured } from "@/lib/db";
+import { assertDatabaseConfigured, getDbPool, isDatabaseConfigured, isInMemoryFallbackAllowed } from "@/lib/db";
 import { createTenant } from "@/server/repositories/mvp-repository";
 import type {
   AppUser,
@@ -170,10 +170,11 @@ function mapMembership(row: MembershipRow): UserMembership {
 }
 
 function ensureDb() {
+  assertDatabaseConfigured("autenticacao");
   const db = getDbPool();
 
-  if (!db || !isDatabaseConfigured()) {
-    throw new Error("Banco nao configurado para autenticacao local.");
+  if (!db) {
+    throw new Error("Nao foi possivel inicializar o pool do banco para autenticacao.");
   }
 
   return db;
@@ -209,7 +210,7 @@ export function appendLocalUserMembership(
 }
 
 export async function findAppUserByEmail(email: string) {
-  if (!isDatabaseConfigured()) {
+  if (!isDatabaseConfigured() && isInMemoryFallbackAllowed()) {
     const record = getLocalRecordByEmail(email);
     return record ? mapAppUser(record.appUser) : null;
   }
@@ -233,7 +234,7 @@ export async function createAppUser(
   },
   dbOverride?: Queryable
 ) {
-  if (!isDatabaseConfigured()) {
+  if (!isDatabaseConfigured() && isInMemoryFallbackAllowed()) {
     const nextUser: AppUserRow = {
       id: crypto.randomUUID(),
       first_name: input.firstName,
@@ -283,7 +284,7 @@ export async function registerCoordinatorAccount(input: {
 
   const coordinatorName = `${input.firstName} ${input.lastName}`.trim();
 
-  if (!isDatabaseConfigured()) {
+  if (!isDatabaseConfigured() && isInMemoryFallbackAllowed()) {
     const tenant = await createTenant({
       name: input.tenantName,
       city: input.city,
@@ -384,7 +385,7 @@ export async function registerCoordinatorAccount(input: {
 }
 
 export async function listUserMemberships(appUserId: string) {
-  if (!isDatabaseConfigured()) {
+  if (!isDatabaseConfigured() && isInMemoryFallbackAllowed()) {
     const record = Array.from(localAuthStore.values()).find((item) => item.appUser.id === appUserId);
     return record?.memberships ?? [];
   }
@@ -412,7 +413,7 @@ export async function listUserMemberships(appUserId: string) {
 }
 
 export async function authenticateAppUser(input: LoginInput) {
-  if (!isDatabaseConfigured()) {
+  if (!isDatabaseConfigured() && isInMemoryFallbackAllowed()) {
     const record = getLocalRecordByEmail(input.email);
     if (!record || !verifyPassword(input.password, record.appUser.password_hash)) {
       return null;

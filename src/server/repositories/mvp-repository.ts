@@ -1,4 +1,4 @@
-import { getDbPool, isDatabaseConfigured } from "@/lib/db";
+import { assertDatabaseConfigured, getDbPool, isDatabaseConfigured, isInMemoryFallbackAllowed } from "@/lib/db";
 import {
   caregivers as caregiverMocks,
   latestActivity as followupMocks,
@@ -353,17 +353,30 @@ export function resetLocalMvpStore() {
 }
 
 function isDatabaseReady() {
-  return isDatabaseConfigured() && getDbPool() !== null;
+  if (!isDatabaseConfigured()) {
+    if (isInMemoryFallbackAllowed()) {
+      return false;
+    }
+
+    throw new Error(getDatabaseRequiredMessage());
+  }
+
+  return getDbPool() !== null;
 }
 
 function ensureDb() {
+  assertDatabaseConfigured("persistencia do MVP");
   const db = getDbPool();
 
   if (!db) {
-    throw new Error("Postgres da Vercel nao configurado.");
+    throw new Error("Nao foi possivel inicializar o pool do banco para o MVP.");
   }
 
   return db;
+}
+
+function getDatabaseRequiredMessage() {
+  return "Banco de dados obrigatorio nao configurado para o MVP. Defina POSTGRES_URL ou DATABASE_URL no ambiente atual.";
 }
 
 function formatDateLabel(value: string | null | undefined) {

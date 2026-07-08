@@ -1,4 +1,4 @@
-import { getDbPool, isDatabaseConfigured } from "@/lib/db";
+import { assertDatabaseConfigured, getDbPool, isDatabaseConfigured, isInMemoryFallbackAllowed } from "@/lib/db";
 import type {
   AcceptCaregiverInvitationInput,
   CaregiverInvitation,
@@ -56,9 +56,10 @@ function mapInvitation(row: InvitationRow): CaregiverInvitation {
 }
 
 function ensureDb() {
+  assertDatabaseConfigured("convites");
   const db = getDbPool();
-  if (!db || !isDatabaseConfigured()) {
-    throw new Error("Banco nao configurado para convites.");
+  if (!db) {
+    throw new Error("Nao foi possivel inicializar o pool do banco para convites.");
   }
   return db;
 }
@@ -75,7 +76,7 @@ function assertInvitationIsUsable(invitation: CaregiverInvitation) {
 }
 
 export async function listCaregiverInvitations(tenantId?: string) {
-  if (!isDatabaseConfigured()) {
+  if (!isDatabaseConfigured() && isInMemoryFallbackAllowed()) {
     const invitations = Array.from(localInvitations.values());
     return tenantId ? invitations.filter((invitation) => invitation.tenantId === tenantId) : invitations;
   }
@@ -102,7 +103,7 @@ export async function createCaregiverInvitation(input: CreateCaregiverInvitation
   expiresAt.setDate(expiresAt.getDate() + (input.expiresInDays ?? 7));
   const role = input.role ?? "caregiver";
 
-  if (!isDatabaseConfigured()) {
+  if (!isDatabaseConfigured() && isInMemoryFallbackAllowed()) {
     const invitation: CaregiverInvitation = {
       id: crypto.randomUUID(),
       tenantId: input.tenantId,
@@ -132,7 +133,7 @@ export async function createCaregiverInvitation(input: CreateCaregiverInvitation
 }
 
 export async function getCaregiverInvitationByToken(token: string) {
-  if (!isDatabaseConfigured()) {
+  if (!isDatabaseConfigured() && isInMemoryFallbackAllowed()) {
     return localInvitations.get(token) ?? null;
   }
 
@@ -162,7 +163,7 @@ export async function acceptCaregiverInvitation(token: string, input: AcceptCare
     throw new Error("Ja existe uma conta cadastrada com este email.");
   }
 
-  if (!isDatabaseConfigured()) {
+  if (!isDatabaseConfigured() && isInMemoryFallbackAllowed()) {
     const appUser = await createAppUser({
       firstName: input.firstName,
       lastName: input.lastName,
