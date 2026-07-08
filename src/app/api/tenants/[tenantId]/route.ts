@@ -10,7 +10,8 @@ export async function PUT(request: Request, context: RouteContext) {
   try {
     const session = await requireServerAuthSession("coordinator");
     const { tenantId } = await context.params;
-    assertSessionCanAccessRecord(session, { tenantId });
+    const { assertSessionRole } = await import("@/server/auth/access-scope");
+    assertSessionRole(session, "coordinator");
     const body = (await request.json()) as {
       name?: string;
       city?: string;
