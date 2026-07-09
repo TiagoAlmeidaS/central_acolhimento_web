@@ -78,6 +78,7 @@ export function MemberManager({
   const [form, setForm] = useState({ ...emptyForm, tenantId: tenants[0]?.id ?? "" });
   const [assigningMemberId, setAssigningMemberId] = useState<string | null>(null);
   const [savingAssignId, setSavingAssignId] = useState<string | null>(null);
+  const [savingStatusId, setSavingStatusId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -202,6 +203,27 @@ export function MemberManager({
     if (!response.ok) return;
 
     setAssigningMemberId(null);
+    startTransition(() => router.refresh());
+  }
+
+  async function updateMemberStatus(memberId: string, status: Member["status"]) {
+    setSavingStatusId(memberId);
+    setError(null);
+
+    const response = await fetch(`/api/members/${memberId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+
+    setSavingStatusId(null);
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      setError(payload.error ?? "Nao foi possivel atualizar o status do membro.");
+      return;
+    }
+
     startTransition(() => router.refresh());
   }
 
@@ -483,7 +505,34 @@ export function MemberManager({
 
                       {/* Status */}
                       <td style={{ padding: "14px 14px" }}>
-                        <StatusPill status={STATUS_MAP[member.status]} size="sm" />
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 180 }}>
+                          <StatusPill status={STATUS_MAP[member.status]} size="sm" />
+                          <select
+                            value={member.status}
+                            onChange={(e) => updateMemberStatus(member.id, e.target.value as Member["status"])}
+                            disabled={savingStatusId === member.id}
+                            style={{
+                              padding: "8px 10px",
+                              borderRadius: 8,
+                              border: "1.5px solid var(--border)",
+                              background: "var(--surface)",
+                              color: "var(--text)",
+                              fontFamily: "inherit",
+                              fontSize: 12.5,
+                              outline: "none",
+                              cursor: savingStatusId === member.id ? "wait" : "pointer",
+                            }}
+                          >
+                            {Object.entries(statusLabels).map(([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                          {savingStatusId === member.id ? (
+                            <span style={{ fontSize: 12, color: "var(--text-3)" }}>Atualizando status...</span>
+                          ) : null}
+                        </div>
                       </td>
 
                       {/* Caregiver assign */}

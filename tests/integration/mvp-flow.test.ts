@@ -180,6 +180,23 @@ describe("MVP integration flow", () => {
     const assignedMember = (await assignResponse.json()) as { caregiverId: string | null };
     expect(assignedMember.caregiverId).toBe("1");
 
+    const { PATCH: updateStatusRoute } = await import("@/app/api/members/[memberId]/status/route");
+    const updateStatusResponse = await updateStatusRoute(
+      new Request(`http://localhost/api/members/${targetMember.id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "consolidated" }),
+        headers: { "Content-Type": "application/json" },
+      }),
+      { params: Promise.resolve({ memberId: targetMember.id }) }
+    );
+
+    expect(updateStatusResponse.status).toBe(200);
+    const updatedMember = (await updateStatusResponse.json()) as { status: string };
+    expect(updatedMember.status).toBe("consolidated");
+
+    const refreshedMembers = await listMembers({ tenantId: "1" });
+    expect(refreshedMembers.find((item) => item.id === targetMember.id)?.status).toBe("consolidated");
+
     const { POST: createFollowupRoute } = await import("@/app/api/followups/route");
     const followupResponse = await createFollowupRoute(
       new Request("http://localhost/api/followups", {
