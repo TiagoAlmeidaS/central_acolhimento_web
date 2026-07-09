@@ -3,6 +3,7 @@
 import { startTransition, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CaregiverInvitation, Tenant } from "@/server/domain/mvp";
+import { sortInvitationsByCreatedAt } from "@/ui/mvp/caregiver-invitation-utils";
 import {
   Card,
   Button,
@@ -82,10 +83,7 @@ export function CaregiverInvitationManager({
   const [latestLink, setLatestLink] = useState<string | null>(null);
 
   const sortedInvitations = useMemo(
-    () =>
-      [...invitations].sort((l, r) =>
-        (r.createdAt ?? "").localeCompare(l.createdAt ?? "")
-      ),
+    () => sortInvitationsByCreatedAt(invitations),
     [invitations]
   );
 
