@@ -112,6 +112,7 @@ export function CaregiverDashboardClient({
   // New Brother Form
   const [newForm, setNewForm] = useState({
     name: "",
+    age: "",
     phone: "",
     city: session.membership.tenantCity ?? "",
     status: "new",
@@ -428,6 +429,7 @@ export function CaregiverDashboardClient({
         tenantId: session.membership.tenantId,
         caregiverId: session.membership.caregiverId,
         referenceName: newForm.name,
+        age: newForm.age ? Number(newForm.age) : null,
         phone: newForm.phone,
         city: newForm.city,
         status: "new",
@@ -454,6 +456,7 @@ export function CaregiverDashboardClient({
 
     setNewForm({
       name: "",
+      age: "",
       phone: "",
       city: session.membership.tenantCity ?? "",
       status: "new",
@@ -1026,6 +1029,13 @@ export function CaregiverDashboardClient({
               placeholder="Ex: Joana da Silva"
               icon={<IconUser />}
               required
+            />
+            <Input
+              label="Idade"
+              value={newForm.age}
+              onChange={(v) => setNewForm((f) => ({ ...f, age: v.replace(/\D/g, "").slice(0, 3) }))}
+              placeholder="Ex: 32"
+              inputMode="numeric"
             />
             <Input
               label="Telefone (WhatsApp)"

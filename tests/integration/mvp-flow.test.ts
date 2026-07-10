@@ -86,6 +86,7 @@ describe("MVP integration flow", () => {
           tenantId: "999",
           caregiverId: "999",
           referenceName: "Ester Nascimento",
+          age: 34,
           phone: "(83) 98888-7777",
           city: "Sape",
           postalCode: "58240000",
@@ -106,6 +107,7 @@ describe("MVP integration flow", () => {
     const createdContact = (await createResponse.json()) as {
       id: string;
       referenceName: string;
+      age: number | null;
       tenantId: string;
       caregiverId: string | null;
       openHouse: boolean;
@@ -113,6 +115,7 @@ describe("MVP integration flow", () => {
       address: string;
     };
     expect(createdContact.referenceName).toBe("Ester Nascimento");
+    expect(createdContact.age).toBe(34);
     expect(createdContact.tenantId).toBe("1");
     expect(createdContact.caregiverId).toBe("1");
     expect(createdContact.openHouse).toBe(true);
@@ -133,6 +136,7 @@ describe("MVP integration flow", () => {
     expect(convertResponse.status).toBe(201);
     const member = (await convertResponse.json()) as {
       name: string;
+      age: number | null;
       seedId: string | null;
       caregiverId: string | null;
       address: string;
@@ -141,6 +145,7 @@ describe("MVP integration flow", () => {
     const members = await listMembers({ tenantId: "1", caregiverId: "1" });
 
     expect(member.name).toBe("Ester Nascimento");
+    expect(member.age).toBe(34);
     expect(member.seedId).toBe(createdContact.id);
     expect(member.caregiverId).toBe("1");
     expect(member.address).toBe(createdContact.address);

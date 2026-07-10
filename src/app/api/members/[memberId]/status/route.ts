@@ -35,6 +35,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       caregiverId: currentMember.caregiverId,
       seedId: currentMember.seedId,
       name: currentMember.name,
+      age: currentMember.age,
       phone: currentMember.phone,
       address: currentMember.address,
       city: currentMember.city,

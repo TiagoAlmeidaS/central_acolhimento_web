@@ -53,6 +53,7 @@ type SeedRow = {
   tenant_id: string;
   caregiver_id: string | null;
   reference_name: string;
+  age: number | null;
   phone: string;
   city: string;
   postal_code: string;
@@ -79,6 +80,7 @@ type MemberRow = {
   caregiver_id: string | null;
   seed_id: string | null;
   name: string;
+  age: number | null;
   phone: string;
   address: string;
   city: string;
@@ -147,6 +149,7 @@ function mapSeed(row: SeedRow): Seed {
     tenantId: row.tenant_id,
     caregiverId: row.caregiver_id,
     referenceName: row.reference_name,
+    age: row.age !== null ? Number(row.age) : null,
     phone: row.phone,
     city: row.city,
     postalCode: row.postal_code,
@@ -175,6 +178,7 @@ function mapMember(row: MemberRow): Member {
     caregiverId: row.caregiver_id,
     seedId: row.seed_id,
     name: row.name,
+    age: row.age !== null ? Number(row.age) : null,
     phone: row.phone,
     address: row.address,
     city: row.city,
@@ -244,6 +248,7 @@ function buildLocalSeeds(): Seed[] {
       tenantId: "1",
       caregiverId: "1",
       referenceName: "Pedro Lima",
+      age: null,
       phone: "(83) 98888-4444",
       city: "Sape",
       postalCode: "",
@@ -267,6 +272,7 @@ function buildLocalSeeds(): Seed[] {
       tenantId: "2",
       caregiverId: "2",
       referenceName: "Raquel Costa",
+      age: null,
       phone: "(83) 98888-5555",
       city: "Mari",
       postalCode: "",
@@ -305,6 +311,7 @@ function buildLocalMembers(): Member[] {
           : null,
     seedId: null,
     name: member.name,
+    age: null,
     phone: member.phone,
     address: "",
     city: member.city,
@@ -679,6 +686,7 @@ export async function createSeed(input: CreateSeedInput): Promise<Seed> {
       tenantId: input.tenantId,
       caregiverId: input.caregiverId ?? null,
       referenceName: input.referenceName,
+      age: input.age ?? null,
       phone: input.phone ?? "",
       city: input.city ?? "",
       postalCode: input.postalCode ?? "",
@@ -704,13 +712,14 @@ export async function createSeed(input: CreateSeedInput): Promise<Seed> {
 
   const db = ensureDb();
   const result = await db.query<SeedRow>(
-    `insert into seeds (tenant_id, caregiver_id, reference_name, phone, city, postal_code, open_house, address, street, neighborhood, address_number, state, house_front_image_url, source, status, notes, first_contact_at, latitude, longitude, is_urgent)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+    `insert into seeds (tenant_id, caregiver_id, reference_name, age, phone, city, postal_code, open_house, address, street, neighborhood, address_number, state, house_front_image_url, source, status, notes, first_contact_at, latitude, longitude, is_urgent)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
      returning *`,
     [
       input.tenantId,
       input.caregiverId ?? null,
       input.referenceName,
+      input.age ?? null,
       input.phone ?? "",
       input.city ?? "",
       input.postalCode ?? "",
@@ -740,6 +749,7 @@ export async function updateSeed(id: string, input: UpdateSeedInput): Promise<Se
       tenantId: input.tenantId,
       caregiverId: input.caregiverId ?? null,
       referenceName: input.referenceName,
+      age: input.age ?? null,
       phone: input.phone ?? "",
       city: input.city ?? "",
       postalCode: input.postalCode ?? "",
@@ -770,23 +780,24 @@ export async function updateSeed(id: string, input: UpdateSeedInput): Promise<Se
         set tenant_id = $2,
             caregiver_id = $3,
             reference_name = $4,
-            phone = $5,
-            city = $6,
-            postal_code = $7,
-            open_house = $8,
-            address = $9,
-            street = $10,
-            neighborhood = $11,
-            address_number = $12,
-            state = $13,
-            house_front_image_url = $14,
-            source = $15,
-            status = $16,
-            notes = $17,
-            first_contact_at = $18,
-            latitude = $19,
-            longitude = $20,
-            is_urgent = $21
+            age = $5,
+            phone = $6,
+            city = $7,
+            postal_code = $8,
+            open_house = $9,
+            address = $10,
+            street = $11,
+            neighborhood = $12,
+            address_number = $13,
+            state = $14,
+            house_front_image_url = $15,
+            source = $16,
+            status = $17,
+            notes = $18,
+            first_contact_at = $19,
+            latitude = $20,
+            longitude = $21,
+            is_urgent = $22
       where id = $1
       returning *`,
     [
@@ -794,6 +805,7 @@ export async function updateSeed(id: string, input: UpdateSeedInput): Promise<Se
       input.tenantId,
       input.caregiverId ?? null,
       input.referenceName,
+      input.age ?? null,
       input.phone ?? "",
       input.city ?? "",
       input.postalCode ?? "",
@@ -829,6 +841,7 @@ export async function convertSeedToMember(seedId: string, input: ConvertSeedToMe
       caregiverId: input.caregiverId ?? seed.caregiverId ?? null,
       seedId: seed.id,
       name: seed.referenceName,
+      age: input.age ?? seed.age ?? null,
       phone: seed.phone,
       address: input.address ?? seed.address ?? "",
       city: seed.city,
@@ -856,14 +869,15 @@ export async function convertSeedToMember(seedId: string, input: ConvertSeedToMe
   }
 
   const memberResult = await db.query<MemberRow>(
-    `insert into members (tenant_id, caregiver_id, seed_id, name, phone, address, city, birth_date, status, notes, latitude, longitude, is_urgent)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, 'new', $9, $10, $11, $12)
+    `insert into members (tenant_id, caregiver_id, seed_id, name, age, phone, address, city, birth_date, status, notes, latitude, longitude, is_urgent)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'new', $10, $11, $12, $13)
      returning *`,
     [
       row.tenant_id,
       input.caregiverId ?? row.caregiver_id,
       row.id,
       row.reference_name,
+      input.age ?? row.age ?? null,
       row.phone,
       input.address ?? row.address,
       row.city,
@@ -936,6 +950,7 @@ export async function createMember(input: CreateMemberInput): Promise<Member> {
       caregiverId: input.caregiverId ?? null,
       seedId: input.seedId ?? null,
       name: input.name,
+      age: input.age ?? null,
       phone: input.phone ?? "",
       address: input.address ?? "",
       city: input.city ?? "",
@@ -954,14 +969,15 @@ export async function createMember(input: CreateMemberInput): Promise<Member> {
 
   const db = ensureDb();
   const result = await db.query<MemberRow>(
-    `insert into members (tenant_id, caregiver_id, seed_id, name, phone, address, city, birth_date, status, notes, latitude, longitude, is_urgent)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+    `insert into members (tenant_id, caregiver_id, seed_id, name, age, phone, address, city, birth_date, status, notes, latitude, longitude, is_urgent)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
      returning *`,
     [
       input.tenantId,
       input.caregiverId ?? null,
       input.seedId ?? null,
       input.name,
+      input.age ?? null,
       input.phone ?? "",
       input.address ?? "",
       input.city ?? "",
@@ -1010,6 +1026,7 @@ export async function updateMember(id: string, input: UpdateMemberInput): Promis
       caregiverId: input.caregiverId ?? null,
       seedId: input.seedId ?? null,
       name: input.name,
+      age: input.age ?? null,
       phone: input.phone ?? "",
       address: input.address ?? "",
       city: input.city ?? "",
@@ -1066,15 +1083,16 @@ export async function updateMember(id: string, input: UpdateMemberInput): Promis
             caregiver_id = $3,
             seed_id = $4,
             name = $5,
-            phone = $6,
-            address = $7,
-            city = $8,
-            birth_date = $9,
-            status = $10,
-            notes = $11,
-            latitude = $12,
-            longitude = $13,
-            is_urgent = $14
+            age = $6,
+            phone = $7,
+            address = $8,
+            city = $9,
+            birth_date = $10,
+            status = $11,
+            notes = $12,
+            latitude = $13,
+            longitude = $14,
+            is_urgent = $15
       where id = $1
       returning *`,
     [
@@ -1083,6 +1101,7 @@ export async function updateMember(id: string, input: UpdateMemberInput): Promis
       input.caregiverId ?? null,
       input.seedId ?? null,
       input.name,
+      input.age ?? null,
       input.phone ?? "",
       input.address ?? "",
       input.city ?? "",
@@ -1266,6 +1285,7 @@ export async function createFollowup(input: CreateFollowupInput): Promise<Follow
       caregiverId: memberToUpdate.caregiverId,
       seedId: memberToUpdate.seedId,
       name: memberToUpdate.name,
+      age: memberToUpdate.age,
       phone: memberToUpdate.phone,
       address: memberToUpdate.address,
       city: memberToUpdate.city,

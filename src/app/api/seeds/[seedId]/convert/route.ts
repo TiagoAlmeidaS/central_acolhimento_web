@@ -18,6 +18,7 @@ export async function POST(request: Request, context: RouteContext) {
     const body = (await request.json().catch(() => ({}))) as {
       caregiverId?: string | null;
       address?: string;
+      age?: number | null;
       birthDate?: string | null;
       notes?: string;
       latitude?: number | null;
@@ -29,6 +30,7 @@ export async function POST(request: Request, context: RouteContext) {
         allowUnassignedForCoordinator: true,
       }),
       address: body.address,
+      age: body.age ?? null,
       birthDate: body.birthDate ?? null,
       notes: body.notes,
       latitude: body.latitude,

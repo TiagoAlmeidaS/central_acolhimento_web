@@ -24,6 +24,7 @@ export async function PUT(request: Request, context: RouteContext) {
       tenantId?: string;
       caregiverId?: string | null;
       referenceName?: string;
+      age?: number | null;
       phone?: string;
       city?: string;
       postalCode?: string;
@@ -54,6 +55,7 @@ export async function PUT(request: Request, context: RouteContext) {
       tenantId: resolveTenantId(session, body.tenantId),
       caregiverId: resolveCaregiverId(session, body.caregiverId ?? null, { allowUnassignedForCoordinator: true }),
       referenceName: body.referenceName,
+      age: body.age ?? null,
       phone: body.phone,
       city: body.city,
       postalCode: body.postalCode,

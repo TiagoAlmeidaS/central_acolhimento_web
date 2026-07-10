@@ -25,6 +25,7 @@ export async function POST(request: Request) {
       caregiverId?: string | null;
       seedId?: string | null;
       name?: string;
+      age?: number | null;
       phone?: string;
       address?: string;
       city?: string;
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
       caregiverId: resolveCaregiverId(session, body.caregiverId ?? null, { allowUnassignedForCoordinator: true }),
       seedId: body.seedId ?? null,
       name: body.name,
+      age: body.age ?? null,
       phone: body.phone,
       address: body.address,
       city: body.city,

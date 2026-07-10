@@ -53,6 +53,7 @@ const emptyForm = {
   tenantId: "",
   caregiverId: "",
   name: "",
+  age: "",
   phone: "",
   address: "",
   city: "",
@@ -97,6 +98,7 @@ export function MemberManager({
       tenantId: member.tenantId,
       caregiverId: member.caregiverId ?? "",
       name: member.name,
+      age: member.age !== null ? String(member.age) : "",
       phone: member.phone,
       address: member.address,
       city: member.city,
@@ -164,6 +166,7 @@ export function MemberManager({
         tenantId: form.tenantId,
         caregiverId: form.caregiverId || null,
         name: form.name,
+        age: form.age ? Number(form.age) : null,
         phone: form.phone,
         address: form.address,
         city: form.city,
@@ -275,6 +278,14 @@ export function MemberManager({
             placeholder="Ex: João da Silva"
             icon={<IconUser />}
             required
+          />
+
+          <Input
+            label="Idade"
+            value={form.age}
+            onChange={(v) => setForm((f) => ({ ...f, age: v.replace(/\D/g, "").slice(0, 3) }))}
+            placeholder="Ex: 45"
+            inputMode="numeric"
           />
 
           <Input
@@ -497,7 +508,7 @@ export function MemberManager({
                               )}
                             </div>
                             <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 1 }}>
-                              {member.phone}
+                              {[member.phone, member.age !== null ? `${member.age} anos` : null].filter(Boolean).join(" · ")}
                             </div>
                           </div>
                         </div>

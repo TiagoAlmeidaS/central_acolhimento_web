@@ -48,6 +48,7 @@ const getTodayString = () => {
 const emptyForm = {
   tenantId: "",
   referenceName: "",
+  age: "",
   phone: "",
   city: "",
   postalCode: "",
@@ -104,6 +105,7 @@ export function ContactManager({
     setForm({
       tenantId: contact.tenantId,
       referenceName: contact.referenceName,
+      age: contact.age !== null ? String(contact.age) : "",
       phone: contact.phone,
       city: contact.city,
       postalCode: contact.postalCode,
@@ -225,6 +227,7 @@ export function ContactManager({
         tenantId: form.tenantId,
         caregiverId: null,
         referenceName: form.referenceName,
+        age: form.age ? Number(form.age) : null,
         phone: normalizePhone(form.phone),
         city: form.city,
         postalCode: normalizePostalCode(form.postalCode),
@@ -316,6 +319,14 @@ export function ContactManager({
             placeholder="Ex: Maria Souza"
             icon={<IconUser />}
             required
+          />
+
+          <Input
+            label="Idade"
+            value={form.age}
+            onChange={(value) => setForm((current) => ({ ...current, age: value.replace(/\D/g, "").slice(0, 3) }))}
+            placeholder="Ex: 32"
+            inputMode="numeric"
           />
 
           <Input
@@ -686,6 +697,7 @@ export function ContactManager({
                       </div>
 
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, fontSize: 12, color: "var(--text-3)" }}>
+                        {contact.age !== null ? <span>Idade: {contact.age}</span> : null}
                         {contact.source ? <span>Origem: {contact.source}</span> : null}
                         {contact.openHouse ? <span>Casa aberta</span> : null}
                       </div>

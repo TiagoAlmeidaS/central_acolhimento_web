@@ -55,6 +55,7 @@ export type Seed = {
   tenantId: string;
   caregiverId: string | null;
   referenceName: string;
+  age: number | null;
   phone: string;
   city: string;
   postalCode: string;
@@ -82,6 +83,7 @@ export type Member = {
   caregiverId: string | null;
   seedId: string | null;
   name: string;
+  age: number | null;
   phone: string;
   address: string;
   city: string;
@@ -160,6 +162,7 @@ export type CreateSeedInput = {
   tenantId: string;
   caregiverId?: string | null;
   referenceName: string;
+  age?: number | null;
   phone?: string;
   city?: string;
   postalCode?: string;
@@ -184,6 +187,7 @@ export type UpdateSeedInput = CreateSeedInput;
 export type ConvertSeedToMemberInput = {
   caregiverId?: string | null;
   address?: string;
+  age?: number | null;
   birthDate?: string | null;
   notes?: string;
   latitude?: number | null;
@@ -196,6 +200,7 @@ export type CreateMemberInput = {
   caregiverId?: string | null;
   seedId?: string | null;
   name: string;
+  age?: number | null;
   phone?: string;
   address?: string;
   city?: string;
