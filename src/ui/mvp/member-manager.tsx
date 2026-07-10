@@ -1,8 +1,15 @@
 "use client";
 
-import { startTransition, useState } from "react";
+import { startTransition, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Caregiver, Member, Tenant } from "@/server/domain/mvp";
+import {
+  buildMemberAddress,
+  formatPhone,
+  formatPostalCode,
+  normalizePhone,
+  normalizePostalCode,
+} from "@/ui/mvp/contact-form-utils";
 import {
   Card,
   Button,
@@ -15,14 +22,20 @@ import {
   SearchableSelect,
 } from "@/ui/v2-components/ui";
 
+const ESTADOS_BRASIL = [
+  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
+  "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+];
+
 const CIDADES_LIST = [
-  "Sapé", "Mari", "Sobrado", "João Pessoa", "Campina Grande", "Guarabira", 
-  "Cabedelo", "Bayeux", "Santa Rita", "Rio Tinto", "Mamaguape", "Cruz do Espírito Santo", 
-  "Caldas Brandão", "Gurinhém", "Mulungu", "Alagoinha", "Araçagi", "Itabaiana", 
-  "Pilar", "Bananeiras", "Solânea", "Patos", "Sousa", "Cajazeiras", "Recife", 
-  "Natal", "Fortaleza", "Salvador", "Rio de Janeiro", "São Paulo", "Belo Horizonte", 
-  "Brasília", "Curitiba", "Porto Alegre"
+  "Sapé", "Mari", "Sobrado", "João Pessoa", "Campina Grande", "Guarabira",
+  "Cabedelo", "Bayeux", "Santa Rita", "Rio Tinto", "Mamaguape", "Cruz do Espírito Santo",
+  "Caldas Brandão", "Gurinhém", "Mulungu", "Alagoinha", "Araçagi", "Itabaiana",
+  "Pilar", "Bananeiras", "Solânea", "Patos", "Sousa", "Cajazeiras", "Recife",
+  "Natal", "Fortaleza", "Salvador", "Rio de Janeiro", "São Paulo", "Belo Horizonte",
+  "Brasília", "Curitiba", "Porto Alegre",
 ].sort();
+
 import {
   IconUser,
   IconPhone,
@@ -55,8 +68,14 @@ const emptyForm = {
   name: "",
   age: "",
   phone: "",
-  address: "",
+  // endereço estruturado
+  postalCode: "",
+  street: "",
+  neighborhood: "",
+  addressNumber: "",
+  state: "",
   city: "",
+  // demais
   birthDate: "",
   status: "new" as Member["status"],
   notes: "",
@@ -85,6 +104,8 @@ export function MemberManager({
   const [success, setSuccess] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const addressPreview = useMemo(() => buildMemberAddress(form), [form]);
+
   function resetForm() {
     setEditing(null);
     setForm({ ...emptyForm, tenantId: tenants[0]?.id ?? "", city: tenants[0]?.city ?? "" });
@@ -100,7 +121,11 @@ export function MemberManager({
       name: member.name,
       age: member.age !== null ? String(member.age) : "",
       phone: member.phone,
-      address: member.address,
+      postalCode: member.postalCode ?? "",
+      street: member.street ?? "",
+      neighborhood: member.neighborhood ?? "",
+      addressNumber: member.addressNumber ?? "",
+      state: member.state ?? "",
       city: member.city,
       birthDate: member.birthDate ?? "",
       status: member.status,
@@ -114,13 +139,21 @@ export function MemberManager({
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function triggerGeocode(address: string, city: string) {
-    if (!address || !city) return;
+  async function triggerGeocode(
+    street: string,
+    city: string,
+    number: string,
+    state: string,
+    postalCode: string
+  ) {
+    if (!street || !city) return;
     try {
-      const q = `${address}, ${city}, Brazil`;
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`);
+      const q = `${street}, ${number || ""} ${city} ${state || ""} ${postalCode || ""}, Brazil`;
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`
+      );
       if (response.ok) {
-        const data = await response.json() as Array<{ lat: string; lon: string }>;
+        const data = (await response.json()) as Array<{ lat: string; lon: string }>;
         if (data && data[0]) {
           setForm((current) => ({
             ...current,
@@ -132,6 +165,34 @@ export function MemberManager({
     } catch (e) {
       console.error("Erro na geocodificação:", e);
     }
+  }
+
+  async function handleCEPLookup(cep: string) {
+    const cleanCEP = cep.replace(/\D/g, "");
+    if (cleanCEP.length !== 8) return;
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCEP}/json/`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data && !data.erro) {
+          setForm((current) => {
+            const updated = {
+              ...current,
+              street: data.logradouro || current.street,
+              neighborhood: data.bairro || current.neighborhood,
+              city: data.localidade || current.city,
+              state: data.uf || current.state,
+            };
+            triggerGeocode(updated.street, updated.city, updated.addressNumber, updated.state, cleanCEP);
+            return updated;
+          });
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao buscar CEP:", e);
+    }
+    triggerGeocode(form.street, form.city, form.addressNumber, form.state, form.postalCode);
   }
 
   function triggerGPS() {
@@ -167,8 +228,13 @@ export function MemberManager({
         caregiverId: form.caregiverId || null,
         name: form.name,
         age: form.age ? Number(form.age) : null,
-        phone: form.phone,
-        address: form.address,
+        phone: normalizePhone(form.phone),
+        address: addressPreview,
+        postalCode: normalizePostalCode(form.postalCode),
+        street: form.street.trim(),
+        neighborhood: form.neighborhood.trim(),
+        addressNumber: form.addressNumber.trim(),
+        state: form.state.trim().toUpperCase().slice(0, 2),
         city: form.city,
         birthDate: form.birthDate || null,
         status: form.status,
@@ -290,42 +356,10 @@ export function MemberManager({
 
           <Input
             label="Telefone (WhatsApp)"
-            value={form.phone}
-            onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
+            value={formatPhone(form.phone)}
+            onChange={(v) => setForm((f) => ({ ...f, phone: normalizePhone(v) }))}
             placeholder="(00) 90000-0000"
             icon={<IconPhone />}
-          />
-
-          <div style={{ gridColumn: "1 / -1" }}>
-            <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
-              <div style={{ flex: 1 }}>
-                <Input
-                  label="Endereço"
-                  value={form.address}
-                  onChange={(v) => setForm((f) => ({ ...f, address: v }))}
-                  onBlur={() => triggerGeocode(form.address, form.city)}
-                  placeholder="Rua, número, bairro"
-                  icon={<IconMapPin />}
-                />
-              </div>
-              <Button type="button" variant="secondary" size="md" onClick={triggerGPS} style={{ height: 54 }}>
-                GPS Atual
-              </Button>
-            </div>
-          </div>
-
-          <SearchableSelect
-            label="Cidade da pessoa"
-            value={form.city}
-            onChange={(v) => {
-              setForm((f) => {
-                const next = { ...f, city: v };
-                triggerGeocode(next.address, next.city);
-                return next;
-              });
-            }}
-            options={CIDADES_LIST}
-            placeholder="Selecione a cidade"
           />
 
           <Input
@@ -334,6 +368,164 @@ export function MemberManager({
             value={form.birthDate}
             onChange={(v) => setForm((f) => ({ ...f, birthDate: v }))}
           />
+
+          {/* ── Bloco de endereço estruturado ── */}
+          <div style={{ gridColumn: "1 / -1" }}>
+            <div
+              style={{
+                padding: "16px",
+                borderRadius: 16,
+                border: "1.5px solid var(--border)",
+                background: "var(--surface)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 14,
+              }}
+            >
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text)" }}>
+                📍 Endereço do membro
+              </div>
+
+              {/* CEP + GPS */}
+              <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+                <div style={{ flex: 1 }}>
+                  <Input
+                    label="CEP"
+                    value={formatPostalCode(form.postalCode)}
+                    onChange={(v) =>
+                      setForm((f) => ({ ...f, postalCode: normalizePostalCode(v) }))
+                    }
+                    onBlur={() => handleCEPLookup(form.postalCode)}
+                    placeholder="00000-000"
+                    icon={<IconMapPin />}
+                    inputMode="numeric"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="md"
+                  onClick={triggerGPS}
+                  style={{ height: 54 }}
+                >
+                  GPS Atual
+                </Button>
+              </div>
+
+              {/* Rua */}
+              <Input
+                label="Rua"
+                value={form.street}
+                onChange={(v) => setForm((f) => ({ ...f, street: v }))}
+                onBlur={() =>
+                  triggerGeocode(form.street, form.city, form.addressNumber, form.state, form.postalCode)
+                }
+                placeholder="Ex: Rua das Flores"
+                icon={<IconMapPin />}
+              />
+
+              {/* Bairro */}
+              <Input
+                label="Bairro"
+                value={form.neighborhood}
+                onChange={(v) => setForm((f) => ({ ...f, neighborhood: v }))}
+                onBlur={() =>
+                  triggerGeocode(form.street, form.city, form.addressNumber, form.state, form.postalCode)
+                }
+                placeholder="Ex: Centro"
+                icon={<IconMapPin />}
+              />
+
+              {/* Número + Estado */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <Input
+                  label="Número"
+                  value={form.addressNumber}
+                  onChange={(v) =>
+                    setForm((f) => ({
+                      ...f,
+                      addressNumber: v.replace(/\D/g, "").slice(0, 10),
+                    }))
+                  }
+                  onBlur={() =>
+                    triggerGeocode(form.street, form.city, form.addressNumber, form.state, form.postalCode)
+                  }
+                  placeholder="123"
+                  inputMode="numeric"
+                />
+                <SearchableSelect
+                  label="Estado (UF)"
+                  value={form.state}
+                  onChange={(v) => {
+                    setForm((current) => {
+                      const next = { ...current, state: v };
+                      triggerGeocode(next.street, next.city, next.addressNumber, next.state, next.postalCode);
+                      return next;
+                    });
+                  }}
+                  options={ESTADOS_BRASIL}
+                  placeholder="UF"
+                />
+              </div>
+
+              {/* Cidade */}
+              <SearchableSelect
+                label="Cidade da pessoa"
+                value={form.city}
+                onChange={(v) => {
+                  setForm((f) => {
+                    const next = { ...f, city: v };
+                    triggerGeocode(next.street, next.city, next.addressNumber, next.state, next.postalCode);
+                    return next;
+                  });
+                }}
+                options={CIDADES_LIST}
+                placeholder="Selecione a cidade"
+              />
+
+              {/* Badge de coordenadas */}
+              {form.latitude !== null && form.longitude !== null ? (
+                <div
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    background: "#F0FDF4",
+                    border: "1px solid #BBF7D0",
+                    fontSize: 12.5,
+                    color: "#15803D",
+                  }}
+                >
+                  📍 Coordenadas obtidas:{" "}
+                  <b>
+                    {form.latitude.toFixed(6)}, {form.longitude.toFixed(6)}
+                  </b>
+                </div>
+              ) : (
+                <div style={{ fontSize: 12, color: "var(--text-3)" }}>
+                  Preencha o CEP, Rua e Número para obter as coordenadas automáticas.
+                </div>
+              )}
+
+              {/* Preview do endereço consolidado */}
+              {addressPreview ? (
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 14,
+                    background: "var(--surface-2)",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  <div style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 4 }}>
+                    Endereço consolidado
+                  </div>
+                  <div style={{ fontSize: 13.5, color: "var(--text)", lineHeight: 1.5 }}>
+                    {addressPreview}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
 
           <Select
             label="Status pastoral"
@@ -361,26 +553,6 @@ export function MemberManager({
               </span>
             </label>
           </div>
-
-          {form.latitude !== null && form.longitude !== null ? (
-            <div
-              style={{
-                gridColumn: "1 / -1",
-                padding: "10px 12px",
-                borderRadius: 10,
-                background: "#F0FDF4",
-                border: "1px solid #BBF7D0",
-                fontSize: 12.5,
-                color: "#15803D",
-              }}
-            >
-              📍 Coordenadas obtidas: <b>{form.latitude.toFixed(6)}, {form.longitude.toFixed(6)}</b>
-            </div>
-          ) : (
-            <div style={{ gridColumn: "1 / -1", fontSize: 12, color: "var(--text-3)" }}>
-              Preencha o Endereço e Cidade para obter as coordenadas automáticas.
-            </div>
-          )}
 
           <div style={{ gridColumn: "1 / -1" }}>
             <Textarea
@@ -510,6 +682,11 @@ export function MemberManager({
                             <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 1 }}>
                               {[member.phone, member.age !== null ? `${member.age} anos` : null].filter(Boolean).join(" · ")}
                             </div>
+                            {member.address ? (
+                              <div style={{ fontSize: 11.5, color: "var(--text-3)", marginTop: 2, maxWidth: 260 }}>
+                                {member.address}
+                              </div>
+                            ) : null}
                           </div>
                         </div>
                       </td>

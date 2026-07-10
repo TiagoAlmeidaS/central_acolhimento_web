@@ -83,6 +83,11 @@ type MemberRow = {
   age: number | null;
   phone: string;
   address: string;
+  postal_code: string;
+  street: string;
+  neighborhood: string;
+  address_number: string;
+  state: string;
   city: string;
   birth_date: string | null;
   status: Member["status"];
@@ -181,6 +186,11 @@ function mapMember(row: MemberRow): Member {
     age: row.age !== null ? Number(row.age) : null,
     phone: row.phone,
     address: row.address,
+    postalCode: row.postal_code ?? "",
+    street: row.street ?? "",
+    neighborhood: row.neighborhood ?? "",
+    addressNumber: row.address_number ?? "",
+    state: row.state ?? "",
     city: row.city,
     birthDate: serializeDateValue(row.birth_date),
     status: row.status,
@@ -953,6 +963,11 @@ export async function createMember(input: CreateMemberInput): Promise<Member> {
       age: input.age ?? null,
       phone: input.phone ?? "",
       address: input.address ?? "",
+      postalCode: input.postalCode ?? "",
+      street: input.street ?? "",
+      neighborhood: input.neighborhood ?? "",
+      addressNumber: input.addressNumber ?? "",
+      state: input.state ?? "",
       city: input.city ?? "",
       birthDate: input.birthDate ?? null,
       status: input.status ?? "new",
@@ -969,8 +984,11 @@ export async function createMember(input: CreateMemberInput): Promise<Member> {
 
   const db = ensureDb();
   const result = await db.query<MemberRow>(
-    `insert into members (tenant_id, caregiver_id, seed_id, name, age, phone, address, city, birth_date, status, notes, latitude, longitude, is_urgent)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+    `insert into members
+       (tenant_id, caregiver_id, seed_id, name, age, phone,
+        address, postal_code, street, neighborhood, address_number, state,
+        city, birth_date, status, notes, latitude, longitude, is_urgent)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
      returning *`,
     [
       input.tenantId,
@@ -980,6 +998,11 @@ export async function createMember(input: CreateMemberInput): Promise<Member> {
       input.age ?? null,
       input.phone ?? "",
       input.address ?? "",
+      input.postalCode ?? "",
+      input.street ?? "",
+      input.neighborhood ?? "",
+      input.addressNumber ?? "",
+      input.state ?? "",
       input.city ?? "",
       input.birthDate ?? null,
       input.status ?? "new",
@@ -1029,6 +1052,11 @@ export async function updateMember(id: string, input: UpdateMemberInput): Promis
       age: input.age ?? null,
       phone: input.phone ?? "",
       address: input.address ?? "",
+      postalCode: input.postalCode ?? "",
+      street: input.street ?? "",
+      neighborhood: input.neighborhood ?? "",
+      addressNumber: input.addressNumber ?? "",
+      state: input.state ?? "",
       city: input.city ?? "",
       birthDate: input.birthDate ?? null,
       status: input.status ?? "new",
@@ -1086,13 +1114,18 @@ export async function updateMember(id: string, input: UpdateMemberInput): Promis
             age = $6,
             phone = $7,
             address = $8,
-            city = $9,
-            birth_date = $10,
-            status = $11,
-            notes = $12,
-            latitude = $13,
-            longitude = $14,
-            is_urgent = $15
+            postal_code = $9,
+            street = $10,
+            neighborhood = $11,
+            address_number = $12,
+            state = $13,
+            city = $14,
+            birth_date = $15,
+            status = $16,
+            notes = $17,
+            latitude = $18,
+            longitude = $19,
+            is_urgent = $20
       where id = $1
       returning *`,
     [
@@ -1104,6 +1137,11 @@ export async function updateMember(id: string, input: UpdateMemberInput): Promis
       input.age ?? null,
       input.phone ?? "",
       input.address ?? "",
+      input.postalCode ?? "",
+      input.street ?? "",
+      input.neighborhood ?? "",
+      input.addressNumber ?? "",
+      input.state ?? "",
       input.city ?? "",
       input.birthDate ?? null,
       input.status ?? "new",

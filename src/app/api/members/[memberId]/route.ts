@@ -28,6 +28,11 @@ export async function PUT(request: Request, context: RouteContext) {
       age?: number | null;
       phone?: string;
       address?: string;
+      postalCode?: string;
+      street?: string;
+      neighborhood?: string;
+      addressNumber?: string;
+      state?: string;
       city?: string;
       birthDate?: string | null;
       status?: "new" | "in_progress" | "consolidated" | "inactive";
@@ -49,6 +54,11 @@ export async function PUT(request: Request, context: RouteContext) {
       age: body.age ?? null,
       phone: body.phone,
       address: body.address,
+      postalCode: body.postalCode,
+      street: body.street,
+      neighborhood: body.neighborhood,
+      addressNumber: body.addressNumber,
+      state: body.state,
       city: body.city,
       birthDate: body.birthDate ?? null,
       status: body.status,

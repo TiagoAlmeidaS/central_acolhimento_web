@@ -86,6 +86,11 @@ export type Member = {
   age: number | null;
   phone: string;
   address: string;
+  postalCode: string;
+  street: string;
+  neighborhood: string;
+  addressNumber: string;
+  state: string;
   city: string;
   birthDate: string | null;
   status: MemberStatus;
@@ -203,6 +208,11 @@ export type CreateMemberInput = {
   age?: number | null;
   phone?: string;
   address?: string;
+  postalCode?: string;
+  street?: string;
+  neighborhood?: string;
+  addressNumber?: string;
+  state?: string;
   city?: string;
   birthDate?: string | null;
   status?: MemberStatus;

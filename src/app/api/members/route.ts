@@ -28,12 +28,18 @@ export async function POST(request: Request) {
       age?: number | null;
       phone?: string;
       address?: string;
+      postalCode?: string;
+      street?: string;
+      neighborhood?: string;
+      addressNumber?: string;
+      state?: string;
       city?: string;
       birthDate?: string | null;
       status?: "new" | "in_progress" | "consolidated" | "inactive";
       notes?: string;
       latitude?: number | null;
       longitude?: number | null;
+      isUrgent?: boolean;
     };
 
     if (!body.tenantId || !body.name) {
@@ -51,12 +57,18 @@ export async function POST(request: Request) {
       age: body.age ?? null,
       phone: body.phone,
       address: body.address,
+      postalCode: body.postalCode,
+      street: body.street,
+      neighborhood: body.neighborhood,
+      addressNumber: body.addressNumber,
+      state: body.state,
       city: body.city,
       birthDate: body.birthDate ?? null,
       status: body.status,
       notes: body.notes,
       latitude: body.latitude,
       longitude: body.longitude,
+      isUrgent: body.isUrgent,
     });
 
     return Response.json(member, { status: 201 });

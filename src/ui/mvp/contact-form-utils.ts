@@ -8,6 +8,16 @@ export type ContactFormState = {
   state: string;
 };
 
+/** Shape compartilhado pelo formulário de membros (sem openHouse). */
+export type MemberAddressFormState = {
+  city: string;
+  postalCode: string;
+  street: string;
+  neighborhood: string;
+  addressNumber: string;
+  state: string;
+};
+
 export function normalizePostalCode(value: string) {
   return value.replace(/\D/g, "").slice(0, 8);
 }
@@ -33,6 +43,18 @@ export function formatPhone(value: string) {
 export function composeAddress(form: ContactFormState) {
   if (!form.openHouse) return "";
 
+  const streetLine = [form.street.trim(), form.addressNumber.trim()].filter(Boolean).join(", ");
+  const regionLine = [form.neighborhood.trim(), form.city.trim(), form.state.trim()].filter(Boolean).join(" · ");
+  const postalCode = formatPostalCode(form.postalCode);
+
+  return [streetLine, regionLine, postalCode ? `CEP ${postalCode}` : ""].filter(Boolean).join(" · ");
+}
+
+/**
+ * Monta string de endereço consolidado para membros.
+ * Não tem a flag openHouse — sempre renderiza se houver dados.
+ */
+export function buildMemberAddress(form: MemberAddressFormState) {
   const streetLine = [form.street.trim(), form.addressNumber.trim()].filter(Boolean).join(", ");
   const regionLine = [form.neighborhood.trim(), form.city.trim(), form.state.trim()].filter(Boolean).join(" · ");
   const postalCode = formatPostalCode(form.postalCode);
