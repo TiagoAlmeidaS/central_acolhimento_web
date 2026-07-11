@@ -4,6 +4,7 @@ export type MemberStatus = "new" | "in_progress" | "consolidated" | "inactive";
 export type SeedStatus = "new" | "contacted" | "in_progress" | "consolidated" | "inactive";
 export type FollowupType = "visit" | "call" | "message" | "prayer" | "other";
 export type InvitationStatus = "pending" | "accepted" | "revoked" | "expired";
+export type SignupChannelUseStatus = "submitted" | "approved" | "rejected";
 
 export type Tenant = {
   id: string;
@@ -141,6 +142,40 @@ export type CaregiverInvitation = {
   createdAt?: string;
 };
 
+export type CaregiverSignupChannel = {
+  id: string;
+  tenantId: string;
+  role: AppRole;
+  name: string;
+  token: string;
+  active: boolean;
+  expiresAt: string | null;
+  maxUses: number | null;
+  usesCount: number;
+  requireApproval: boolean;
+  allowedEmailDomain: string | null;
+  signupUrl: string;
+  tenantName?: string | null;
+  tenantCity?: string | null;
+  tenantState?: string | null;
+  createdAt?: string;
+};
+
+export type CaregiverSignupChannelUse = {
+  id: string;
+  channelId: string;
+  tenantId: string;
+  appUserId: string | null;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  status: SignupChannelUseStatus;
+  approvedAt: string | null;
+  approvedByTenantUserId: string | null;
+  createdAt?: string;
+};
+
 export type CreateTenantInput = {
   name: string;
   city: string;
@@ -244,6 +279,17 @@ export type CreateCaregiverInvitationInput = {
   role?: AppRole;
 };
 
+export type CreateCaregiverSignupChannelInput = {
+  tenantId: string;
+  name: string;
+  expiresInDays?: number | null;
+  maxUses?: number | null;
+  createdByTenantUserId?: string | null;
+  role?: AppRole;
+  requireApproval?: boolean;
+  allowedEmailDomain?: string | null;
+};
+
 export type AcceptCaregiverInvitationInput = {
   firstName: string;
   lastName: string;
@@ -251,6 +297,8 @@ export type AcceptCaregiverInvitationInput = {
   phone: string;
   password: string;
 };
+
+export type RegisterCaregiverSignupChannelInput = AcceptCaregiverInvitationInput;
 
 export type LoginInput = {
   email: string;

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createSessionToken } from "@/server/auth/session";
 import type { AuthSession } from "@/server/domain/mvp";
 import { resetLocalMvpStore } from "@/server/repositories/mvp-repository";
 
@@ -184,5 +185,189 @@ describe("auth route integration", () => {
     expect(loginPayload.type).toBe("authenticated");
     expect(loginPayload.session.membership.role).toBe("caregiver");
     expect(loginPayload.session.membership.tenantName).toBe("Central Sapé");
+  });
+  it("registers multiple caregivers through the same global signup channel", async () => {
+    const coordinatorSession = createSessionToken({
+      user: { id: "user-1", email: "tiago@igreja.org", firstName: "Tiago", lastName: "Souza" },
+      membership: {
+        tenantUserId: "tenant-user-1",
+        tenantId: "1",
+        tenantName: "Central Sape",
+        tenantCity: "Sape",
+        tenantState: "PB",
+        role: "coordinator",
+        caregiverId: null,
+      },
+      homePath: "/coord",
+    });
+    cookieState.value = coordinatorSession;
+
+    const { POST: createChannel } = await import("@/app/api/signup-channels/route");
+    const channelResponse = await createChannel(
+      new Request("http://localhost/api/signup-channels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId: "1",
+          name: "QRCode geral",
+          requireApproval: false,
+        }),
+      })
+    );
+
+    expect(channelResponse.status).toBe(201);
+    const channel = (await channelResponse.json()) as { token: string };
+    cookieState.value = "";
+
+    const { POST: registerByChannel } = await import("@/app/api/signup-channels/public/[token]/register/route");
+    const firstResponse = await registerByChannel(
+      new Request(`http://localhost/api/signup-channels/public/${channel.token}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: "Rebeca",
+          lastName: "Santos",
+          email: "rebeca@igreja.org",
+          phone: "(83) 98888-2222",
+          password: "12345678",
+        }),
+      }),
+      { params: Promise.resolve({ token: channel.token }) }
+    );
+    const secondResponse = await registerByChannel(
+      new Request(`http://localhost/api/signup-channels/public/${channel.token}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: "Livia",
+          lastName: "Ferreira",
+          email: "livia@igreja.org",
+          phone: "(83) 98888-3333",
+          password: "12345678",
+        }),
+      }),
+      { params: Promise.resolve({ token: channel.token }) }
+    );
+
+    expect(firstResponse.status).toBe(201);
+    expect(secondResponse.status).toBe(201);
+
+    const firstPayload = (await firstResponse.json()) as { status: string };
+    const secondPayload = (await secondResponse.json()) as { status: string };
+    expect(firstPayload.status).toBe("approved");
+    expect(secondPayload.status).toBe("approved");
+
+    const { POST: login } = await import("@/app/api/auth/login/route");
+    const loginResponse = await login(
+      new Request("http://localhost/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "rebeca@igreja.org",
+          password: "12345678",
+        }),
+      })
+    );
+
+    expect(loginResponse.status).toBe(200);
+    const loginPayload = (await loginResponse.json()) as { type: string; session: AuthSession };
+    expect(loginPayload.type).toBe("authenticated");
+    expect(loginPayload.session.membership.role).toBe("caregiver");
+  });
+
+  it("keeps channel registrations pending until the coordinator approves them", async () => {
+    const coordinatorSession = createSessionToken({
+      user: { id: "user-1", email: "tiago@igreja.org", firstName: "Tiago", lastName: "Souza" },
+      membership: {
+        tenantUserId: "tenant-user-1",
+        tenantId: "1",
+        tenantName: "Central Sape",
+        tenantCity: "Sape",
+        tenantState: "PB",
+        role: "coordinator",
+        caregiverId: null,
+      },
+      homePath: "/coord",
+    });
+    cookieState.value = coordinatorSession;
+
+    const { POST: createChannel } = await import("@/app/api/signup-channels/route");
+    const channelResponse = await createChannel(
+      new Request("http://localhost/api/signup-channels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId: "1",
+          name: "QRCode com aprovacao",
+          requireApproval: true,
+        }),
+      })
+    );
+
+    expect(channelResponse.status).toBe(201);
+    const channel = (await channelResponse.json()) as { id: string; token: string };
+    cookieState.value = "";
+
+    const { POST: registerByChannel } = await import("@/app/api/signup-channels/public/[token]/register/route");
+    const registerResponse = await registerByChannel(
+      new Request(`http://localhost/api/signup-channels/public/${channel.token}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: "Noemi",
+          lastName: "Silva",
+          email: "noemi@igreja.org",
+          phone: "(83) 98888-4444",
+          password: "12345678",
+        }),
+      }),
+      { params: Promise.resolve({ token: channel.token }) }
+    );
+
+    expect(registerResponse.status).toBe(201);
+    const registerPayload = (await registerResponse.json()) as { status: string; use: { id: string } };
+    expect(registerPayload.status).toBe("submitted");
+
+    const { POST: login } = await import("@/app/api/auth/login/route");
+    const loginBeforeApproval = await login(
+      new Request("http://localhost/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "noemi@igreja.org",
+          password: "12345678",
+        }),
+      })
+    );
+
+    expect(loginBeforeApproval.status).toBe(401);
+
+    cookieState.value = coordinatorSession;
+    const { POST: approveUse } = await import("@/app/api/signup-channels/[channelId]/uses/[useId]/approve/route");
+    const approveResponse = await approveUse(
+      new Request(`http://localhost/api/signup-channels/${channel.id}/uses/${registerPayload.use.id}/approve`, {
+        method: "POST",
+      }),
+      { params: Promise.resolve({ channelId: channel.id, useId: registerPayload.use.id }) }
+    );
+
+    expect(approveResponse.status).toBe(201);
+    cookieState.value = "";
+
+    const loginAfterApproval = await login(
+      new Request("http://localhost/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "noemi@igreja.org",
+          password: "12345678",
+        }),
+      })
+    );
+
+    expect(loginAfterApproval.status).toBe(200);
+    const loginPayload = (await loginAfterApproval.json()) as { type: string; session: AuthSession };
+    expect(loginPayload.type).toBe("authenticated");
+    expect(loginPayload.session.membership.role).toBe("caregiver");
   });
 });

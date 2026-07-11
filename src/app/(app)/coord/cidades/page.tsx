@@ -2,24 +2,30 @@ export const dynamic = "force-dynamic";
 
 import { listCaregiverInvitations } from "@/server/repositories/invitation-repository";
 import { listTenants } from "@/server/repositories/mvp-repository";
-import { getDataScopeFromSession } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
 import { CaregiverInvitationManager } from "@/ui/mvp/caregiver-invitation-manager";
+import { CaregiverSignupChannelManager } from "@/ui/mvp/caregiver-signup-channel-manager";
 import { TenantManager } from "@/ui/mvp/tenant-manager";
 
 import { listUserMemberships } from "@/server/repositories/auth-repository";
+import {
+  listCaregiverSignupChannels,
+  listCaregiverSignupChannelUses,
+} from "@/server/repositories/signup-channel-repository";
 
 export default async function CitiesPage() {
   const session = await requireServerAuthSession("coordinator");
-  const [memberships, allTenants, invitations] = await Promise.all([
+  const [memberships, allTenants, invitations, channels] = await Promise.all([
     listUserMemberships(session.user.id),
     listTenants(),
     listCaregiverInvitations(session.membership.tenantId),
+    listCaregiverSignupChannels(session.membership.tenantId),
   ]);
   const activeTenantId = session.membership.tenantId;
   const tenants = allTenants.filter(
     (t) => t.id === activeTenantId || memberships.some((m) => m.tenantId === t.id)
   );
+  const channelUses = (await Promise.all(channels.map((channel) => listCaregiverSignupChannelUses(channel.id)))).flat();
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", padding: "0 0 48px" }}>
@@ -140,6 +146,18 @@ export default async function CitiesPage() {
             Convites de cuidadores
           </h2>
           <CaregiverInvitationManager tenants={tenants} invitations={invitations} />
+        </section>
+
+        <section>
+          <h2 style={{
+            margin: "0 0 16px",
+            fontSize: 14, fontWeight: 700,
+            color: "var(--text-2)", letterSpacing: "0.04em",
+            textTransform: "uppercase",
+          }}>
+            Cadastro global por QRCode
+          </h2>
+          <CaregiverSignupChannelManager tenants={tenants} channels={channels} uses={channelUses} />
         </section>
       </div>
     </div>

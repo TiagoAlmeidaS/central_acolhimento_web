@@ -209,6 +209,20 @@ export function appendLocalUserMembership(
   localAuthStore.set(key, record);
 }
 
+export function setLocalAppUserActive(email: string, active: boolean) {
+  const key = email.trim().toLowerCase();
+  const record = localAuthStore.get(key);
+  if (!record) {
+    throw new Error("Usuario local nao encontrado para atualizar status.");
+  }
+
+  record.appUser = {
+    ...record.appUser,
+    active,
+  };
+  localAuthStore.set(key, record);
+}
+
 export async function findAppUserByEmail(email: string) {
   if (!isDatabaseConfigured() && isInMemoryFallbackAllowed()) {
     const record = getLocalRecordByEmail(email);
@@ -230,10 +244,18 @@ export async function createAppUser(
     lastName: string;
     email: string;
     phone: string;
-    password: string;
+    password?: string;
+    passwordHash?: string;
+    active?: boolean;
   },
   dbOverride?: Queryable
 ) {
+  const resolvedActive = input.active ?? true;
+  const resolvedPasswordHash = input.passwordHash ?? (input.password ? hashPassword(input.password) : null);
+  if (!resolvedPasswordHash) {
+    throw new Error("Senha obrigatoria para criar usuario.");
+  }
+
   if (!isDatabaseConfigured() && isInMemoryFallbackAllowed()) {
     const nextUser: AppUserRow = {
       id: crypto.randomUUID(),
@@ -241,8 +263,8 @@ export async function createAppUser(
       last_name: input.lastName,
       email: input.email,
       phone: input.phone,
-      password_hash: hashPassword(input.password),
-      active: true,
+      password_hash: resolvedPasswordHash,
+      active: resolvedActive,
       created_at: new Date().toISOString(),
     };
 
@@ -255,13 +277,12 @@ export async function createAppUser(
   }
 
   const db = dbOverride ?? ensureDb();
-  const passwordHash = hashPassword(input.password);
 
   const result = (await db.query(
     `insert into app_users (first_name, last_name, email, phone, password_hash, active)
-     values ($1, $2, $3, $4, $5, true)
+     values ($1, $2, $3, $4, $5, $6)
      returning *`,
-    [input.firstName, input.lastName, input.email, input.phone, passwordHash]
+    [input.firstName, input.lastName, input.email, input.phone, resolvedPasswordHash, resolvedActive]
   )) as QueryResult<AppUserRow>;
 
   return mapAppUser(result.rows[0]);
@@ -415,7 +436,7 @@ export async function listUserMemberships(appUserId: string) {
 export async function authenticateAppUser(input: LoginInput) {
   if (!isDatabaseConfigured() && isInMemoryFallbackAllowed()) {
     const record = getLocalRecordByEmail(input.email);
-    if (!record || !verifyPassword(input.password, record.appUser.password_hash)) {
+    if (!record || !record.appUser.active || !verifyPassword(input.password, record.appUser.password_hash)) {
       return null;
     }
 
