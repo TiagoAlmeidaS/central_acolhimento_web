@@ -18,6 +18,7 @@ export function LoginForm() {
   const next = searchParams.get("next");
   const invited = searchParams.get("invited") === "1";
   const registered = searchParams.get("registered") === "1";
+  const passwordReset = searchParams.get("reset") === "1";
   const prefilledEmail = searchParams.get("email") ?? "";
 
   const [email, setEmail] = useState(prefilledEmail);
@@ -163,6 +164,21 @@ export function LoginForm() {
               </div>
             ) : null}
 
+            {passwordReset ? (
+              <div
+                style={{
+                  padding: "12px 16px",
+                  borderRadius: 12,
+                  background: "var(--status-concluido-bg)",
+                  color: "var(--status-concluido)",
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                Senha redefinida com sucesso! Entre com sua nova senha.
+              </div>
+            ) : null}
+
             {error ? (
               <div
                 style={{
@@ -201,6 +217,20 @@ export function LoginForm() {
                 <Button type="submit" variant="primary" full disabled={loading}>
                   {loading ? "Entrando..." : "Continuar"}
                 </Button>
+
+                <div style={{ textAlign: "right", marginTop: -4 }}>
+                  <Link
+                    href="/esqueci-senha"
+                    style={{
+                      fontSize: 13,
+                      color: "var(--accent)",
+                      fontWeight: 600,
+                      textDecoration: "none",
+                    }}
+                  >
+                    Esqueci minha senha
+                  </Link>
+                </div>
               </form>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

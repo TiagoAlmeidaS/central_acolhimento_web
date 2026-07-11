@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from "node:crypto";
 import type { Pool, PoolClient, QueryResult } from "pg";
 import { assertDatabaseConfigured, getDbPool, isDatabaseConfigured, isInMemoryFallbackAllowed } from "@/lib/db";
 import { createTenant } from "@/server/repositories/mvp-repository";
@@ -18,6 +19,15 @@ type AppUserRow = {
   phone: string;
   password_hash: string;
   active: boolean;
+  created_at: string;
+};
+
+type PasswordResetTokenRow = {
+  id: string;
+  app_user_id: string;
+  token_hash: string;
+  expires_at: string;
+  used_at: string | null;
   created_at: string;
 };
 
@@ -506,4 +516,119 @@ export async function authenticateLogin(input: LoginInput): Promise<LoginResult 
       homePath: getDefaultHomePath(selectedMembership.role),
     },
   };
+}
+
+// ── Reset de senha ────────────────────────────────────────────────────────────
+
+/** Mapa in-memory para tokens de reset (apenas modo sem banco). */
+const localResetTokens = new Map<string, { appUserId: string; expiresAt: Date; usedAt: Date | null }>();
+
+function hashResetToken(rawToken: string) {
+  return createHash("sha256").update(rawToken).digest("hex");
+}
+
+/**
+ * Gera um token seguro de reset, invalida tokens anteriores pendentes do
+ * mesmo usuário e persiste o hash SHA-256 com expiração de 30 minutos.
+ * Retorna o token BRUTO (a ser enviado por e-mail na URL).
+ */
+export async function createPasswordResetToken(appUserId: string): Promise<string> {
+  const rawToken = randomBytes(32).toString("hex"); // 64 chars hex
+  const tokenHash = hashResetToken(rawToken);
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // +30 min
+
+  if (!isDatabaseConfigured() && isInMemoryFallbackAllowed()) {
+    // Invalida tokens pendentes anteriores do mesmo usuário
+    for (const [hash, entry] of localResetTokens.entries()) {
+      if (entry.appUserId === appUserId && !entry.usedAt && entry.expiresAt > new Date()) {
+        localResetTokens.set(hash, { ...entry, usedAt: new Date() });
+      }
+    }
+    localResetTokens.set(tokenHash, { appUserId, expiresAt, usedAt: null });
+    return rawToken;
+  }
+
+  const db = ensureDb();
+  // Invalida tokens pendentes anteriores
+  await db.query(
+    `update password_reset_tokens
+        set used_at = now()
+      where app_user_id = $1 and used_at is null and expires_at > now()`,
+    [appUserId]
+  );
+  // Persiste o novo token
+  await db.query(
+    `insert into password_reset_tokens (app_user_id, token_hash, expires_at)
+     values ($1, $2, $3)`,
+    [appUserId, tokenHash, expiresAt.toISOString()]
+  );
+  return rawToken;
+}
+
+/**
+ * Valida o token bruto recebido da URL, marca como utilizado e retorna o
+ * appUserId associado. Lança erro descritivo se inválido ou expirado.
+ */
+export async function consumePasswordResetToken(rawToken: string): Promise<string> {
+  const tokenHash = hashResetToken(rawToken);
+
+  if (!isDatabaseConfigured() && isInMemoryFallbackAllowed()) {
+    const entry = localResetTokens.get(tokenHash);
+    if (!entry || entry.usedAt || entry.expiresAt <= new Date()) {
+      throw new Error("Link de redefinição inválido ou expirado. Solicite um novo.");
+    }
+    localResetTokens.set(tokenHash, { ...entry, usedAt: new Date() });
+    return entry.appUserId;
+  }
+
+  const db = ensureDb();
+  const result = await db.query<PasswordResetTokenRow>(
+    `select * from password_reset_tokens
+      where token_hash = $1
+        and used_at is null
+        and expires_at > now()
+      limit 1`,
+    [tokenHash]
+  );
+
+  const row = result.rows[0];
+  if (!row) {
+    throw new Error("Link de redefinição inválido ou expirado. Solicite um novo.");
+  }
+
+  await db.query(
+    `update password_reset_tokens set used_at = now() where id = $1`,
+    [row.id]
+  );
+
+  return row.app_user_id;
+}
+
+/**
+ * Atualiza o password_hash do usuário com um novo hash scrypt.
+ */
+export async function updateAppUserPassword(appUserId: string, newPassword: string): Promise<void> {
+  const newHash = hashPassword(newPassword);
+
+  if (!isDatabaseConfigured() && isInMemoryFallbackAllowed()) {
+    for (const [email, record] of localAuthStore.entries()) {
+      if (record.appUser.id === appUserId) {
+        record.appUser.password_hash = newHash;
+        localAuthStore.set(email, record);
+        return;
+      }
+    }
+    throw new Error("Usuário não encontrado.");
+  }
+
+  const db = ensureDb();
+  await db.query(
+    `update app_users set password_hash = $1 where id = $2`,
+    [newHash, appUserId]
+  );
+}
+
+/** Expõe o store de tokens in-memory para os testes unitários. */
+export function resetLocalPasswordResetTokens() {
+  localResetTokens.clear();
 }
