@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { getDataScopeFromSession, resolveCaregiverId, resolveTenantId } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
+import { validateHouseFrontImageDataUrl } from "@/lib/house-front-image";
 import { createSeed, listSeeds } from "@/server/repositories/mvp-repository";
 
 export async function GET() {
@@ -48,6 +49,11 @@ export async function POST(request: Request) {
         { error: "Campos obrigatorios: tenantId, referenceName." },
         { status: 400 }
       );
+    }
+
+    const imageValidationError = validateHouseFrontImageDataUrl(body.houseFrontImageUrl ?? null);
+    if (imageValidationError) {
+      return Response.json({ error: imageValidationError }, { status: 400 });
     }
 
     const seed = await createSeed({

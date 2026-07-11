@@ -3,6 +3,11 @@
 import { startTransition, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { Seed, Tenant } from "@/server/domain/mvp";
+import {
+  estimateBase64Bytes,
+  HOUSE_FRONT_IMAGE_MAX_DIMENSION,
+  HOUSE_FRONT_IMAGE_TARGET_BYTES,
+} from "@/lib/house-front-image";
 import { composeAddress, formatPhone, formatPostalCode, normalizePhone, normalizePostalCode } from "@/ui/mvp/contact-form-utils";
 import { Avatar, Button, Card, Input, SectionTitle, Textarea, SearchableSelect } from "@/ui/v2-components/ui";
 import { IconCheck, IconHeart, IconMapPin, IconPhone, IconPlus, IconUser, IconX } from "@/ui/v2-components/icons";
@@ -44,6 +49,77 @@ const getTodayString = () => {
   const day = String(d.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
+
+function loadImageFromFile(file: File) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Falha ao carregar a imagem."));
+    };
+    image.src = objectUrl;
+  });
+}
+
+function scaleDimensions(width: number, height: number, maxDimension: number) {
+  if (Math.max(width, height) <= maxDimension) {
+    return { width, height };
+  }
+
+  const ratio = maxDimension / Math.max(width, height);
+  return {
+    width: Math.max(1, Math.round(width * ratio)),
+    height: Math.max(1, Math.round(height * ratio)),
+  };
+}
+
+async function compressHouseFrontImage(file: File) {
+  const image = await loadImageFromFile(file);
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    throw new Error("Nao foi possivel preparar a compressao da imagem.");
+  }
+
+  let bestDataUrl = "";
+  let bestBytes = Number.POSITIVE_INFINITY;
+  const dimensionAttempts = [HOUSE_FRONT_IMAGE_MAX_DIMENSION, 640, 480];
+  const qualityAttempts = [0.55, 0.45, 0.35];
+
+  for (const maxDimension of dimensionAttempts) {
+    const { width, height } = scaleDimensions(image.width, image.height, maxDimension);
+    canvas.width = width;
+    canvas.height = height;
+    context.clearRect(0, 0, width, height);
+    context.drawImage(image, 0, 0, width, height);
+
+    for (const quality of qualityAttempts) {
+      const dataUrl = canvas.toDataURL("image/jpeg", quality);
+      const bytes = estimateBase64Bytes(dataUrl);
+
+      if (bytes < bestBytes) {
+        bestDataUrl = dataUrl;
+        bestBytes = bytes;
+      }
+
+      if (bytes <= HOUSE_FRONT_IMAGE_TARGET_BYTES) {
+        return dataUrl;
+      }
+    }
+  }
+
+  if (!bestDataUrl) {
+    throw new Error("Nao foi possivel compactar a foto da frente da casa.");
+  }
+
+  return bestDataUrl;
+}
 
 const emptyForm = {
   tenantId: "",
@@ -145,6 +221,21 @@ export function ContactManager({
       return;
     }
 
+    setForm((current) => ({ ...current, houseFrontImageUrl: result }));
+  }
+
+  async function handleCompressedCameraFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const result = await compressHouseFrontImage(file).catch(() => "");
+
+    if (!result) {
+      setError("Nao foi possivel preparar a foto da frente da casa.");
+      return;
+    }
+
+    setError(null);
     setForm((current) => ({ ...current, houseFrontImageUrl: result }));
   }
 
@@ -588,7 +679,7 @@ export function ContactManager({
                     accept="image/*"
                     capture="environment"
                     style={{ display: "none" }}
-                    onChange={handleCameraFileChange}
+                    onChange={handleCompressedCameraFileChange}
                   />
                 </label>
                 <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 8 }}>

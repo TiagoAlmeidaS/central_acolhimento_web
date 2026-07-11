@@ -5,6 +5,7 @@ import {
   resolveTenantId,
 } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
+import { validateHouseFrontImageDataUrl } from "@/lib/house-front-image";
 import { deleteSeed, listSeeds, updateSeed } from "@/server/repositories/mvp-repository";
 
 type RouteContext = {
@@ -49,6 +50,11 @@ export async function PUT(request: Request, context: RouteContext) {
         { error: "Campos obrigatorios: tenantId, referenceName." },
         { status: 400 }
       );
+    }
+
+    const imageValidationError = validateHouseFrontImageDataUrl(body.houseFrontImageUrl ?? null);
+    if (imageValidationError) {
+      return Response.json({ error: imageValidationError }, { status: 400 });
     }
 
     const seed = await updateSeed(seedId, {
