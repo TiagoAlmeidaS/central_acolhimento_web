@@ -324,6 +324,11 @@ function buildLocalMembers(): Member[] {
     age: null,
     phone: member.phone,
     address: "",
+    postalCode: "",
+    street: "",
+    neighborhood: "",
+    addressNumber: "",
+    state: "",
     city: member.city,
     birthDate: null,
     status:
@@ -838,6 +843,24 @@ export async function updateSeed(id: string, input: UpdateSeedInput): Promise<Se
   return mapSeed(result.rows[0]);
 }
 
+export async function deleteSeed(id: string): Promise<void> {
+  if (!isDatabaseReady()) {
+    const index = localSeedsStore.findIndex((item) => item.id === id);
+    if (index < 0) {
+      throw new Error("Novo contato nao encontrado.");
+    }
+
+    localSeedsStore.splice(index, 1);
+    return;
+  }
+
+  const db = ensureDb();
+  const result = await db.query("delete from seeds where id = $1", [id]);
+  if (result.rowCount === 0) {
+    throw new Error("Novo contato nao encontrado.");
+  }
+}
+
 export async function convertSeedToMember(seedId: string, input: ConvertSeedToMemberInput = {}) {
   if (!isDatabaseReady()) {
     const seed = localSeedsStore.find((item) => item.id === seedId);
@@ -854,6 +877,11 @@ export async function convertSeedToMember(seedId: string, input: ConvertSeedToMe
       age: input.age ?? seed.age ?? null,
       phone: seed.phone,
       address: input.address ?? seed.address ?? "",
+      postalCode: seed.postalCode ?? "",
+      street: seed.street ?? "",
+      neighborhood: seed.neighborhood ?? "",
+      addressNumber: seed.addressNumber ?? "",
+      state: seed.state ?? "",
       city: seed.city,
       birthDate: input.birthDate ?? null,
       status: "new",
@@ -1188,6 +1216,31 @@ export async function updateMember(id: string, input: UpdateMemberInput): Promis
   }
 
   return mapMember(result.rows[0]);
+}
+
+export async function deleteMember(id: string): Promise<void> {
+  if (!isDatabaseReady()) {
+    const index = localMembersStore.findIndex((item) => item.id === id);
+    if (index < 0) {
+      throw new Error("Membro nao encontrado.");
+    }
+
+    localMembersStore.splice(index, 1);
+
+    for (let followupIndex = localFollowupsStore.length - 1; followupIndex >= 0; followupIndex -= 1) {
+      if (localFollowupsStore[followupIndex]?.memberId === id) {
+        localFollowupsStore.splice(followupIndex, 1);
+      }
+    }
+
+    return;
+  }
+
+  const db = ensureDb();
+  const result = await db.query("delete from members where id = $1", [id]);
+  if (result.rowCount === 0) {
+    throw new Error("Membro nao encontrado.");
+  }
 }
 
 export async function assignCaregiverToMember(memberId: string, caregiverId: string | null): Promise<Member> {

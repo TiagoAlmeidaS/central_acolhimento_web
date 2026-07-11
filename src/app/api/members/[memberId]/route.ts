@@ -5,7 +5,7 @@ import {
   resolveTenantId,
 } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
-import { listMembers, updateMember } from "@/server/repositories/mvp-repository";
+import { deleteMember, listMembers, updateMember } from "@/server/repositories/mvp-repository";
 
 type RouteContext = {
   params: Promise<{ memberId: string }>;
@@ -72,6 +72,26 @@ export async function PUT(request: Request, context: RouteContext) {
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Erro ao editar membro." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  try {
+    const session = await requireServerAuthSession();
+    const { memberId } = await context.params;
+    const currentMember = (await listMembers(getDataScopeFromSession(session))).find((item) => item.id === memberId);
+    if (!currentMember) {
+      return Response.json({ error: "Membro nao encontrado." }, { status: 404 });
+    }
+
+    assertSessionCanAccessRecord(session, currentMember);
+    await deleteMember(memberId);
+    return new Response(null, { status: 204 });
+  } catch (error) {
+    return Response.json(
+      { error: error instanceof Error ? error.message : "Erro ao excluir membro." },
       { status: 500 }
     );
   }

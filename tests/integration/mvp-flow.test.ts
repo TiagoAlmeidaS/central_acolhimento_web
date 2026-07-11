@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createSessionToken } from "@/server/auth/session";
 import type { AuthSession } from "@/server/domain/mvp";
-import { listMembers, listSeeds, resetLocalMvpStore } from "@/server/repositories/mvp-repository";
+import { listFollowups, listMembers, listSeeds, resetLocalMvpStore } from "@/server/repositories/mvp-repository";
 
 const cookieState = {
   value: "" as string,
@@ -223,5 +223,88 @@ describe("MVP integration flow", () => {
     expect(followup.caregiverId).toBe("1");
     expect(followup.tenantId).toBe("1");
     expect(followup.type).toBe("call");
+  });
+
+  it("deletes a contact inside the current tenant scope", async () => {
+    setSession({
+      user: { id: "user-1", email: "tiago@igreja.org", firstName: "Tiago", lastName: "Souza" },
+      membership: {
+        tenantUserId: "tenant-user-1",
+        tenantId: "1",
+        tenantName: "Central Sape",
+        tenantCity: "Sape",
+        tenantState: "PB",
+        role: "coordinator",
+        caregiverId: null,
+      },
+      homePath: "/coord",
+    });
+
+    const contactsBefore = await listSeeds({ tenantId: "1" });
+    const targetContact = contactsBefore[0];
+    expect(targetContact).toBeDefined();
+
+    const { DELETE: deleteSeedRoute } = await import("@/app/api/seeds/[seedId]/route");
+    const response = await deleteSeedRoute(new Request(`http://localhost/api/seeds/${targetContact.id}`, {
+      method: "DELETE",
+    }), { params: Promise.resolve({ seedId: targetContact.id }) });
+
+    expect(response.status).toBe(204);
+    const contactsAfter = await listSeeds({ tenantId: "1" });
+    expect(contactsAfter.some((item) => item.id === targetContact.id)).toBe(false);
+  });
+
+  it("deletes a member and removes related followups", async () => {
+    setSession({
+      user: { id: "user-1", email: "tiago@igreja.org", firstName: "Tiago", lastName: "Souza" },
+      membership: {
+        tenantUserId: "tenant-user-1",
+        tenantId: "1",
+        tenantName: "Central Sape",
+        tenantCity: "Sape",
+        tenantState: "PB",
+        role: "coordinator",
+        caregiverId: null,
+      },
+      homePath: "/coord",
+    });
+
+    const membersBefore = await listMembers({ tenantId: "1" });
+    const targetMember = membersBefore[0];
+    expect(targetMember).toBeDefined();
+
+    const { POST: createFollowupRoute } = await import("@/app/api/followups/route");
+    const followupResponse = await createFollowupRoute(
+      new Request("http://localhost/api/followups", {
+        method: "POST",
+        body: JSON.stringify({
+          tenantId: "1",
+          memberId: targetMember.id,
+          caregiverId: targetMember.caregiverId,
+          type: "call",
+          notes: "Registro antes da exclusao.",
+        }),
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    expect(followupResponse.status).toBe(201);
+
+    const followupsBeforeDelete = await listFollowups({ tenantId: "1" });
+    expect(followupsBeforeDelete.some((item) => item.memberId === targetMember.id)).toBe(true);
+
+    const { DELETE: deleteMemberRoute } = await import("@/app/api/members/[memberId]/route");
+    const deleteResponse = await deleteMemberRoute(
+      new Request(`http://localhost/api/members/${targetMember.id}`, {
+        method: "DELETE",
+      }),
+      { params: Promise.resolve({ memberId: targetMember.id }) }
+    );
+
+    expect(deleteResponse.status).toBe(204);
+
+    const membersAfter = await listMembers({ tenantId: "1" });
+    const followupsAfter = await listFollowups({ tenantId: "1" });
+    expect(membersAfter.some((item) => item.id === targetMember.id)).toBe(false);
+    expect(followupsAfter.some((item) => item.memberId === targetMember.id)).toBe(false);
   });
 });

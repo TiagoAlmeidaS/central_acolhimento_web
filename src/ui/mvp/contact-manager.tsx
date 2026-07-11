@@ -84,6 +84,7 @@ export function ContactManager({
   });
   const [submitting, setSubmitting] = useState(false);
   const [convertingId, setConvertingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
@@ -281,6 +282,34 @@ export function ContactManager({
       const payload = (await response.json().catch(() => ({}))) as { error?: string };
       setError(payload.error ?? "Não foi possível converter o contato.");
       return;
+    }
+
+    startTransition(() => router.refresh());
+  }
+
+  async function deleteContact(contact: Seed) {
+    const confirmed = window.confirm(`Excluir o contato "${contact.referenceName}"? Esta acao nao pode ser desfeita.`);
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingId(contact.id);
+    setError(null);
+
+    const response = await fetch(`/api/seeds/${contact.id}`, {
+      method: "DELETE",
+    });
+
+    setDeletingId(null);
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      setError(payload.error ?? "Nao foi possivel excluir o contato.");
+      return;
+    }
+
+    if (editing?.id === contact.id) {
+      resetForm();
     }
 
     startTransition(() => router.refresh());
@@ -734,10 +763,25 @@ export function ContactManager({
                         </Button>
                         <Button
                           type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteContact(contact)}
+                          disabled={deletingId === contact.id || convertingId === contact.id}
+                          full
+                          style={{
+                            color: "#DC2626",
+                            border: "1px solid rgba(220,38,38,0.18)",
+                            background: "#FFF5F5",
+                          }}
+                        >
+                          {deletingId === contact.id ? "Excluindo..." : "Excluir contato"}
+                        </Button>
+                        <Button
+                          type="button"
                           variant="primary"
                           size="sm"
                           onClick={() => convertContact(contact)}
-                          disabled={convertingId === contact.id || contact.status === "in_progress"}
+                          disabled={convertingId === contact.id || deletingId === contact.id || contact.status === "in_progress"}
                           full
                         >
                           {convertingId === contact.id

@@ -3,6 +3,7 @@
 import { startTransition, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Caregiver, Member, Tenant } from "@/server/domain/mvp";
+import { mapMemberStatusToVisualStatus } from "@/ui/mvp/dashboard-status-utils";
 import {
   buildMemberAddress,
   formatPhone,
@@ -54,14 +55,6 @@ const statusLabels: Record<Member["status"], string> = {
   inactive: "Inativo",
 };
 
-// Maps the member status to the V2 StatusPill keys
-const STATUS_MAP: Record<Member["status"], string> = {
-  new: "aguardando",
-  in_progress: "acompanhamento",
-  consolidated: "concluido",
-  inactive: "aguardando",
-};
-
 const emptyForm = {
   tenantId: "",
   caregiverId: "",
@@ -99,6 +92,7 @@ export function MemberManager({
   const [assigningMemberId, setAssigningMemberId] = useState<string | null>(null);
   const [savingAssignId, setSavingAssignId] = useState<string | null>(null);
   const [savingStatusId, setSavingStatusId] = useState<string | null>(null);
+  const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -291,6 +285,34 @@ export function MemberManager({
       const payload = (await response.json().catch(() => ({}))) as { error?: string };
       setError(payload.error ?? "Nao foi possivel atualizar o status do membro.");
       return;
+    }
+
+    startTransition(() => router.refresh());
+  }
+
+  async function removeMember(member: Member) {
+    const confirmed = window.confirm(`Excluir o membro "${member.name}"? Os acompanhamentos vinculados tambem serao removidos.`);
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingMemberId(member.id);
+    setError(null);
+
+    const response = await fetch(`/api/members/${member.id}`, {
+      method: "DELETE",
+    });
+
+    setDeletingMemberId(null);
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      setError(payload.error ?? "Nao foi possivel excluir o membro.");
+      return;
+    }
+
+    if (editing?.id === member.id) {
+      resetForm();
     }
 
     startTransition(() => router.refresh());
@@ -694,7 +716,7 @@ export function MemberManager({
                       {/* Status */}
                       <td style={{ padding: "14px 14px" }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 180 }}>
-                          <StatusPill status={STATUS_MAP[member.status]} size="sm" />
+                          <StatusPill status={mapMemberStatusToVisualStatus(member.status)} size="sm" />
                           <select
                             value={member.status}
                             onChange={(e) => updateMemberStatus(member.id, e.target.value as Member["status"])}
@@ -774,20 +796,41 @@ export function MemberManager({
 
                       {/* Actions */}
                       <td style={{ padding: "14px 14px" }}>
-                        <button
-                          type="button"
-                          onClick={() => openEdit(member)}
-                          style={{
-                            padding: "6px 14px", borderRadius: 8,
-                            background: "var(--accent-bg)",
-                            border: "1px solid rgba(45,127,249,0.2)",
-                            color: "var(--accent)",
-                            fontSize: 13, fontWeight: 600, cursor: "pointer",
-                            fontFamily: "inherit",
-                          }}
-                        >
-                          Editar
-                        </button>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button
+                            type="button"
+                            onClick={() => openEdit(member)}
+                            style={{
+                              padding: "6px 14px", borderRadius: 8,
+                              background: "var(--accent-bg)",
+                              border: "1px solid rgba(45,127,249,0.2)",
+                              color: "var(--accent)",
+                              fontSize: 13, fontWeight: 600, cursor: "pointer",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeMember(member)}
+                            disabled={deletingMemberId === member.id}
+                            style={{
+                              padding: "6px 14px",
+                              borderRadius: 8,
+                              background: "#FFF5F5",
+                              border: "1px solid rgba(220,38,38,0.18)",
+                              color: "#DC2626",
+                              fontSize: 13,
+                              fontWeight: 600,
+                              cursor: deletingMemberId === member.id ? "wait" : "pointer",
+                              fontFamily: "inherit",
+                              opacity: deletingMemberId === member.id ? 0.7 : 1,
+                            }}
+                          >
+                            {deletingMemberId === member.id ? "Excluindo..." : "Excluir"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

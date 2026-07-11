@@ -5,7 +5,7 @@ import {
   resolveTenantId,
 } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
-import { listSeeds, updateSeed } from "@/server/repositories/mvp-repository";
+import { deleteSeed, listSeeds, updateSeed } from "@/server/repositories/mvp-repository";
 
 type RouteContext = {
   params: Promise<{ seedId: string }>;
@@ -79,6 +79,26 @@ export async function PUT(request: Request, context: RouteContext) {
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Erro ao editar novo contato." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  try {
+    const session = await requireServerAuthSession();
+    const { seedId } = await context.params;
+    const currentSeed = (await listSeeds(getDataScopeFromSession(session))).find((item) => item.id === seedId);
+    if (!currentSeed) {
+      return Response.json({ error: "Novo contato nao encontrado." }, { status: 404 });
+    }
+
+    assertSessionCanAccessRecord(session, currentSeed);
+    await deleteSeed(seedId);
+    return new Response(null, { status: 204 });
+  } catch (error) {
+    return Response.json(
+      { error: error instanceof Error ? error.message : "Erro ao excluir novo contato." },
       { status: 500 }
     );
   }

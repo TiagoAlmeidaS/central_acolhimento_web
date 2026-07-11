@@ -14,6 +14,13 @@ export const STATUS: Record<
   string,
   { key: string; label: string; fg: string; bg: string; dot: string; shortLabel?: string }
 > = {
+  novo: {
+    key: "novo",
+    label: "Novo",
+    fg: "#C2410C",
+    bg: "#FFEDD5",
+    dot: "#EA580C",
+  },
   urgente: {
     key: "urgente",
     label: "Urgente",
@@ -43,9 +50,16 @@ export const STATUS: Record<
     bg: "#DCFCE7",
     dot: "#16A34A",
   },
+  inativo: {
+    key: "inativo",
+    label: "Inativo",
+    fg: "#475569",
+    bg: "#E2E8F0",
+    dot: "#64748B",
+  },
 };
 
-export const STATUS_ORDER = ["urgente", "aguardando", "acompanhamento", "concluido"];
+export const STATUS_ORDER = ["urgente", "novo", "aguardando", "acompanhamento", "concluido", "inativo"];
 
 // ─── Avatar ────────────────────────────────────────────────────
 interface AvatarProps {
@@ -137,8 +151,12 @@ export const StatusPill: React.FC<StatusPillProps> = ({ status, size = "sm" }) =
   const normalized = status.toLowerCase().replace(/[^a-z]/g, "");
   const lookupKey = normalized.includes("urg")
     ? "urgente"
+    : normalized.includes("nov")
+    ? "novo"
     : normalized.includes("aguard")
     ? "aguardando"
+    : normalized.includes("inativ")
+    ? "inativo"
     : normalized.includes("concl") || normalized.includes("cons")
     ? "concluido"
     : "acompanhamento";
@@ -181,8 +199,12 @@ export const StatusDot: React.FC<StatusDotProps> = ({ status, size = 8 }) => {
   const normalized = status.toLowerCase().replace(/[^a-z]/g, "");
   const lookupKey = normalized.includes("urg")
     ? "urgente"
+    : normalized.includes("nov")
+    ? "novo"
     : normalized.includes("aguard")
     ? "aguardando"
+    : normalized.includes("inativ")
+    ? "inativo"
     : normalized.includes("concl") || normalized.includes("cons")
     ? "concluido"
     : "acompanhamento";
