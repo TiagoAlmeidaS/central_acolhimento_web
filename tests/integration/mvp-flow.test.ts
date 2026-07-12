@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createSessionToken } from "@/server/auth/session";
 import type { AuthSession } from "@/server/domain/mvp";
 import { listFollowups, listMembers, listSeeds, resetLocalMvpStore } from "@/server/repositories/mvp-repository";
+import { resetLocalOutingsStore } from "@/server/repositories/outing-repository";
 
 const cookieState = {
   value: "" as string,
@@ -36,6 +37,7 @@ describe("MVP integration flow", () => {
     delete process.env.POSTGRES_URL;
     delete process.env.DATABASE_URL;
     resetLocalMvpStore();
+    resetLocalOutingsStore();
     cookieState.value = "";
   });
 
@@ -444,5 +446,144 @@ describe("MVP integration flow", () => {
     const followupsAfter = await listFollowups({ tenantId: "1" });
     expect(membersAfter.some((item) => item.id === targetMember.id)).toBe(false);
     expect(followupsAfter.some((item) => item.memberId === targetMember.id)).toBe(false);
+  });
+
+  it("creates an outing, adds registered and guest participants, creates a couple constraint, generates and confirms groups", async () => {
+    setSession({
+      user: { id: "local-app-user-tiago", email: "tiago@igreja.org", firstName: "Tiago", lastName: "Souza" },
+      membership: {
+        tenantUserId: "local-tenant-user-tiago-sape",
+        tenantId: "1",
+        tenantName: "Central Sape",
+        tenantCity: "Sape",
+        tenantState: "PB",
+        role: "coordinator",
+        caregiverId: null,
+      },
+      homePath: "/coord",
+    });
+
+    const members = await listMembers({ tenantId: "1" });
+    const targetMembers = members.slice(0, 2);
+    expect(targetMembers).toHaveLength(2);
+
+    const { POST: createOutingRoute } = await import("@/app/api/outings/route");
+    const createOutingResponse = await createOutingRoute(
+      new Request("http://localhost/api/outings", {
+        method: "POST",
+        body: JSON.stringify({
+          tenantId: "1",
+          name: "Saida social de domingo",
+          description: "Teste de distribuicao",
+          targetGroupSize: 4,
+          allowGroupsWithoutCar: false,
+        }),
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    expect(createOutingResponse.status).toBe(201);
+    const createdOuting = (await createOutingResponse.json()) as { id: string; status: string };
+    expect(createdOuting.status).toBe("draft");
+
+    const { POST: addParticipantsRoute } = await import("@/app/api/outings/[outingId]/participants/route");
+    const caregiverParticipantResponse = await addParticipantsRoute(
+      new Request(`http://localhost/api/outings/${createdOuting.id}/participants`, {
+        method: "POST",
+        body: JSON.stringify({
+          participantType: "caregiver",
+          participantId: "1",
+          hasCar: true,
+          isDriver: true,
+          carSeats: 3,
+        }),
+        headers: { "Content-Type": "application/json" },
+      }),
+      { params: Promise.resolve({ outingId: createdOuting.id }) },
+    );
+    expect(caregiverParticipantResponse.status).toBe(201);
+
+    const memberParticipantAResponse = await addParticipantsRoute(
+      new Request(`http://localhost/api/outings/${createdOuting.id}/participants`, {
+        method: "POST",
+        body: JSON.stringify({
+          participantType: "member",
+          participantId: targetMembers[0]?.id,
+        }),
+        headers: { "Content-Type": "application/json" },
+      }),
+      { params: Promise.resolve({ outingId: createdOuting.id }) },
+    );
+    expect(memberParticipantAResponse.status).toBe(201);
+    const outingMemberA = (await memberParticipantAResponse.json()) as { id: string };
+
+    const memberParticipantBResponse = await addParticipantsRoute(
+      new Request(`http://localhost/api/outings/${createdOuting.id}/participants`, {
+        method: "POST",
+        body: JSON.stringify({
+          participantType: "member",
+          participantId: targetMembers[1]?.id,
+        }),
+        headers: { "Content-Type": "application/json" },
+      }),
+      { params: Promise.resolve({ outingId: createdOuting.id }) },
+    );
+    expect(memberParticipantBResponse.status).toBe(201);
+    const outingMemberB = (await memberParticipantBResponse.json()) as { id: string };
+
+    const guestParticipantResponse = await addParticipantsRoute(
+      new Request(`http://localhost/api/outings/${createdOuting.id}/participants`, {
+        method: "POST",
+        body: JSON.stringify({
+          participantType: "guest",
+          firstName: "Paulo",
+          lastName: "Convidado",
+          phone: "(83) 99999-1111",
+        }),
+        headers: { "Content-Type": "application/json" },
+      }),
+      { params: Promise.resolve({ outingId: createdOuting.id }) },
+    );
+    expect(guestParticipantResponse.status).toBe(201);
+
+    const { POST: createConstraintRoute } = await import("@/app/api/outings/[outingId]/constraints/route");
+    const createConstraintResponse = await createConstraintRoute(
+      new Request(`http://localhost/api/outings/${createdOuting.id}/constraints`, {
+        method: "POST",
+        body: JSON.stringify({
+          label: "Casal prioritario",
+          participantIds: [outingMemberA.id, outingMemberB.id],
+        }),
+        headers: { "Content-Type": "application/json" },
+      }),
+      { params: Promise.resolve({ outingId: createdOuting.id }) },
+    );
+    expect(createConstraintResponse.status).toBe(201);
+
+    const { POST: generateRoute } = await import("@/app/api/outings/[outingId]/generate/route");
+    const generateResponse = await generateRoute(
+      new Request(`http://localhost/api/outings/${createdOuting.id}/generate`, { method: "POST" }),
+      { params: Promise.resolve({ outingId: createdOuting.id }) },
+    );
+
+    expect(generateResponse.status).toBe(200);
+    const generatedDetail = (await generateResponse.json()) as {
+      outing: { status: string };
+      groups: Array<{ participants: Array<{ id: string }> }>;
+    };
+    expect(generatedDetail.outing.status).toBe("generated");
+    expect(generatedDetail.groups.length).toBeGreaterThan(0);
+    const coupleGroup = generatedDetail.groups.find((group) => group.participants.some((participant) => participant.id === outingMemberA.id));
+    expect(coupleGroup?.participants.some((participant) => participant.id === outingMemberB.id)).toBe(true);
+
+    const { POST: confirmRoute } = await import("@/app/api/outings/[outingId]/confirm/route");
+    const confirmResponse = await confirmRoute(
+      new Request(`http://localhost/api/outings/${createdOuting.id}/confirm`, { method: "POST" }),
+      { params: Promise.resolve({ outingId: createdOuting.id }) },
+    );
+
+    expect(confirmResponse.status).toBe(200);
+    const confirmedDetail = (await confirmResponse.json()) as { outing: { status: string } };
+    expect(confirmedDetail.outing.status).toBe("confirmed");
   });
 });

@@ -37,6 +37,15 @@ export const IconCalendar: React.FC<IconProps> = (p) => (
   </Icon>
 );
 
+export const IconCar: React.FC<IconProps> = (p) => (
+  <Icon {...p}>
+    <path d="M5 16l1.5-5A2 2 0 0 1 8.4 9h7.2a2 2 0 0 1 1.9 2L19 16" />
+    <path d="M3 16h18v3a2 2 0 0 1-2 2h-1v-2H6v2H5a2 2 0 0 1-2-2z" />
+    <circle cx="7.5" cy="17.5" r="1.5" />
+    <circle cx="16.5" cy="17.5" r="1.5" />
+  </Icon>
+);
+
 export const IconMessage: React.FC<IconProps> = (p) => (
   <Icon {...p}>
     <path d="M21 12a8 8 0 0 1-12 7l-5 1 1-5a8 8 0 1 1 16-3z" />

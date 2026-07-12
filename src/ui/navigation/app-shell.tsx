@@ -11,6 +11,7 @@ import {
   IconUsers,
   IconHeart,
   IconCalendar,
+  IconCar,
   IconLogout,
   IconBuilding,
 } from "@/ui/v2-components/icons";
@@ -23,6 +24,7 @@ const navItems = [
   { href: "/coord/membros", label: "Membros", icon: <IconUsers size={20} /> },
   { href: "/coord/cuidadores", label: "Cuidadores", icon: <IconHeart size={20} /> },
   { href: "/coord/acompanhamentos", label: "Acompanhamentos", icon: <IconCalendar size={20} /> },
+  { href: "/coord/saidas", label: "Saidas", icon: <IconCar size={20} /> },
 ];
 
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {

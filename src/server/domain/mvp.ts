@@ -5,6 +5,10 @@ export type SeedStatus = "new" | "contacted" | "in_progress" | "consolidated" | 
 export type FollowupType = "visit" | "call" | "message" | "prayer" | "other";
 export type InvitationStatus = "pending" | "accepted" | "revoked" | "expired";
 export type SignupChannelUseStatus = "submitted" | "approved" | "rejected";
+export type OutingStatus = "draft" | "generated" | "confirmed" | "cancelled";
+export type OutingParticipantType = "caregiver" | "member" | "guest";
+export type OutingConstraintType = "must_stay_together";
+export type OutingAssignmentSource = "system" | "manual";
 
 export type Tenant = {
   id: string;
@@ -116,6 +120,65 @@ export type Followup = {
   member?: string | null;
   caregiver?: string | null;
   createdAt?: string;
+};
+
+export type OutingEvent = {
+  id: string;
+  tenantId: string;
+  name: string;
+  description: string;
+  scheduledFor: string | null;
+  targetGroupSize: number;
+  allowGroupsWithoutCar: boolean;
+  status: OutingStatus;
+  createdByTenantUserId: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type OutingParticipant = {
+  id: string;
+  outingEventId: string;
+  participantType: OutingParticipantType;
+  participantId: string | null;
+  displayName: string;
+  firstName: string | null;
+  lastName: string | null;
+  phone: string | null;
+  email: string | null;
+  hasCar: boolean;
+  carSeats: number;
+  isDriver: boolean;
+  notes: string;
+  createdAt?: string;
+};
+
+export type OutingConstraintGroup = {
+  id: string;
+  outingEventId: string;
+  label: string;
+  constraintType: OutingConstraintType;
+  participantIds: string[];
+  createdAt?: string;
+};
+
+export type OutingGroup = {
+  id: string;
+  outingEventId: string;
+  name: string;
+  driverParticipantId: string | null;
+  carCapacityTotal: number | null;
+  sortOrder: number;
+  participants: OutingParticipant[];
+  assignedBy?: OutingAssignmentSource;
+  createdAt?: string;
+};
+
+export type OutingDetail = {
+  outing: OutingEvent;
+  participants: OutingParticipant[];
+  constraints: OutingConstraintGroup[];
+  groups: OutingGroup[];
 };
 
 export type DashboardCard = {
@@ -279,6 +342,39 @@ export type CreateFollowupInput = {
 };
 
 export type UpdateFollowupInput = CreateFollowupInput;
+
+export type CreateOutingInput = {
+  tenantId: string;
+  name: string;
+  description?: string;
+  scheduledFor?: string | null;
+  targetGroupSize?: number;
+  allowGroupsWithoutCar?: boolean;
+  createdByTenantUserId?: string | null;
+};
+
+export type UpdateOutingInput = CreateOutingInput;
+
+export type AddOutingParticipantInput = {
+  outingEventId: string;
+  participantType: OutingParticipantType;
+  participantId?: string | null;
+  displayName?: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  hasCar?: boolean;
+  carSeats?: number;
+  isDriver?: boolean;
+  notes?: string;
+};
+
+export type CreateOutingConstraintInput = {
+  outingEventId: string;
+  label: string;
+  participantIds: string[];
+};
 
 export type CreateCaregiverInvitationInput = {
   tenantId: string;
