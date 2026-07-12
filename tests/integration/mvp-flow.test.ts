@@ -3,6 +3,7 @@ import { createSessionToken } from "@/server/auth/session";
 import type { AuthSession } from "@/server/domain/mvp";
 import { listFollowups, listMembers, listSeeds, resetLocalMvpStore } from "@/server/repositories/mvp-repository";
 import { resetLocalOutingsStore } from "@/server/repositories/outing-repository";
+import { resetLocalTciStore } from "@/server/repositories/tci-repository";
 
 const cookieState = {
   value: "" as string,
@@ -38,6 +39,7 @@ describe("MVP integration flow", () => {
     delete process.env.DATABASE_URL;
     resetLocalMvpStore();
     resetLocalOutingsStore();
+    resetLocalTciStore();
     cookieState.value = "";
   });
 
@@ -585,5 +587,105 @@ describe("MVP integration flow", () => {
     expect(confirmResponse.status).toBe(200);
     const confirmedDetail = (await confirmResponse.json()) as { outing: { status: string } };
     expect(confirmedDetail.outing.status).toBe("confirmed");
+  });
+
+  it("creates TCI chambers and sessions, lists the weekly agenda and blocks chamber conflicts", async () => {
+    setSession({
+      user: { id: "local-app-user-tiago", email: "tiago@igreja.org", firstName: "Tiago", lastName: "Souza" },
+      membership: {
+        tenantUserId: "local-tenant-user-tiago-sape",
+        tenantId: "1",
+        tenantName: "Central Sape",
+        tenantCity: "Sape",
+        tenantState: "PB",
+        role: "coordinator",
+        caregiverId: null,
+      },
+      homePath: "/coord",
+    });
+
+    const { POST: createChamberRoute } = await import("@/app/api/tci/chambers/route");
+    const chamberResponse = await createChamberRoute(
+      new Request("http://localhost/api/tci/chambers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId: "1",
+          name: "Camara Azul",
+          description: "Principal",
+          capacity: 8,
+          active: true,
+        }),
+      }),
+    );
+
+    expect(chamberResponse.status).toBe(201);
+    const chamber = (await chamberResponse.json()) as { id: string; name: string };
+    expect(chamber.name).toBe("Camara Azul");
+
+    const { POST: createSessionRoute, GET: listSessionsRoute } = await import("@/app/api/tci/sessions/route");
+    const sessionResponse = await createSessionRoute(
+      new Request("http://localhost/api/tci/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId: "1",
+          title: "TCI Quarta",
+          scheduledDate: "2026-07-13",
+          startsAt: "09:00",
+          endsAt: "10:00",
+          chamberId: chamber.id,
+          caregiverIds: ["1"],
+          notes: "Sessao semanal",
+          status: "scheduled",
+        }),
+      }),
+    );
+
+    expect(sessionResponse.status).toBe(201);
+    const createdSession = (await sessionResponse.json()) as { id: string; title: string; caregivers: Array<{ caregiverId: string }> };
+    expect(createdSession.title).toBe("TCI Quarta");
+    expect(createdSession.caregivers[0]?.caregiverId).toBe("1");
+
+    const listResponse = await listSessionsRoute(
+      new Request("http://localhost/api/tci/sessions?weekStart=2026-07-13"),
+    );
+    expect(listResponse.status).toBe(200);
+    const listedSessions = (await listResponse.json()) as Array<{ id: string }>;
+    expect(listedSessions.some((item) => item.id === createdSession.id)).toBe(true);
+
+    const conflictResponse = await createSessionRoute(
+      new Request("http://localhost/api/tci/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId: "1",
+          title: "TCI Conflitante",
+          scheduledDate: "2026-07-13",
+          startsAt: "09:30",
+          endsAt: "10:30",
+          chamberId: chamber.id,
+          caregiverIds: ["1"],
+        }),
+      }),
+    );
+
+    expect(conflictResponse.status).toBe(500);
+    const conflictPayload = (await conflictResponse.json()) as { error?: string };
+    expect(conflictPayload.error).toMatch(/conflito/i);
+
+    const { PATCH: updateStatusRoute } = await import("@/app/api/tci/sessions/[sessionId]/status/route");
+    const statusResponse = await updateStatusRoute(
+      new Request(`http://localhost/api/tci/sessions/${createdSession.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "completed" }),
+      }),
+      { params: Promise.resolve({ sessionId: createdSession.id }) },
+    );
+
+    expect(statusResponse.status).toBe(200);
+    const updatedSession = (await statusResponse.json()) as { status: string };
+    expect(updatedSession.status).toBe("completed");
   });
 });

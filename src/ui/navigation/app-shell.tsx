@@ -14,6 +14,7 @@ import {
   IconCar,
   IconLogout,
   IconBuilding,
+  IconSparkle,
 } from "@/ui/v2-components/icons";
 
 // Mapeamento de rotas e seus respectivos ícones da V2
@@ -25,6 +26,7 @@ const navItems = [
   { href: "/coord/cuidadores", label: "Cuidadores", icon: <IconHeart size={20} /> },
   { href: "/coord/acompanhamentos", label: "Acompanhamentos", icon: <IconCalendar size={20} /> },
   { href: "/coord/saidas", label: "Saidas", icon: <IconCar size={20} /> },
+  { href: "/coord/tci", label: "TCI", icon: <IconSparkle size={20} /> },
 ];
 
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {

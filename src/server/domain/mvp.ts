@@ -9,6 +9,7 @@ export type OutingStatus = "draft" | "generated" | "confirmed" | "cancelled";
 export type OutingParticipantType = "caregiver" | "member" | "guest";
 export type OutingConstraintType = "must_stay_together";
 export type OutingAssignmentSource = "system" | "manual";
+export type TciSessionStatus = "draft" | "scheduled" | "confirmed" | "completed" | "cancelled";
 
 export type Tenant = {
   id: string;
@@ -179,6 +180,44 @@ export type OutingDetail = {
   participants: OutingParticipant[];
   constraints: OutingConstraintGroup[];
   groups: OutingGroup[];
+};
+
+export type TciChamber = {
+  id: string;
+  tenantId: string;
+  name: string;
+  description: string;
+  capacity: number | null;
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type TciSessionCaregiver = {
+  id: string;
+  tciSessionId: string;
+  caregiverId: string;
+  caregiverName?: string | null;
+  role: string | null;
+  createdAt?: string;
+};
+
+export type TciSession = {
+  id: string;
+  tenantId: string;
+  title: string;
+  description: string;
+  scheduledDate: string;
+  startsAt: string;
+  endsAt: string;
+  chamberId: string;
+  chamberName?: string | null;
+  status: TciSessionStatus;
+  notes: string;
+  createdByTenantUserId: string | null;
+  caregivers: TciSessionCaregiver[];
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type DashboardCard = {
@@ -375,6 +414,33 @@ export type CreateOutingConstraintInput = {
   label: string;
   participantIds: string[];
 };
+
+export type CreateTciChamberInput = {
+  tenantId: string;
+  name: string;
+  description?: string;
+  capacity?: number | null;
+  active?: boolean;
+};
+
+export type UpdateTciChamberInput = CreateTciChamberInput;
+
+export type CreateTciSessionInput = {
+  tenantId: string;
+  title: string;
+  description?: string;
+  scheduledDate: string;
+  startsAt: string;
+  endsAt: string;
+  chamberId: string;
+  caregiverIds: string[];
+  caregiverRoles?: Array<{ caregiverId: string; role?: string | null }>;
+  status?: TciSessionStatus;
+  notes?: string;
+  createdByTenantUserId?: string | null;
+};
+
+export type UpdateTciSessionInput = CreateTciSessionInput;
 
 export type CreateCaregiverInvitationInput = {
   tenantId: string;
