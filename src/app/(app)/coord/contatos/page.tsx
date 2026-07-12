@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { listSeeds, listTenants } from "@/server/repositories/mvp-repository";
-import { getDataScopeFromSession } from "@/server/auth/access-scope";
+import { listAccessibleTenantIds } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
 import { ContactManager } from "@/ui/mvp/contact-manager";
 import type { Seed } from "@/server/domain/mvp";
@@ -24,11 +24,15 @@ const STATUS_COLORS: Record<Seed["status"], string> = {
 
 export default async function ContactsPage() {
   const session = await requireServerAuthSession("coordinator");
-  const scope = getDataScopeFromSession(session);
-  const [contacts, tenants] = await Promise.all([
-    listSeeds(scope),
-    listTenants(scope),
+  const accessibleTenantIds = await listAccessibleTenantIds(session);
+  const [allTenants, contactsByTenant] = await Promise.all([
+    listTenants(),
+    Promise.all(accessibleTenantIds.map((tenantId) => listSeeds({ tenantId }))),
   ]);
+  const tenants = allTenants.filter((tenant) => accessibleTenantIds.includes(tenant.id));
+  const contacts = contactsByTenant
+    .flat()
+    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
 
   const pending = contacts.filter((contact) => contact.status === "new" || contact.status === "contacted").length;
 

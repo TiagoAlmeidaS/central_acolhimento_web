@@ -2,7 +2,7 @@ import {
   assertSessionCanAccessRecord,
   getDataScopeFromSession,
   resolveCaregiverId,
-  resolveTenantId,
+  resolveTenantIdForUserAccess,
 } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
 import { validateHouseFrontImageDataUrl } from "@/lib/house-front-image";
@@ -58,7 +58,7 @@ export async function PUT(request: Request, context: RouteContext) {
     }
 
     const seed = await updateSeed(seedId, {
-      tenantId: resolveTenantId(session, body.tenantId),
+      tenantId: await resolveTenantIdForUserAccess(session, body.tenantId),
       caregiverId: resolveCaregiverId(session, body.caregiverId ?? null, { allowUnassignedForCoordinator: true }),
       referenceName: body.referenceName,
       age: body.age ?? null,

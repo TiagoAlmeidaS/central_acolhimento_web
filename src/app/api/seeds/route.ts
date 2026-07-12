@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { getDataScopeFromSession, resolveCaregiverId, resolveTenantId } from "@/server/auth/access-scope";
+import { getDataScopeFromSession, resolveCaregiverId, resolveTenantIdForUserAccess } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
 import { validateHouseFrontImageDataUrl } from "@/lib/house-front-image";
 import { createSeed, listSeeds } from "@/server/repositories/mvp-repository";
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     }
 
     const seed = await createSeed({
-      tenantId: resolveTenantId(session, body.tenantId),
+      tenantId: await resolveTenantIdForUserAccess(session, body.tenantId),
       caregiverId: resolveCaregiverId(session, body.caregiverId ?? null, { allowUnassignedForCoordinator: true }),
       referenceName: body.referenceName,
       age: body.age ?? null,

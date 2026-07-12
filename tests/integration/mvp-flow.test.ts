@@ -153,6 +153,56 @@ describe("MVP integration flow", () => {
     expect(members.some((item) => item.name === "Ester Nascimento")).toBe(true);
   });
 
+  it("allows the coordinator to register a contact for another tenant linked to the same account", async () => {
+    setSession({
+      user: { id: "local-app-user-tiago", email: "tiago@igreja.org", firstName: "Tiago", lastName: "Souza" },
+      membership: {
+        tenantUserId: "local-tenant-user-tiago-sape",
+        tenantId: "1",
+        tenantName: "Central Sape",
+        tenantCity: "Sape",
+        tenantState: "PB",
+        role: "coordinator",
+        caregiverId: null,
+      },
+      homePath: "/coord",
+    });
+
+    const { POST: createContactRoute } = await import("@/app/api/seeds/route");
+    const createResponse = await createContactRoute(
+      new Request("http://localhost/api/seeds", {
+        method: "POST",
+        body: JSON.stringify({
+          tenantId: "2",
+          caregiverId: null,
+          referenceName: "Ana Clara",
+          age: 29,
+          phone: "(83) 97777-2222",
+          city: "Mari",
+          postalCode: "58345000",
+          source: "Culto de domingo",
+          notes: "Contato aberto para acompanhamento.",
+          status: "new",
+        }),
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+
+    expect(createResponse.status).toBe(201);
+    const createdContact = (await createResponse.json()) as {
+      tenantId: string;
+      city: string;
+      referenceName: string;
+    };
+
+    expect(createdContact.tenantId).toBe("2");
+    expect(createdContact.city).toBe("Mari");
+    expect(createdContact.referenceName).toBe("Ana Clara");
+
+    const contactsOnSecondTenant = await listSeeds({ tenantId: "2" });
+    expect(contactsOnSecondTenant.some((contact) => contact.referenceName === "Ana Clara")).toBe(true);
+  });
+
   it("lets the coordinator assign a caregiver and record a followup inside the current tenant", async () => {
     setSession({
       user: { id: "user-1", email: "tiago@igreja.org", firstName: "Tiago", lastName: "Souza" },

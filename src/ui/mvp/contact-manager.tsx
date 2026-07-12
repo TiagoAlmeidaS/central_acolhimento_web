@@ -9,7 +9,7 @@ import {
   HOUSE_FRONT_IMAGE_TARGET_BYTES,
 } from "@/lib/house-front-image";
 import { composeAddress, formatPhone, formatPostalCode, normalizePhone, normalizePostalCode } from "@/ui/mvp/contact-form-utils";
-import { Avatar, Button, Card, Input, SectionTitle, Textarea, SearchableSelect } from "@/ui/v2-components/ui";
+import { Avatar, Button, Card, Input, SectionTitle, Select, Textarea, SearchableSelect } from "@/ui/v2-components/ui";
 import { IconCheck, IconHeart, IconMapPin, IconPhone, IconPlus, IconUser, IconX } from "@/ui/v2-components/icons";
 
 const ESTADOS_BRASIL = [
@@ -151,12 +151,12 @@ export function ContactManager({
   tenants: Tenant[];
 }>) {
   const router = useRouter();
-  const currentTenant = tenants[0] ?? null;
+  const defaultTenant = tenants[0] ?? null;
   const [editing, setEditing] = useState<Seed | null>(null);
   const [form, setForm] = useState({
     ...emptyForm,
-    tenantId: currentTenant?.id ?? "",
-    city: currentTenant?.city ?? "",
+    tenantId: defaultTenant?.id ?? "",
+    city: defaultTenant?.city ?? "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [convertingId, setConvertingId] = useState<string | null>(null);
@@ -164,17 +164,33 @@ export function ContactManager({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  const currentTenant = tenants.find((tenant) => tenant.id === form.tenantId) ?? defaultTenant;
   const addressPreview = useMemo(() => composeAddress(form), [form]);
 
   function resetForm() {
+    const fallbackTenant = tenants.find((tenant) => tenant.id === form.tenantId) ?? defaultTenant;
     setEditing(null);
     setForm({
       ...emptyForm,
-      tenantId: currentTenant?.id ?? "",
-      city: currentTenant?.city ?? "",
+      tenantId: fallbackTenant?.id ?? "",
+      city: fallbackTenant?.city ?? "",
     });
     setError(null);
     setSuccess(false);
+  }
+
+  function handleTenantChange(nextTenantId: string) {
+    const previousTenant = tenants.find((tenant) => tenant.id === form.tenantId) ?? null;
+    const nextTenant = tenants.find((tenant) => tenant.id === nextTenantId) ?? null;
+
+    setForm((current) => ({
+      ...current,
+      tenantId: nextTenantId,
+      city:
+        !current.city || current.city === previousTenant?.city
+          ? nextTenant?.city ?? current.city
+          : current.city,
+    }));
   }
 
   function openEdit(contact: Seed) {
@@ -424,7 +440,7 @@ export function ContactManager({
               border: "1px solid var(--border)",
             }}
           >
-            <div style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 4 }}>Localidade ativa</div>
+            <div style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 4 }}>Tenant selecionado</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>
               {currentTenant.name} · {currentTenant.city} - {currentTenant.state}
             </div>
@@ -432,6 +448,18 @@ export function ContactManager({
         ) : null}
 
         <form style={{ display: "flex", flexDirection: "column", gap: 14 }} onSubmit={handleSubmit}>
+          <Select
+            label="Localidade de responsabilidade"
+            value={form.tenantId}
+            onChange={handleTenantChange}
+            options={tenants.map((tenant) => ({
+              value: tenant.id,
+              label: `${tenant.name} - ${tenant.city}/${tenant.state}`,
+            }))}
+            placeholder="Selecione a localidade"
+            required
+          />
+
           <Input
             label="Nome"
             value={form.referenceName}

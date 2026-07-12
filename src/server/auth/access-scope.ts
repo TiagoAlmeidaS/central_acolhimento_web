@@ -1,4 +1,5 @@
 import type { AppRole, AuthSession, DataScope } from "@/server/domain/mvp";
+import { listUserMemberships } from "@/server/repositories/auth-repository";
 
 function assertTenantAccess(session: AuthSession, tenantId: string) {
   if (tenantId !== session.membership.tenantId) {
@@ -34,6 +35,30 @@ export function resolveTenantId(session: AuthSession, tenantId?: string | null) 
 
   const resolvedTenantId = tenantId ?? session.membership.tenantId;
   assertTenantAccess(session, resolvedTenantId);
+  return resolvedTenantId;
+}
+
+export async function listAccessibleTenantIds(session: AuthSession) {
+  if (session.membership.role === "caregiver") {
+    return [session.membership.tenantId];
+  }
+
+  const memberships = await listUserMemberships(session.user.id);
+  return Array.from(new Set([session.membership.tenantId, ...memberships.map((membership) => membership.tenantId)]));
+}
+
+export async function resolveTenantIdForUserAccess(session: AuthSession, tenantId?: string | null) {
+  if (session.membership.role === "caregiver") {
+    return session.membership.tenantId;
+  }
+
+  const resolvedTenantId = tenantId ?? session.membership.tenantId;
+  const accessibleTenantIds = await listAccessibleTenantIds(session);
+
+  if (!accessibleTenantIds.includes(resolvedTenantId)) {
+    throw new Error("Acesso negado para outro tenant.");
+  }
+
   return resolvedTenantId;
 }
 
