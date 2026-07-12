@@ -22,21 +22,6 @@ import {
   Avatar,
   SearchableSelect,
 } from "@/ui/v2-components/ui";
-
-const ESTADOS_BRASIL = [
-  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
-  "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
-];
-
-const CIDADES_LIST = [
-  "Sapé", "Mari", "Sobrado", "João Pessoa", "Campina Grande", "Guarabira",
-  "Cabedelo", "Bayeux", "Santa Rita", "Rio Tinto", "Mamaguape", "Cruz do Espírito Santo",
-  "Caldas Brandão", "Gurinhém", "Mulungu", "Alagoinha", "Araçagi", "Itabaiana",
-  "Pilar", "Bananeiras", "Solânea", "Patos", "Sousa", "Cajazeiras", "Recife",
-  "Natal", "Fortaleza", "Salvador", "Rio de Janeiro", "São Paulo", "Belo Horizonte",
-  "Brasília", "Curitiba", "Porto Alegre",
-].sort();
-
 import {
   IconUser,
   IconPhone,
@@ -47,6 +32,7 @@ import {
   IconUsers,
   IconBuilding,
 } from "@/ui/v2-components/icons";
+import { ESTADOS_BRASIL, getCidadesByEstado, ALL_CIDADES } from "@/lib/br-locations";
 
 const statusLabels: Record<Member["status"], string> = {
   new: "Novo",
@@ -501,7 +487,7 @@ export function MemberManager({
                     return next;
                   });
                 }}
-                options={CIDADES_LIST}
+                options={getCidadesByEstado(form.state)}
                 placeholder="Selecione a cidade"
               />
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useState } from "react";
+import { startTransition, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Tenant } from "@/server/domain/mvp";
 import {
@@ -9,6 +9,7 @@ import {
   Input,
   Select,
   SectionTitle,
+  SearchableSelect,
 } from "@/ui/v2-components/ui";
 import {
   IconBuilding,
@@ -17,6 +18,7 @@ import {
   IconCheck,
   IconPlus,
 } from "@/ui/v2-components/icons";
+import { ESTADOS_BRASIL, getCidadesByEstado } from "@/lib/br-locations";
 
 const emptyForm = {
   name: "",
@@ -33,6 +35,12 @@ export function TenantManager({ tenants }: Readonly<{ tenants: Tenant[] }>) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  /** Cidades filtradas pelo estado selecionado no formulário. */
+  const cidadesDisponiveis = useMemo(
+    () => getCidadesByEstado(form.state),
+    [form.state]
+  );
 
   function openCreate() {
     setEditing(null);
@@ -52,6 +60,15 @@ export function TenantManager({ tenants }: Readonly<{ tenants: Tenant[] }>) {
     });
     setError(null);
     setSuccess(false);
+  }
+
+  function handleEstadoChange(novoEstado: string) {
+    setForm((f) => ({
+      ...f,
+      state: novoEstado,
+      // Limpa a cidade apenas se ela não pertence ao novo estado
+      city: getCidadesByEstado(novoEstado).includes(f.city) ? f.city : "",
+    }));
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -77,7 +94,7 @@ export function TenantManager({ tenants }: Readonly<{ tenants: Tenant[] }>) {
 
     if (!response.ok) {
       const payload = (await response.json().catch(() => ({}))) as { error?: string };
-      setError(payload.error ?? "Não foi possível salvar a cidade.");
+      setError(payload.error ?? "Não foi possível salvar a localidade.");
       setSubmitting(false);
       return;
     }
@@ -116,22 +133,50 @@ export function TenantManager({ tenants }: Readonly<{ tenants: Tenant[] }>) {
               placeholder="Nome do responsável"
               icon={<IconUser />}
             />
-            <Input
-              label="Cidade"
-              value={form.city}
-              onChange={(v) => setForm((f) => ({ ...f, city: v }))}
-              placeholder="Curitiba"
-              icon={<IconMapPin />}
-              required
-            />
-            <Input
+
+            {/* Estado primeiro — filtra as cidades */}
+            <SearchableSelect
               label="Estado (UF)"
               value={form.state}
-              onChange={(v) => setForm((f) => ({ ...f, state: v.toUpperCase().slice(0, 2) }))}
-              placeholder="PR"
+              onChange={handleEstadoChange}
+              options={ESTADOS_BRASIL}
+              placeholder="Selecione o estado"
+              required
+            />
+
+            {/* Cidade — filtrada pelo estado selecionado */}
+            <SearchableSelect
+              label="Cidade da localidade"
+              value={form.city}
+              onChange={(v) => setForm((f) => ({ ...f, city: v }))}
+              options={cidadesDisponiveis}
+              placeholder={
+                form.state ? "Selecione a cidade" : "Selecione o estado primeiro"
+              }
               required
             />
           </div>
+
+          {/* Preview da localização */}
+          {form.city && form.state && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "10px 14px",
+                borderRadius: 10,
+                background: "var(--accent-bg)",
+                border: "1px solid rgba(45,127,249,0.2)",
+                fontSize: 13,
+                color: "var(--accent)",
+                fontWeight: 600,
+              }}
+            >
+              <IconMapPin size={14} color="var(--accent)" />
+              {form.city} · {form.state}
+            </div>
+          )}
 
           <Select
             label="Status"
