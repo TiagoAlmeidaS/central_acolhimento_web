@@ -203,6 +203,60 @@ describe("MVP integration flow", () => {
     expect(contactsOnSecondTenant.some((contact) => contact.referenceName === "Ana Clara")).toBe(true);
   });
 
+  it("returns paginated contacts filtered by tenant and description on the seeds API", async () => {
+    setSession({
+      user: { id: "local-app-user-tiago", email: "tiago@igreja.org", firstName: "Tiago", lastName: "Souza" },
+      membership: {
+        tenantUserId: "local-tenant-user-tiago-sape",
+        tenantId: "1",
+        tenantName: "Central Sape",
+        tenantCity: "Sape",
+        tenantState: "PB",
+        role: "coordinator",
+        caregiverId: null,
+      },
+      homePath: "/coord",
+    });
+
+    const { POST: createContactRoute, GET: getContactsRoute } = await import("@/app/api/seeds/route");
+    await createContactRoute(
+      new Request("http://localhost/api/seeds", {
+        method: "POST",
+        body: JSON.stringify({
+          tenantId: "2",
+          caregiverId: null,
+          referenceName: "Contato filtrado",
+          age: 41,
+          phone: "(83) 96666-1111",
+          city: "Mari",
+          postalCode: "58345000",
+          source: "Visita",
+          notes: "descricao chave",
+          status: "contacted",
+        }),
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+
+    const response = await getContactsRoute(
+      new Request("http://localhost/api/seeds?tenantId=2&description=chave&page=1&pageSize=10")
+    );
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as {
+      items: Array<{ tenantId: string; referenceName: string }>;
+      totalItems: number;
+      totalPages: number;
+      page: number;
+    };
+
+    expect(payload.page).toBe(1);
+    expect(payload.totalItems).toBe(1);
+    expect(payload.totalPages).toBe(1);
+    expect(payload.items[0]?.tenantId).toBe("2");
+    expect(payload.items[0]?.referenceName).toBe("Contato filtrado");
+  });
+
   it("lets the coordinator assign a caregiver and record a followup inside the current tenant", async () => {
     setSession({
       user: { id: "user-1", email: "tiago@igreja.org", firstName: "Tiago", lastName: "Souza" },
@@ -273,6 +327,40 @@ describe("MVP integration flow", () => {
     expect(followup.caregiverId).toBe("1");
     expect(followup.tenantId).toBe("1");
     expect(followup.type).toBe("call");
+  });
+
+  it("returns paginated members filtered by status on the members API", async () => {
+    setSession({
+      user: { id: "user-1", email: "tiago@igreja.org", firstName: "Tiago", lastName: "Souza" },
+      membership: {
+        tenantUserId: "tenant-user-1",
+        tenantId: "1",
+        tenantName: "Central Sape",
+        tenantCity: "Sape",
+        tenantState: "PB",
+        role: "coordinator",
+        caregiverId: null,
+      },
+      homePath: "/coord",
+    });
+
+    const { GET: getMembersRoute } = await import("@/app/api/members/route");
+    const response = await getMembersRoute(
+      new Request("http://localhost/api/members?status=in_progress&page=1&pageSize=5")
+    );
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as {
+      items: Array<{ status: string }>;
+      totalItems: number;
+      totalPages: number;
+      pageSize: number;
+    };
+
+    expect(payload.pageSize).toBe(5);
+    expect(payload.totalItems).toBeGreaterThan(0);
+    expect(payload.totalPages).toBeGreaterThan(0);
+    expect(payload.items.every((item) => item.status === "in_progress")).toBe(true);
   });
 
   it("deletes a contact inside the current tenant scope", async () => {

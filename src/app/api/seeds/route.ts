@@ -1,14 +1,41 @@
 export const dynamic = "force-dynamic";
 
-import { getDataScopeFromSession, resolveCaregiverId, resolveTenantIdForUserAccess } from "@/server/auth/access-scope";
+import { getDataScopeFromSession, listAccessibleTenantIds, resolveCaregiverId, resolveTenantIdForUserAccess } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
 import { validateHouseFrontImageDataUrl } from "@/lib/house-front-image";
-import { createSeed, listSeeds } from "@/server/repositories/mvp-repository";
+import { createSeed, listSeedsPage } from "@/server/repositories/mvp-repository";
+import { normalizePage, normalizePageSize, type ContactListingFilters } from "@/lib/listing-filters";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await requireServerAuthSession();
-    const seeds = await listSeeds(getDataScopeFromSession(session));
+    const { searchParams } = new URL(request.url);
+    const requestedTenantId = searchParams.get("tenantId") ?? undefined;
+    const accessibleTenantIds = session.membership.role === "coordinator"
+      ? await listAccessibleTenantIds(session)
+      : [session.membership.tenantId];
+
+    const scope = requestedTenantId
+      ? { tenantId: await resolveTenantIdForUserAccess(session, requestedTenantId), caregiverId: session.membership.role === "caregiver" ? session.membership.caregiverId : undefined }
+      : session.membership.role === "coordinator"
+        ? { tenantIds: accessibleTenantIds }
+        : getDataScopeFromSession(session);
+
+    const filters: ContactListingFilters = {
+      name: searchParams.get("name") ?? undefined,
+      city: searchParams.get("city") ?? undefined,
+      tenantId: requestedTenantId ?? "",
+      caregiverId: searchParams.get("caregiverId") ?? undefined,
+      dateFrom: searchParams.get("dateFrom") ?? undefined,
+      dateTo: searchParams.get("dateTo") ?? undefined,
+      description: searchParams.get("description") ?? undefined,
+      status: (searchParams.get("status") as ContactListingFilters["status"]) ?? "",
+    };
+
+    const seeds = await listSeedsPage(scope, filters, {
+      page: normalizePage(searchParams.get("page") ?? undefined, 1),
+      pageSize: normalizePageSize(searchParams.get("pageSize") ?? undefined, 10, 50),
+    });
     return Response.json(seeds);
   } catch (error) {
     return Response.json(

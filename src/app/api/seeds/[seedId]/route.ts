@@ -1,6 +1,7 @@
 import {
   assertSessionCanAccessRecord,
   getDataScopeFromSession,
+  listAccessibleTenantIds,
   resolveCaregiverId,
   resolveTenantIdForUserAccess,
 } from "@/server/auth/access-scope";
@@ -16,7 +17,9 @@ export async function PUT(request: Request, context: RouteContext) {
   try {
     const session = await requireServerAuthSession();
     const { seedId } = await context.params;
-    const currentSeed = (await listSeeds(getDataScopeFromSession(session))).find((item) => item.id === seedId);
+    const currentSeed = session.membership.role === "coordinator"
+      ? (await Promise.all((await listAccessibleTenantIds(session)).map((tenantId) => listSeeds({ tenantId })))).flat().find((item) => item.id === seedId)
+      : (await listSeeds(getDataScopeFromSession(session))).find((item) => item.id === seedId);
     if (!currentSeed) {
       return Response.json({ error: "Novo contato nao encontrado." }, { status: 404 });
     }
@@ -94,7 +97,9 @@ export async function DELETE(_request: Request, context: RouteContext) {
   try {
     const session = await requireServerAuthSession();
     const { seedId } = await context.params;
-    const currentSeed = (await listSeeds(getDataScopeFromSession(session))).find((item) => item.id === seedId);
+    const currentSeed = session.membership.role === "coordinator"
+      ? (await Promise.all((await listAccessibleTenantIds(session)).map((tenantId) => listSeeds({ tenantId })))).flat().find((item) => item.id === seedId)
+      : (await listSeeds(getDataScopeFromSession(session))).find((item) => item.id === seedId);
     if (!currentSeed) {
       return Response.json({ error: "Novo contato nao encontrado." }, { status: 404 });
     }

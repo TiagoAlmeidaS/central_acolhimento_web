@@ -67,14 +67,40 @@ export function MemberManager({
   members,
   tenants,
   caregivers,
+  hideList = false,
+  initialEditing = null,
 }: Readonly<{
   members: Member[];
   tenants: Tenant[];
   caregivers: Caregiver[];
+  hideList?: boolean;
+  initialEditing?: Member | null;
 }>) {
   const router = useRouter();
-  const [editing, setEditing] = useState<Member | null>(null);
-  const [form, setForm] = useState({ ...emptyForm, tenantId: tenants[0]?.id ?? "" });
+  const [editing, setEditing] = useState<Member | null>(initialEditing);
+  const [form, setForm] = useState(() =>
+    initialEditing
+      ? {
+          tenantId: initialEditing.tenantId,
+          caregiverId: initialEditing.caregiverId ?? "",
+          name: initialEditing.name,
+          age: initialEditing.age !== null ? String(initialEditing.age) : "",
+          phone: initialEditing.phone,
+          postalCode: initialEditing.postalCode ?? "",
+          street: initialEditing.street ?? "",
+          neighborhood: initialEditing.neighborhood ?? "",
+          addressNumber: initialEditing.addressNumber ?? "",
+          state: initialEditing.state ?? "",
+          city: initialEditing.city,
+          birthDate: initialEditing.birthDate ?? "",
+          status: initialEditing.status,
+          notes: initialEditing.notes,
+          latitude: initialEditing.latitude,
+          longitude: initialEditing.longitude,
+          isUrgent: initialEditing.isUrgent ?? false,
+        }
+      : { ...emptyForm, tenantId: tenants[0]?.id ?? "", city: tenants[0]?.city ?? "" }
+  );
   const [assigningMemberId, setAssigningMemberId] = useState<string | null>(null);
   const [savingAssignId, setSavingAssignId] = useState<string | null>(null);
   const [savingStatusId, setSavingStatusId] = useState<string | null>(null);
@@ -87,8 +113,31 @@ export function MemberManager({
   const addressPreview = useMemo(() => buildMemberAddress(form), [form]);
 
   function resetForm() {
-    setEditing(null);
-    setForm({ ...emptyForm, tenantId: tenants[0]?.id ?? "", city: tenants[0]?.city ?? "" });
+    if (initialEditing) {
+      setEditing(initialEditing);
+      setForm({
+        tenantId: initialEditing.tenantId,
+        caregiverId: initialEditing.caregiverId ?? "",
+        name: initialEditing.name,
+        age: initialEditing.age !== null ? String(initialEditing.age) : "",
+        phone: initialEditing.phone,
+        postalCode: initialEditing.postalCode ?? "",
+        street: initialEditing.street ?? "",
+        neighborhood: initialEditing.neighborhood ?? "",
+        addressNumber: initialEditing.addressNumber ?? "",
+        state: initialEditing.state ?? "",
+        city: initialEditing.city,
+        birthDate: initialEditing.birthDate ?? "",
+        status: initialEditing.status,
+        notes: initialEditing.notes,
+        latitude: initialEditing.latitude,
+        longitude: initialEditing.longitude,
+        isUrgent: initialEditing.isUrgent ?? false,
+      });
+    } else {
+      setEditing(null);
+      setForm({ ...emptyForm, tenantId: tenants[0]?.id ?? "", city: tenants[0]?.city ?? "" });
+    }
     setError(null);
     setSuccess(false);
   }
@@ -614,6 +663,7 @@ export function MemberManager({
       </Card>
 
       {/* ── List & assign ── */}
+      {!hideList ? (
       <Card padding={28}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
           <SectionTitle>
@@ -826,6 +876,7 @@ export function MemberManager({
           </div>
         )}
       </Card>
+      ) : null}
     </div>
   );
 }

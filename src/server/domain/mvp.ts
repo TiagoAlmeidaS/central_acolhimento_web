@@ -124,8 +124,17 @@ export type DashboardCard = {
   detail: string;
 };
 
+export type PaginatedListResult<T> = {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+};
+
 export type DataScope = {
   tenantId?: string;
+  tenantIds?: string[];
   caregiverId?: string | null;
 };
 

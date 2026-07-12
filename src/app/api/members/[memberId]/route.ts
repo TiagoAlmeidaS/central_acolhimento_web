@@ -1,8 +1,9 @@
 import {
   assertSessionCanAccessRecord,
   getDataScopeFromSession,
+  listAccessibleTenantIds,
   resolveCaregiverId,
-  resolveTenantId,
+  resolveTenantIdForUserAccess,
 } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
 import { deleteMember, listMembers, updateMember } from "@/server/repositories/mvp-repository";
@@ -15,7 +16,9 @@ export async function PUT(request: Request, context: RouteContext) {
   try {
     const session = await requireServerAuthSession();
     const { memberId } = await context.params;
-    const currentMember = (await listMembers(getDataScopeFromSession(session))).find((item) => item.id === memberId);
+    const currentMember = session.membership.role === "coordinator"
+      ? (await Promise.all((await listAccessibleTenantIds(session)).map((tenantId) => listMembers({ tenantId })))).flat().find((item) => item.id === memberId)
+      : (await listMembers(getDataScopeFromSession(session))).find((item) => item.id === memberId);
     if (!currentMember) {
       return Response.json({ error: "Membro nao encontrado." }, { status: 404 });
     }
@@ -47,7 +50,7 @@ export async function PUT(request: Request, context: RouteContext) {
     }
 
     const member = await updateMember(memberId, {
-      tenantId: resolveTenantId(session, body.tenantId),
+      tenantId: await resolveTenantIdForUserAccess(session, body.tenantId),
       caregiverId: resolveCaregiverId(session, body.caregiverId ?? null, { allowUnassignedForCoordinator: true }),
       seedId: body.seedId ?? null,
       name: body.name,
@@ -81,7 +84,9 @@ export async function DELETE(_request: Request, context: RouteContext) {
   try {
     const session = await requireServerAuthSession();
     const { memberId } = await context.params;
-    const currentMember = (await listMembers(getDataScopeFromSession(session))).find((item) => item.id === memberId);
+    const currentMember = session.membership.role === "coordinator"
+      ? (await Promise.all((await listAccessibleTenantIds(session)).map((tenantId) => listMembers({ tenantId })))).flat().find((item) => item.id === memberId)
+      : (await listMembers(getDataScopeFromSession(session))).find((item) => item.id === memberId);
     if (!currentMember) {
       return Response.json({ error: "Membro nao encontrado." }, { status: 404 });
     }

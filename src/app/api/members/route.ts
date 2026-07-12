@@ -1,13 +1,40 @@
 export const dynamic = "force-dynamic";
 
-import { getDataScopeFromSession, resolveCaregiverId, resolveTenantId } from "@/server/auth/access-scope";
+import { getDataScopeFromSession, listAccessibleTenantIds, resolveCaregiverId, resolveTenantIdForUserAccess } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
-import { createMember, listMembers } from "@/server/repositories/mvp-repository";
+import { createMember, listMembersPage } from "@/server/repositories/mvp-repository";
+import { normalizePage, normalizePageSize, type MemberListingFilters } from "@/lib/listing-filters";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await requireServerAuthSession();
-    const members = await listMembers(getDataScopeFromSession(session));
+    const { searchParams } = new URL(request.url);
+    const requestedTenantId = searchParams.get("tenantId") ?? undefined;
+    const accessibleTenantIds = session.membership.role === "coordinator"
+      ? await listAccessibleTenantIds(session)
+      : [session.membership.tenantId];
+
+    const scope = requestedTenantId
+      ? { tenantId: await resolveTenantIdForUserAccess(session, requestedTenantId), caregiverId: session.membership.role === "caregiver" ? session.membership.caregiverId : undefined }
+      : session.membership.role === "coordinator"
+        ? { tenantIds: accessibleTenantIds }
+        : getDataScopeFromSession(session);
+
+    const filters: MemberListingFilters = {
+      name: searchParams.get("name") ?? undefined,
+      city: searchParams.get("city") ?? undefined,
+      tenantId: requestedTenantId ?? "",
+      caregiverId: searchParams.get("caregiverId") ?? undefined,
+      dateFrom: searchParams.get("dateFrom") ?? undefined,
+      dateTo: searchParams.get("dateTo") ?? undefined,
+      description: searchParams.get("description") ?? undefined,
+      status: (searchParams.get("status") as MemberListingFilters["status"]) ?? "",
+    };
+
+    const members = await listMembersPage(scope, filters, {
+      page: normalizePage(searchParams.get("page") ?? undefined, 1),
+      pageSize: normalizePageSize(searchParams.get("pageSize") ?? undefined, 10, 50),
+    });
     return Response.json(members);
   } catch (error) {
     return Response.json(
@@ -50,7 +77,7 @@ export async function POST(request: Request) {
     }
 
     const member = await createMember({
-      tenantId: resolveTenantId(session, body.tenantId),
+      tenantId: await resolveTenantIdForUserAccess(session, body.tenantId),
       caregiverId: resolveCaregiverId(session, body.caregiverId ?? null, { allowUnassignedForCoordinator: true }),
       seedId: body.seedId ?? null,
       name: body.name,

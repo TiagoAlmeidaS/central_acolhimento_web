@@ -1,4 +1,4 @@
-import { assertSessionCanAccessRecord, getDataScopeFromSession, resolveCaregiverId } from "@/server/auth/access-scope";
+import { assertSessionCanAccessRecord, getDataScopeFromSession, listAccessibleTenantIds, resolveCaregiverId } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
 import { convertSeedToMember, listSeeds } from "@/server/repositories/mvp-repository";
 
@@ -10,7 +10,9 @@ export async function POST(request: Request, context: RouteContext) {
   try {
     const session = await requireServerAuthSession();
     const { seedId } = await context.params;
-    const seed = (await listSeeds(getDataScopeFromSession(session))).find((item) => item.id === seedId);
+    const seed = session.membership.role === "coordinator"
+      ? (await Promise.all((await listAccessibleTenantIds(session)).map((tenantId) => listSeeds({ tenantId })))).flat().find((item) => item.id === seedId)
+      : (await listSeeds(getDataScopeFromSession(session))).find((item) => item.id === seedId);
     if (!seed) {
       return Response.json({ error: "Novo contato nao encontrado." }, { status: 404 });
     }

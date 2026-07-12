@@ -2,6 +2,7 @@ import {
   assertSessionCanAccessRecord,
   assertSessionRole,
   getDataScopeFromSession,
+  listAccessibleTenantIds,
 } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
 import { assignCaregiverToMember, listMembers } from "@/server/repositories/mvp-repository";
@@ -15,7 +16,9 @@ export async function POST(request: Request, context: RouteContext) {
     const session = await requireServerAuthSession();
     assertSessionRole(session, "coordinator");
     const { memberId } = await context.params;
-    const currentMember = (await listMembers(getDataScopeFromSession(session))).find((item) => item.id === memberId);
+    const currentMember = session.membership.role === "coordinator"
+      ? (await Promise.all((await listAccessibleTenantIds(session)).map((tenantId) => listMembers({ tenantId })))).flat().find((item) => item.id === memberId)
+      : (await listMembers(getDataScopeFromSession(session))).find((item) => item.id === memberId);
     if (!currentMember) {
       return Response.json({ error: "Membro nao encontrado." }, { status: 404 });
     }

@@ -1,4 +1,5 @@
 import { assertDatabaseConfigured, getDbPool, isDatabaseConfigured, isInMemoryFallbackAllowed } from "@/lib/db";
+import { filterContacts, filterMembers, paginateItems, type ContactListingFilters, type MemberListingFilters } from "@/lib/listing-filters";
 import {
   caregivers as caregiverMocks,
   latestActivity as followupMocks,
@@ -16,6 +17,7 @@ import type {
   DashboardCard,
   Followup,
   Member,
+  PaginatedListResult,
   Seed,
   Tenant,
   DataScope,
@@ -442,6 +444,10 @@ function matchesScope(
     return false;
   }
 
+  if (!scope?.tenantId && scope?.tenantIds?.length && !scope.tenantIds.includes(item.tenantId)) {
+    return false;
+  }
+
   if (scope?.caregiverId && item.caregiverId !== scope.caregiverId) {
     return false;
   }
@@ -451,7 +457,7 @@ function matchesScope(
 
 function appendScopedWhereClause(
   clauses: string[],
-  values: Array<string | boolean>,
+  values: any[],
   scope?: DataScope,
   aliases?: { tenant?: string; caregiver?: string }
 ) {
@@ -461,6 +467,9 @@ function appendScopedWhereClause(
   if (scope?.tenantId) {
     values.push(scope.tenantId);
     clauses.push(`${tenantColumn} = $${values.length}`);
+  } else if (scope?.tenantIds?.length) {
+    values.push(scope.tenantIds);
+    clauses.push(`${tenantColumn} = ANY($${values.length})`);
   }
 
   if (scope?.caregiverId) {
@@ -472,7 +481,13 @@ function appendScopedWhereClause(
 export async function listTenants(scope?: DataScope): Promise<Tenant[]> {
   if (!isDatabaseReady()) {
     if (!scope?.tenantId) {
-      return [...localTenantsStore].sort((a, b) => a.name.localeCompare(b.name));
+      if (!scope?.tenantIds?.length) {
+        return [...localTenantsStore].sort((a, b) => a.name.localeCompare(b.name));
+      }
+
+      return localTenantsStore
+        .filter((tenant) => scope.tenantIds?.includes(tenant.id))
+        .sort((a, b) => a.name.localeCompare(b.name));
     }
     return localTenantsStore
       .filter((tenant) => tenant.id === scope.tenantId)
@@ -480,10 +495,14 @@ export async function listTenants(scope?: DataScope): Promise<Tenant[]> {
   }
 
   const db = ensureDb();
-  const values: string[] = [];
-  const where = scope?.tenantId ? "where id = $1" : "";
+  const values: any[] = [];
+  let where = "";
   if (scope?.tenantId) {
     values.push(scope.tenantId);
+    where = "where id = $1";
+  } else if (scope?.tenantIds?.length) {
+    values.push(scope.tenantIds);
+    where = "where id = ANY($1)";
   }
   const result = await db.query<TenantRow>(`select * from tenants ${where} order by name`, values);
   return result.rows.map(mapTenant);
@@ -551,6 +570,10 @@ export async function listCaregivers(scope?: DataScope): Promise<Caregiver[]> {
           return false;
         }
 
+        if (!scope?.tenantId && scope?.tenantIds?.length && !scope.tenantIds.includes(caregiver.tenantId)) {
+          return false;
+        }
+
         if (scope?.caregiverId && caregiver.id !== scope.caregiverId) {
           return false;
         }
@@ -564,20 +587,27 @@ export async function listCaregivers(scope?: DataScope): Promise<Caregiver[]> {
   }
 
   const db = ensureDb();
-  const values: string[] = [];
+  const values: any[] = [];
   const clauses: string[] = [];
   appendScopedWhereClause(clauses, values, scope, { caregiver: "id" });
   const where = clauses.length > 0 ? `where ${clauses.join(" and ")}` : "";
+  const tenantScope = scope?.tenantId ? { tenantId: scope.tenantId } : scope?.tenantIds?.length ? { tenantIds: scope.tenantIds } : undefined;
+  const memberCountWhere = scope?.tenantId
+    ? "where tenant_id = $1 and caregiver_id is not null"
+    : scope?.tenantIds?.length
+      ? "where tenant_id = ANY($1) and caregiver_id is not null"
+      : "where caregiver_id is not null";
+  const memberCountValues = scope?.tenantId ? [scope.tenantId] : scope?.tenantIds?.length ? [scope.tenantIds] : [];
   const [result, tenants, memberCounts] = await Promise.all([
     db.query<CaregiverRow>(`select * from caregivers ${where} order by name`, values),
-    listTenants(scope?.tenantId ? { tenantId: scope.tenantId } : undefined),
+    listTenants(tenantScope),
     db.query<{ caregiver_id: string | null; total: string }>(
       `select caregiver_id, count(*)::text as total
        from members
-       ${scope?.tenantId ? "where tenant_id = $1 and caregiver_id is not null" : "where caregiver_id is not null"}
+       ${memberCountWhere}
        group by caregiver_id`
       ,
-      scope?.tenantId ? [scope.tenantId] : []
+      memberCountValues
     ),
   ]);
   const tenantMap = new Map(tenants.map((tenant) => [tenant.id, tenant.city]));
@@ -692,6 +722,20 @@ export async function listSeeds(scope?: DataScope): Promise<Seed[]> {
       caregiver: seed.caregiverId ? caregiverMap.get(seed.caregiverId) ?? null : null,
     };
   });
+}
+
+export async function listSeedsPage(
+  scope: DataScope | undefined,
+  filters: ContactListingFilters,
+  pagination: { page: number; pageSize: number }
+): Promise<PaginatedListResult<Seed>> {
+  const items = await listSeeds(scope);
+  const filtered = filterContacts(items, filters).sort((a, b) => {
+    const left = b.firstContactAt ?? b.createdAt ?? "";
+    const right = a.firstContactAt ?? a.createdAt ?? "";
+    return left.localeCompare(right);
+  });
+  return paginateItems(filtered, pagination.page, pagination.pageSize);
 }
 
 export async function createSeed(input: CreateSeedInput): Promise<Seed> {
@@ -978,6 +1022,16 @@ export async function listMembers(scope?: DataScope): Promise<Member[]> {
       lastContact: formatDateLabel(latestFollowupMap.get(member.id)?.occurredAt ?? null),
     };
   });
+}
+
+export async function listMembersPage(
+  scope: DataScope | undefined,
+  filters: MemberListingFilters,
+  pagination: { page: number; pageSize: number }
+): Promise<PaginatedListResult<Member>> {
+  const items = await listMembers(scope);
+  const filtered = filterMembers(items, filters).sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+  return paginateItems(filtered, pagination.page, pagination.pageSize);
 }
 
 export async function createMember(input: CreateMemberInput): Promise<Member> {

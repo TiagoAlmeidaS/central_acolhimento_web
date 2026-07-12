@@ -146,18 +146,46 @@ const emptyForm = {
 export function ContactManager({
   contacts,
   tenants,
+  hideList = false,
+  initialEditing = null,
 }: Readonly<{
   contacts: Seed[];
   tenants: Tenant[];
+  hideList?: boolean;
+  initialEditing?: Seed | null;
 }>) {
   const router = useRouter();
   const defaultTenant = tenants[0] ?? null;
-  const [editing, setEditing] = useState<Seed | null>(null);
-  const [form, setForm] = useState({
-    ...emptyForm,
-    tenantId: defaultTenant?.id ?? "",
-    city: defaultTenant?.city ?? "",
-  });
+  const [editing, setEditing] = useState<Seed | null>(initialEditing);
+  const [form, setForm] = useState(() =>
+    initialEditing
+      ? {
+          tenantId: initialEditing.tenantId,
+          referenceName: initialEditing.referenceName,
+          age: initialEditing.age !== null ? String(initialEditing.age) : "",
+          phone: initialEditing.phone,
+          city: initialEditing.city,
+          postalCode: initialEditing.postalCode,
+          source: initialEditing.source,
+          status: initialEditing.status,
+          notes: initialEditing.notes,
+          firstContactAt: initialEditing.firstContactAt ? initialEditing.firstContactAt.slice(0, 10) : "",
+          openHouse: initialEditing.openHouse,
+          address: initialEditing.address,
+          street: initialEditing.street,
+          neighborhood: initialEditing.neighborhood,
+          addressNumber: initialEditing.addressNumber,
+          state: initialEditing.state,
+          houseFrontImageUrl: initialEditing.houseFrontImageUrl ?? "",
+          latitude: initialEditing.latitude,
+          longitude: initialEditing.longitude,
+        }
+      : {
+          ...emptyForm,
+          tenantId: defaultTenant?.id ?? "",
+          city: defaultTenant?.city ?? "",
+        }
+  );
   const [submitting, setSubmitting] = useState(false);
   const [convertingId, setConvertingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -168,13 +196,38 @@ export function ContactManager({
   const addressPreview = useMemo(() => composeAddress(form), [form]);
 
   function resetForm() {
-    const fallbackTenant = tenants.find((tenant) => tenant.id === form.tenantId) ?? defaultTenant;
-    setEditing(null);
-    setForm({
-      ...emptyForm,
-      tenantId: fallbackTenant?.id ?? "",
-      city: fallbackTenant?.city ?? "",
-    });
+    if (initialEditing) {
+      setEditing(initialEditing);
+      setForm({
+        tenantId: initialEditing.tenantId,
+        referenceName: initialEditing.referenceName,
+        age: initialEditing.age !== null ? String(initialEditing.age) : "",
+        phone: initialEditing.phone,
+        city: initialEditing.city,
+        postalCode: initialEditing.postalCode,
+        source: initialEditing.source,
+        status: initialEditing.status,
+        notes: initialEditing.notes,
+        firstContactAt: initialEditing.firstContactAt ? initialEditing.firstContactAt.slice(0, 10) : "",
+        openHouse: initialEditing.openHouse,
+        address: initialEditing.address,
+        street: initialEditing.street,
+        neighborhood: initialEditing.neighborhood,
+        addressNumber: initialEditing.addressNumber,
+        state: initialEditing.state,
+        houseFrontImageUrl: initialEditing.houseFrontImageUrl ?? "",
+        latitude: initialEditing.latitude,
+        longitude: initialEditing.longitude,
+      });
+    } else {
+      const fallbackTenant = tenants.find((tenant) => tenant.id === form.tenantId) ?? defaultTenant;
+      setEditing(null);
+      setForm({
+        ...emptyForm,
+        tenantId: fallbackTenant?.id ?? "",
+        city: fallbackTenant?.city ?? "",
+      });
+    }
     setError(null);
     setSuccess(false);
   }
@@ -788,6 +841,7 @@ export function ContactManager({
         </form>
       </Card>
 
+      {!hideList ? (
       <Card padding={20}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, gap: 12 }}>
           <SectionTitle>Fila de novos contatos</SectionTitle>
@@ -918,6 +972,7 @@ export function ContactManager({
           })}
         </div>
       </Card>
+      ) : null}
     </div>
   );
 }
