@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { Caregiver, Member, OutingDetail, OutingEvent, Tenant } from "@/server/domain/mvp";
 import { Avatar, Button, Card, Input, SectionTitle, Select, Textarea } from "@/ui/v2-components/ui";
 import { IconCalendar, IconCar, IconCheck, IconPlus, IconRefresh, IconUsers, IconX } from "@/ui/v2-components/icons";
+import { formatParticipantAvailabilityMessage } from "@/ui/mvp/outing-manager-utils";
 
 type OutingSummary = OutingEvent;
 
@@ -111,6 +112,15 @@ export function OutingManager({ outings, tenants, caregivers, members }: Readonl
   const availableMembers = useMemo(() => members.filter((member) => member.tenantId === activeTenantId), [members, activeTenantId]);
   const availableCaregivers = useMemo(() => caregivers.filter((caregiver) => caregiver.tenantId === activeTenantId), [caregivers, activeTenantId]);
   const currentTenant = tenants.find((tenant) => tenant.id === activeTenantId) ?? null;
+  const availabilityMessage = formatParticipantAvailabilityMessage({
+    tenant: currentTenant,
+    selectedType,
+    members: availableMembers,
+    caregivers: availableCaregivers,
+  });
+  const hasRegisteredOptions =
+    selectedType === "guest" ||
+    (selectedType === "member" ? availableMembers.length > 0 : availableCaregivers.length > 0);
 
   async function refreshOutings(nextSelectedOutingId?: string) {
     const response = await fetch("/api/outings");
@@ -439,6 +449,19 @@ export function OutingManager({ outings, tenants, caregivers, members }: Readonl
               </div>
             </div>
 
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+              <div style={diagnosticCardStyle}>
+                <div style={diagnosticLabelStyle}>Membros na localidade</div>
+                <div style={diagnosticValueStyle}>{availableMembers.length}</div>
+                <div style={diagnosticDetailStyle}>{currentTenant?.name ?? "Sem localidade ativa"}</div>
+              </div>
+              <div style={diagnosticCardStyle}>
+                <div style={diagnosticLabelStyle}>Cuidadores na localidade</div>
+                <div style={diagnosticValueStyle}>{availableCaregivers.length}</div>
+                <div style={diagnosticDetailStyle}>{currentTenant?.name ?? "Sem localidade ativa"}</div>
+              </div>
+            </div>
+
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
               <Card padding={16}>
                 <SectionTitle>Adicionar participante</SectionTitle>
@@ -456,6 +479,20 @@ export function OutingManager({ outings, tenants, caregivers, members }: Readonl
                       { value: "guest", label: "Participante avulso" },
                     ]}
                   />
+
+                  <div
+                    style={{
+                      padding: "12px 14px",
+                      borderRadius: 12,
+                      border: hasRegisteredOptions ? "1px solid #BFDBFE" : "1px solid #FECACA",
+                      background: hasRegisteredOptions ? "#EFF6FF" : "#FEF2F2",
+                      color: hasRegisteredOptions ? "#1D4ED8" : "#B91C1C",
+                      fontSize: 12.5,
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {availabilityMessage}
+                  </div>
 
                   {selectedType === "member" ? (
                     <Select
@@ -697,4 +734,33 @@ const linkDangerStyle: CSSProperties = {
   fontSize: 12.5,
   fontWeight: 700,
   cursor: "pointer",
+};
+
+const diagnosticCardStyle: CSSProperties = {
+  padding: "14px 16px",
+  borderRadius: 14,
+  border: "1px solid var(--border)",
+  background: "var(--surface)",
+};
+
+const diagnosticLabelStyle: CSSProperties = {
+  fontSize: 12,
+  fontWeight: 700,
+  color: "var(--text-3)",
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+};
+
+const diagnosticValueStyle: CSSProperties = {
+  marginTop: 6,
+  fontSize: 28,
+  fontWeight: 800,
+  color: "var(--text)",
+  lineHeight: 1,
+};
+
+const diagnosticDetailStyle: CSSProperties = {
+  marginTop: 6,
+  fontSize: 12.5,
+  color: "var(--text-2)",
 };
