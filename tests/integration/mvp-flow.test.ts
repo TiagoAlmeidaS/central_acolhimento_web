@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createSessionToken } from "@/server/auth/session";
 import type { AuthSession } from "@/server/domain/mvp";
 import { listFollowups, listMembers, listSeeds, resetLocalMvpStore } from "@/server/repositories/mvp-repository";
+import { resetLocalAuthStore } from "@/server/repositories/auth-repository";
 import { resetLocalOutingsStore } from "@/server/repositories/outing-repository";
 import { resetLocalTciStore } from "@/server/repositories/tci-repository";
 
@@ -38,6 +39,7 @@ describe("MVP integration flow", () => {
     delete process.env.POSTGRES_URL;
     delete process.env.DATABASE_URL;
     resetLocalMvpStore();
+    resetLocalAuthStore();
     resetLocalOutingsStore();
     resetLocalTciStore();
     cookieState.value = "";
@@ -367,6 +369,38 @@ describe("MVP integration flow", () => {
     expect(payload.items.every((item) => item.status === "in_progress")).toBe(true);
   });
 
+  it("exports filtered members as CSV", async () => {
+    setSession({
+      user: { id: "user-1", email: "tiago@igreja.org", firstName: "Tiago", lastName: "Souza" },
+      membership: {
+        tenantUserId: "tenant-user-1",
+        tenantId: "1",
+        tenantName: "Central Sape",
+        tenantCity: "Sape",
+        tenantState: "PB",
+        role: "coordinator",
+        caregiverId: null,
+      },
+      homePath: "/coord",
+    });
+
+    const { GET: exportMembersRoute } = await import("@/app/api/members/export/route");
+    const response = await exportMembersRoute(
+      new Request("http://localhost/api/members/export?status=in_progress&tenantId=1"),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toContain("text/csv");
+    expect(response.headers.get("Content-Disposition")).toContain("membros-");
+
+    const csv = await response.text();
+    const lines = csv.trim().split("\n");
+
+    expect(lines[0]).toContain("id;nome;idade;telefone;status");
+    expect(lines.length).toBeGreaterThan(1);
+    expect(lines.slice(1).every((line) => line.includes("in_progress"))).toBe(true);
+  });
+
   it("deletes a contact inside the current tenant scope", async () => {
     setSession({
       user: { id: "user-1", email: "tiago@igreja.org", firstName: "Tiago", lastName: "Souza" },
@@ -687,5 +721,104 @@ describe("MVP integration flow", () => {
     expect(statusResponse.status).toBe(200);
     const updatedSession = (await statusResponse.json()) as { status: string };
     expect(updatedSession.status).toBe("completed");
+  });
+
+  it("loads and updates the coordinator profile and refreshes the session cookie data", async () => {
+    setSession({
+      user: { id: "local-app-user-tiago", email: "tiago@igreja.org", firstName: "Tiago", lastName: "Almeida" },
+      membership: {
+        tenantUserId: "local-tenant-user-tiago-sape",
+        tenantId: "1",
+        tenantName: "Central Sape",
+        tenantCity: "Sape",
+        tenantState: "PB",
+        role: "coordinator",
+        caregiverId: null,
+      },
+      homePath: "/coord",
+    });
+
+    const { GET: getProfileRoute, PUT: updateProfileRoute } = await import("@/app/api/profile/route");
+
+    const getResponse = await getProfileRoute();
+    expect(getResponse.status).toBe(200);
+    const profile = (await getResponse.json()) as { firstName: string; role: string; tenantName: string };
+    expect(profile.firstName).toBe("Tiago");
+    expect(profile.role).toBe("coordinator");
+    expect(profile.tenantName).toBe("Central Sape");
+
+    const updateResponse = await updateProfileRoute(
+      new Request("http://localhost/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: "Tiago",
+          lastName: "Souza",
+          phone: "(83) 98888-0001",
+        }),
+      }),
+    );
+
+    expect(updateResponse.status).toBe(200);
+    const updatedProfile = (await updateResponse.json()) as { fullName: string; phone: string };
+    expect(updatedProfile.fullName).toBe("Tiago Souza");
+    expect(updatedProfile.phone).toBe("(83) 98888-0001");
+
+    const { GET: getSessionRoute } = await import("@/app/api/auth/session/route");
+    const sessionResponse = await getSessionRoute();
+    const sessionPayload = (await sessionResponse.json()) as { session: AuthSession };
+    expect(sessionPayload.session.user.lastName).toBe("Souza");
+  });
+
+  it("loads caregiver profile with operational block and allows password change", async () => {
+    setSession({
+      user: { id: "local-app-user-maria", email: "maria@igreja.org", firstName: "Maria", lastName: "Oliveira" },
+      membership: {
+        tenantUserId: "local-tenant-user-maria-sape",
+        tenantId: "1",
+        tenantName: "Central Sape",
+        tenantCity: "Sape",
+        tenantState: "PB",
+        role: "caregiver",
+        caregiverId: "1",
+      },
+      homePath: "/cuidador",
+    });
+
+    const { GET: getProfileRoute } = await import("@/app/api/profile/route");
+    const profileResponse = await getProfileRoute();
+    expect(profileResponse.status).toBe(200);
+    const profile = (await profileResponse.json()) as { caregiver: { caregiverId: string; name: string } | null };
+    expect(profile.caregiver?.caregiverId).toBe("1");
+    expect(profile.caregiver?.name).toBeTruthy();
+
+    const { PATCH: patchPasswordRoute } = await import("@/app/api/profile/password/route");
+    const passwordResponse = await patchPasswordRoute(
+      new Request("http://localhost/api/profile/password", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: "12345678",
+          newPassword: "novaSenha123",
+        }),
+      }),
+    );
+
+    expect(passwordResponse.status).toBe(200);
+
+    const invalidPasswordResponse = await patchPasswordRoute(
+      new Request("http://localhost/api/profile/password", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: "senhaErrada",
+          newPassword: "outraSenha123",
+        }),
+      }),
+    );
+
+    expect(invalidPasswordResponse.status).toBe(500);
+    const invalidPayload = (await invalidPasswordResponse.json()) as { error?: string };
+    expect(invalidPayload.error).toMatch(/senha atual invalida/i);
   });
 });

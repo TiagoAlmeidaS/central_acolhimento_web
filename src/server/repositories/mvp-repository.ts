@@ -376,6 +376,20 @@ export function resetLocalMvpStore() {
   localFollowupsStore.splice(0, localFollowupsStore.length, ...buildLocalFollowups());
 }
 
+export function updateLocalCaregiverIdentity(
+  caregiverId: string,
+  input: { name: string; phone: string; email?: string | null },
+) {
+  const caregiver = localCaregiversStore.find((item) => item.id === caregiverId);
+  if (!caregiver) {
+    return;
+  }
+
+  caregiver.name = input.name;
+  caregiver.phone = input.phone;
+  caregiver.email = input.email ?? caregiver.email ?? null;
+}
+
 function isDatabaseReady() {
   if (!isDatabaseConfigured()) {
     if (isInMemoryFallbackAllowed()) {

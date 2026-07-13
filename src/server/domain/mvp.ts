@@ -220,6 +220,31 @@ export type TciSession = {
   updatedAt?: string;
 };
 
+export type UserProfileView = {
+  appUserId: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  active: boolean;
+  tenantUserId: string;
+  tenantId: string;
+  tenantName: string;
+  tenantCity: string;
+  tenantState: string;
+  role: AppRole;
+  caregiver: {
+    caregiverId: string;
+    name: string;
+    phone: string;
+    email: string | null;
+    active: boolean;
+    notes: string;
+    activeMembers: number;
+  } | null;
+};
+
 export type DashboardCard = {
   label: string;
   value: string;

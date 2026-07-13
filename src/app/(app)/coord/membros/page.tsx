@@ -28,6 +28,18 @@ function buildPageHref(basePath: string, searchParams: Record<string, string | s
   return `${basePath}?${params.toString()}`;
 }
 
+function buildSearchHref(basePath: string, searchParams: Record<string, string | string[] | undefined>, ignoredKeys: string[] = []) {
+  const params = new URLSearchParams();
+  for (const [key, rawValue] of Object.entries(searchParams)) {
+    const value = firstValue(rawValue);
+    if (!value || ignoredKeys.includes(key)) continue;
+    params.set(key, value);
+  }
+
+  const query = params.toString();
+  return query ? `${basePath}?${query}` : basePath;
+}
+
 const STATUS_LABELS: Record<Member["status"], string> = {
   new: "Novo",
   in_progress: "Em acompanhamento",
@@ -142,24 +154,29 @@ export default async function MembersPage({ searchParams }: PageProps) {
               <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Filtros</div>
               <div style={{ fontSize: 12.5, color: "var(--text-3)" }}>Nome, cidade, localidade, cuidador, data, descricao e status.</div>
             </div>
-            <Link
-              href="/coord/membros/novo"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 42,
-                padding: "0 16px",
-                borderRadius: 12,
-                background: "var(--accent)",
-                color: "#fff",
-                textDecoration: "none",
-                fontSize: 13.5,
-                fontWeight: 700,
-              }}
-            >
-              Novo membro
-            </Link>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <Link href={buildSearchHref("/api/members/export", resolvedSearchParams, ["page"])} style={secondaryLinkStyle}>
+                Exportar CSV
+              </Link>
+              <Link
+                href="/coord/membros/novo"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: 42,
+                  padding: "0 16px",
+                  borderRadius: 12,
+                  background: "var(--accent)",
+                  color: "#fff",
+                  textDecoration: "none",
+                  fontSize: 13.5,
+                  fontWeight: 700,
+                }}
+              >
+                Novo membro
+              </Link>
+            </div>
           </div>
 
           <form method="get" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>

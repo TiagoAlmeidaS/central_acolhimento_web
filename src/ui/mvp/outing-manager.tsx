@@ -64,6 +64,24 @@ export function OutingManager({ outings, tenants, caregivers, members }: Readonl
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
   const [constraintLabel, setConstraintLabel] = useState("");
 
+  async function loadOutingDetail(outingId: string) {
+    setLoadingDetail(true);
+
+    try {
+      const response = await fetch(`/api/outings/${outingId}`);
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(payload.error ?? "Nao foi possivel carregar a saida.");
+      }
+
+      const payload = (await response.json()) as DetailResponse;
+      setDetail(payload);
+      return payload;
+    } finally {
+      setLoadingDetail(false);
+    }
+  }
+
   useEffect(() => {
     if (!selectedOutingId) {
       setDetail(null);
@@ -71,16 +89,7 @@ export function OutingManager({ outings, tenants, caregivers, members }: Readonl
     }
 
     let cancelled = false;
-    setLoadingDetail(true);
-    fetch(`/api/outings/${selectedOutingId}`)
-      .then(async (response) => {
-        if (!response.ok) {
-          const payload = (await response.json().catch(() => ({}))) as { error?: string };
-          throw new Error(payload.error ?? "Nao foi possivel carregar a saida.");
-        }
-
-        return response.json() as Promise<DetailResponse>;
-      })
+    loadOutingDetail(selectedOutingId)
       .then((payload) => {
         if (!cancelled) {
           setDetail(payload);
@@ -90,11 +99,6 @@ export function OutingManager({ outings, tenants, caregivers, members }: Readonl
         if (!cancelled) {
           setError(nextError instanceof Error ? nextError.message : "Nao foi possivel carregar a saida.");
           setDetail(null);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoadingDetail(false);
         }
       });
 
@@ -112,14 +116,30 @@ export function OutingManager({ outings, tenants, caregivers, members }: Readonl
     const response = await fetch("/api/outings");
     const payload = (await response.json().catch(() => [])) as OutingSummary[];
     setItems(payload);
-    if (nextSelectedOutingId) {
-      setSelectedOutingId(nextSelectedOutingId);
+    const resolvedOutingId = nextSelectedOutingId ?? selectedOutingId;
+
+    if (!resolvedOutingId) {
+      setSelectedOutingId(payload[0]?.id ?? "");
       return;
     }
 
-    if (!payload.some((item) => item.id === selectedOutingId)) {
-      setSelectedOutingId(payload[0]?.id ?? "");
+    if (!payload.some((item) => item.id === resolvedOutingId)) {
+      const fallbackId = payload[0]?.id ?? "";
+      setSelectedOutingId(fallbackId);
+      if (fallbackId) {
+        await loadOutingDetail(fallbackId);
+      } else {
+        setDetail(null);
+      }
+      return;
     }
+
+    if (resolvedOutingId !== selectedOutingId) {
+      setSelectedOutingId(resolvedOutingId);
+      return;
+    }
+
+    await loadOutingDetail(resolvedOutingId);
   }
 
   async function handleCreateOuting(event: FormEvent<HTMLFormElement>) {

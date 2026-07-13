@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { Pool, PoolClient, QueryResult } from "pg";
 import { assertDatabaseConfigured, getDbPool, isDatabaseConfigured, isInMemoryFallbackAllowed } from "@/lib/db";
-import { createTenant } from "@/server/repositories/mvp-repository";
+import { createTenant, updateLocalCaregiverIdentity } from "@/server/repositories/mvp-repository";
 import type {
   AppUser,
   AuthUser,
@@ -246,6 +246,106 @@ export async function findAppUserByEmail(email: string) {
   );
 
   return result.rows[0] ? mapAppUser(result.rows[0]) : null;
+}
+
+export async function findAppUserById(appUserId: string) {
+  if (!isDatabaseConfigured() && isInMemoryFallbackAllowed()) {
+    const record = Array.from(localAuthStore.values()).find((item) => item.appUser.id === appUserId);
+    return record ? mapAppUser(record.appUser) : null;
+  }
+
+  const db = ensureDb();
+  const result = await db.query<AppUserRow>(
+    `select * from app_users where id = $1 limit 1`,
+    [appUserId]
+  );
+
+  return result.rows[0] ? mapAppUser(result.rows[0]) : null;
+}
+
+export async function updateAppUserProfile(
+  appUserId: string,
+  input: { firstName: string; lastName: string; phone: string }
+) {
+  const fullName = `${input.firstName} ${input.lastName}`.trim();
+
+  if (!isDatabaseConfigured() && isInMemoryFallbackAllowed()) {
+    for (const [email, record] of localAuthStore.entries()) {
+      if (record.appUser.id !== appUserId) {
+        continue;
+      }
+
+      record.appUser = {
+        ...record.appUser,
+        first_name: input.firstName,
+        last_name: input.lastName,
+        phone: input.phone,
+      };
+
+      const caregiverIds = record.memberships
+        .map((membership) => membership.caregiverId)
+        .filter((value): value is string => Boolean(value));
+
+      for (const caregiverId of caregiverIds) {
+        updateLocalCaregiverIdentity(caregiverId, {
+          name: fullName,
+          phone: input.phone,
+          email: record.appUser.email,
+        });
+      }
+
+      localAuthStore.set(email, record);
+      return mapAppUser(record.appUser);
+    }
+
+    throw new Error("Usuario nao encontrado.");
+  }
+
+  const db = ensureDb();
+  const client = await db.connect();
+
+  try {
+    await client.query("begin");
+
+    const userResult = await client.query<AppUserRow>(
+      `update app_users
+          set first_name = $2,
+              last_name = $3,
+              phone = $4
+        where id = $1
+        returning *`,
+      [appUserId, input.firstName, input.lastName, input.phone]
+    );
+
+    if (!userResult.rows[0]) {
+      throw new Error("Usuario nao encontrado.");
+    }
+
+    await client.query(
+      `update tenant_users
+          set name = $2
+        where app_user_id = $1`,
+      [appUserId, fullName]
+    );
+
+    await client.query(
+      `update caregivers
+          set name = $2,
+              phone = $3
+        where tenant_user_id in (
+          select id from tenant_users where app_user_id = $1
+        )`,
+      [appUserId, fullName, input.phone]
+    );
+
+    await client.query("commit");
+    return mapAppUser(userResult.rows[0]);
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function createAppUser(
