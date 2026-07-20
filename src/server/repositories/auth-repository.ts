@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { Pool, PoolClient, QueryResult } from "pg";
 import { assertDatabaseConfigured, getDbPool, isDatabaseConfigured, isInMemoryFallbackAllowed } from "@/lib/db";
-import { createTenant, updateLocalCaregiverIdentity } from "@/server/repositories/mvp-repository";
+import { createTenant, linkLocalCaregiverToTenantUser, listTenants, updateLocalCaregiverIdentity } from "@/server/repositories/mvp-repository";
 import type {
   AppUser,
   AuthUser,
@@ -396,6 +396,106 @@ export async function createAppUser(
   )) as QueryResult<AppUserRow>;
 
   return mapAppUser(result.rows[0]);
+}
+
+export async function createAccessForExistingCaregiver(input: {
+  caregiverId: string;
+  tenantId: string;
+  caregiverName: string;
+  phone: string;
+  email: string;
+  password: string;
+}) {
+  const existingUser = await findAppUserByEmail(input.email);
+  if (existingUser) {
+    throw new Error("Ja existe uma conta cadastrada com este email.");
+  }
+
+  const [firstName, ...lastNameParts] = input.caregiverName.trim().split(/\s+/);
+  const lastName = lastNameParts.join(" ") || "Cuidador";
+
+  if (!isDatabaseConfigured() && isInMemoryFallbackAllowed()) {
+    const appUser = await createAppUser({
+      firstName,
+      lastName,
+      email: input.email,
+      phone: input.phone,
+      password: input.password,
+      active: true,
+    });
+    const tenantUserId = crypto.randomUUID();
+    const tenant = (await listTenants({ tenantId: input.tenantId }))[0];
+
+    appendLocalUserMembership(input.email, {
+      tenantUserId,
+      tenantId: input.tenantId,
+      tenantName: tenant?.name ?? "Central",
+      tenantCity: tenant?.city ?? "",
+      tenantState: tenant?.state ?? "",
+      role: "caregiver",
+      caregiverId: input.caregiverId,
+    });
+    linkLocalCaregiverToTenantUser(input.caregiverId, {
+      tenantUserId,
+      email: input.email,
+      phone: input.phone,
+    });
+
+    return {
+      appUser,
+      tenantUserId,
+      caregiverId: input.caregiverId,
+    };
+  }
+
+  const db = ensureDb();
+  const client = await db.connect();
+
+  try {
+    await client.query("begin");
+
+    const appUser = await createAppUser(
+      {
+        firstName,
+        lastName,
+        email: input.email,
+        phone: input.phone,
+        password: input.password,
+        active: true,
+      },
+      client,
+    );
+
+    const tenantUserResult = await client.query<{ id: string }>(
+      `insert into tenant_users (tenant_id, auth_user_id, app_user_id, name, email, role, active)
+       values ($1, $2, $3, $4, $5, 'caregiver', true)
+       returning id`,
+      [input.tenantId, appUser.id, appUser.id, input.caregiverName, appUser.email],
+    );
+    const tenantUserId = tenantUserResult.rows[0]?.id;
+
+    await client.query(
+      `update caregivers
+          set tenant_user_id = $2,
+              email = $3,
+              phone = $4
+        where id = $1`,
+      [input.caregiverId, tenantUserId, input.email, input.phone],
+    );
+
+    await client.query("commit");
+
+    return {
+      appUser,
+      tenantUserId,
+      caregiverId: input.caregiverId,
+    };
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function registerCoordinatorAccount(input: {

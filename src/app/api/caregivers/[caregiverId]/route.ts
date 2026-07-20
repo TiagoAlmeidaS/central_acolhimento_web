@@ -32,7 +32,7 @@ export async function PUT(request: Request, context: RouteContext) {
 
     const caregiver = await updateCaregiver(caregiverId, {
       tenantId: resolveTenantId(session, body.tenantId),
-      tenantUserId: body.tenantUserId ?? null,
+      tenantUserId: body.tenantUserId !== undefined ? body.tenantUserId : currentCaregiver.tenantUserId,
       name: body.name,
       phone: body.phone,
       email: body.email ?? null,

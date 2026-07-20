@@ -186,6 +186,57 @@ describe("auth route integration", () => {
     expect(loginPayload.session.membership.role).toBe("caregiver");
     expect(loginPayload.session.membership.tenantName).toBe("Central Sapé");
   });
+  it("creates access for an existing caregiver without duplicating the caregiver assignment", async () => {
+    const coordinatorSession = createSessionToken({
+      user: { id: "user-1", email: "tiago@igreja.org", firstName: "Tiago", lastName: "Souza" },
+      membership: {
+        tenantUserId: "tenant-user-1",
+        tenantId: "1",
+        tenantName: "Central Sape",
+        tenantCity: "Sape",
+        tenantState: "PB",
+        role: "coordinator",
+        caregiverId: null,
+      },
+      homePath: "/coord",
+    });
+    cookieState.value = coordinatorSession;
+
+    const { POST: createCaregiverAccess } = await import("@/app/api/caregivers/[caregiverId]/access/route");
+    const accessResponse = await createCaregiverAccess(
+      new Request("http://localhost/api/caregivers/1/access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "betania@igreja.org",
+          password: "Central@123",
+        }),
+      }),
+      { params: Promise.resolve({ caregiverId: "1" }) }
+    );
+
+    expect(accessResponse.status).toBe(201);
+    cookieState.value = "";
+
+    const { POST: login } = await import("@/app/api/auth/login/route");
+    const loginResponse = await login(
+      new Request("http://localhost/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "betania@igreja.org",
+          password: "Central@123",
+        }),
+      })
+    );
+
+    expect(loginResponse.status).toBe(200);
+    const loginPayload = (await loginResponse.json()) as { type: string; session: AuthSession };
+    expect(loginPayload.type).toBe("authenticated");
+    expect(loginPayload.session.membership.role).toBe("caregiver");
+    expect(loginPayload.session.membership.caregiverId).toBe("1");
+  });
+
   it("registers multiple caregivers through the same global signup channel", async () => {
     const coordinatorSession = createSessionToken({
       user: { id: "user-1", email: "tiago@igreja.org", firstName: "Tiago", lastName: "Souza" },

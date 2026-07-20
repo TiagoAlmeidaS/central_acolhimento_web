@@ -390,6 +390,21 @@ export function updateLocalCaregiverIdentity(
   caregiver.email = input.email ?? caregiver.email ?? null;
 }
 
+export function linkLocalCaregiverToTenantUser(
+  caregiverId: string,
+  input: { tenantUserId: string; email: string; phone?: string },
+) {
+  const caregiver = localCaregiversStore.find((item) => item.id === caregiverId);
+  if (!caregiver) {
+    throw new Error("Cuidador nao encontrado.");
+  }
+
+  caregiver.tenantUserId = input.tenantUserId;
+  caregiver.email = input.email;
+  caregiver.phone = input.phone ?? caregiver.phone;
+  return caregiver;
+}
+
 function isDatabaseReady() {
   if (!isDatabaseConfigured()) {
     if (isInMemoryFallbackAllowed()) {
