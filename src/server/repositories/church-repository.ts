@@ -125,12 +125,16 @@ function appendScope(clauses: string[], values: unknown[], scope?: DataScope, al
   }
 }
 
-function dateOnly(value: string | null | undefined) {
-  return value ? value.slice(0, 10) : null;
+function dateOnly(value: string | Date | null | undefined) {
+  if (!value) return null;
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return String(value).slice(0, 10);
 }
 
-function timeOnly(value: string | null | undefined) {
-  return value ? value.slice(0, 5) : null;
+function timeOnly(value: string | Date | null | undefined) {
+  if (!value) return null;
+  if (value instanceof Date) return value.toISOString().slice(11, 16);
+  return String(value).slice(0, 5);
 }
 
 function mapMembership(row: ChurchMembershipRow): ChurchMembership {
