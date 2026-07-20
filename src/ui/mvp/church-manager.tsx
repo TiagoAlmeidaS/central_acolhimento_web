@@ -47,6 +47,8 @@ const attendancePalette: Record<ChurchAttendanceStatus, { bg: string; fg: string
   justified: { bg: "#FEF3C7", fg: "#B45309", border: "#FDE68A" },
 };
 
+const pageSize = 8;
+
 export function ChurchManager({ tenants, members, churchMembers, meetingTypes, occurrences }: Readonly<Props>) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"overview" | "members" | "meetings" | "attendance">("overview");
@@ -56,6 +58,14 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
   const [attendance, setAttendance] = useState<ChurchAttendanceRecord[]>([]);
   const [selectedOccurrenceId, setSelectedOccurrenceId] = useState(occurrences[0]?.id ?? "");
   const [search, setSearch] = useState("");
+  const [memberFilters, setMemberFilters] = useState({ tenantId: "", status: "", query: "" });
+  const [memberPage, setMemberPage] = useState(1);
+  const [meetingFilters, setMeetingFilters] = useState({ tenantId: "", recurrenceKind: "", query: "" });
+  const [typePage, setTypePage] = useState(1);
+  const [occurrenceFilters, setOccurrenceFilters] = useState({ tenantId: "", meetingTypeId: "", status: "", dateFrom: "", dateTo: "" });
+  const [occurrencePage, setOccurrencePage] = useState(1);
+  const [attendanceStatusFilter, setAttendanceStatusFilter] = useState("");
+  const [attendancePage, setAttendancePage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -109,10 +119,45 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
   }, [members, memberItems, membershipForm.tenantId]);
 
   const currentOccurrence = occurrenceItems.find((item) => item.id === selectedOccurrenceId) ?? occurrenceItems[0] ?? null;
-  const filteredAttendance = attendance.filter((item) => `${item.memberName ?? ""} ${item.memberPhone ?? ""}`.toLowerCase().includes(search.toLowerCase()));
+  const filteredAttendance = attendance.filter((item) => {
+    const matchesSearch = `${item.memberName ?? ""} ${item.memberPhone ?? ""}`.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = !attendanceStatusFilter || item.status === attendanceStatusFilter;
+    return matchesSearch && matchesStatus;
+  });
+  const pagedAttendance = paginate(filteredAttendance, attendancePage, pageSize);
   const attendanceProgress = attendance.length
     ? `${attendance.filter((item) => item.status !== "unmarked").length}/${attendance.length}`
     : "0/0";
+  const filteredMemberships = useMemo(() => {
+    return memberItems.filter((membership) => {
+      const matchesTenant = !memberFilters.tenantId || membership.tenantId === memberFilters.tenantId;
+      const matchesStatus = !memberFilters.status || membership.status === memberFilters.status;
+      const query = memberFilters.query.toLowerCase();
+      const matchesQuery = `${membership.memberName ?? ""} ${membership.memberPhone ?? ""} ${membership.memberCity ?? ""} ${membership.caregiverName ?? ""}`.toLowerCase().includes(query);
+      return matchesTenant && matchesStatus && matchesQuery;
+    });
+  }, [memberItems, memberFilters]);
+  const pagedMemberships = paginate(filteredMemberships, memberPage, pageSize);
+  const filteredMeetingTypes = useMemo(() => {
+    return typeItems.filter((type) => {
+      const matchesTenant = !meetingFilters.tenantId || type.tenantId === meetingFilters.tenantId;
+      const matchesKind = !meetingFilters.recurrenceKind || type.recurrenceKind === meetingFilters.recurrenceKind;
+      const matchesQuery = `${type.name} ${type.description} ${type.notes}`.toLowerCase().includes(meetingFilters.query.toLowerCase());
+      return matchesTenant && matchesKind && matchesQuery;
+    });
+  }, [meetingFilters, typeItems]);
+  const pagedMeetingTypes = paginate(filteredMeetingTypes, typePage, pageSize);
+  const filteredOccurrences = useMemo(() => {
+    return occurrenceItems.filter((occurrence) => {
+      const matchesTenant = !occurrenceFilters.tenantId || occurrence.tenantId === occurrenceFilters.tenantId;
+      const matchesType = !occurrenceFilters.meetingTypeId || occurrence.meetingTypeId === occurrenceFilters.meetingTypeId;
+      const matchesStatus = !occurrenceFilters.status || occurrence.status === occurrenceFilters.status;
+      const matchesFrom = !occurrenceFilters.dateFrom || occurrence.occursOn >= occurrenceFilters.dateFrom;
+      const matchesTo = !occurrenceFilters.dateTo || occurrence.occursOn <= occurrenceFilters.dateTo;
+      return matchesTenant && matchesType && matchesStatus && matchesFrom && matchesTo;
+    });
+  }, [occurrenceFilters, occurrenceItems]);
+  const pagedOccurrences = paginate(filteredOccurrences, occurrencePage, pageSize);
 
   async function reloadAll() {
     const [membersResponse, typesResponse, occurrencesResponse] = await Promise.all([
@@ -243,6 +288,9 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
     if (!records) return;
     setSelectedOccurrenceId(occurrenceId);
     setAttendance(records);
+    setAttendancePage(1);
+    setSearch("");
+    setAttendanceStatusFilter("");
     setActiveTab("attendance");
   }
 
@@ -351,11 +399,42 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
             </Card>
 
             <Card padding={20} style={{ gridColumn: "1 / -1" }}>
-              <SectionTitle action={<span style={counterStyle}>{memberItems.length} vinculo(s)</span>}>Membros da Igreja</SectionTitle>
+              <SectionTitle action={<span style={counterStyle}>{filteredMemberships.length} de {memberItems.length} vinculo(s)</span>}>Membros da Igreja</SectionTitle>
+              <div style={filterGridStyle}>
+                <Input
+                  placeholder="Buscar por nome, telefone, cidade ou cuidador"
+                  value={memberFilters.query}
+                  onChange={(value) => {
+                    setMemberFilters((current) => ({ ...current, query: value }));
+                    setMemberPage(1);
+                  }}
+                  icon={<IconSearch />}
+                />
+                <Select
+                  value={memberFilters.tenantId}
+                  onChange={(value) => {
+                    setMemberFilters((current) => ({ ...current, tenantId: value }));
+                    setMemberPage(1);
+                  }}
+                  options={[{ value: "", label: "Todas as localidades" }, ...tenants.map((tenant) => ({ value: tenant.id, label: tenant.name }))]}
+                />
+                <Select
+                  value={memberFilters.status}
+                  onChange={(value) => {
+                    setMemberFilters((current) => ({ ...current, status: value }));
+                    setMemberPage(1);
+                  }}
+                  options={[
+                    { value: "", label: "Todos os status" },
+                    { value: "active", label: "Ativos" },
+                    { value: "inactive", label: "Inativos" },
+                  ]}
+                />
+              </div>
               <div style={tableWrapStyle}>
                 <table style={tableStyle}>
                   <tbody>
-                    {memberItems.map((membership) => (
+                    {pagedMemberships.items.map((membership) => (
                       <tr key={membership.id} style={rowBorderStyle}>
                         <td style={cellStyle}>
                           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -377,6 +456,8 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
                   </tbody>
                 </table>
               </div>
+              {filteredMemberships.length === 0 ? <EmptyText>Nenhum membro encontrado com os filtros atuais.</EmptyText> : null}
+              <PaginationControls page={memberPage} totalPages={pagedMemberships.totalPages} totalItems={filteredMemberships.length} onPageChange={setMemberPage} />
             </Card>
           </div>
         ) : null}
@@ -418,8 +499,39 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
 
             <Card padding={20} style={{ gridColumn: "1 / -1" }}>
               <SectionTitle>Tipos e proximas ocorrencias</SectionTitle>
+              <div style={filterGridStyle}>
+                <Input
+                  placeholder="Buscar tipo de reuniao"
+                  value={meetingFilters.query}
+                  onChange={(value) => {
+                    setMeetingFilters((current) => ({ ...current, query: value }));
+                    setTypePage(1);
+                  }}
+                  icon={<IconSearch />}
+                />
+                <Select
+                  value={meetingFilters.tenantId}
+                  onChange={(value) => {
+                    setMeetingFilters((current) => ({ ...current, tenantId: value }));
+                    setTypePage(1);
+                  }}
+                  options={[{ value: "", label: "Todas as localidades" }, ...tenants.map((tenant) => ({ value: tenant.id, label: tenant.name }))]}
+                />
+                <Select
+                  value={meetingFilters.recurrenceKind}
+                  onChange={(value) => {
+                    setMeetingFilters((current) => ({ ...current, recurrenceKind: value }));
+                    setTypePage(1);
+                  }}
+                  options={[
+                    { value: "", label: "Todas as recorrencias" },
+                    { value: "weekly", label: "Semanais" },
+                    { value: "none", label: "Avulsas" },
+                  ]}
+                />
+              </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
-                {typeItems.map((type) => (
+                {pagedMeetingTypes.items.map((type) => (
                   <div key={type.id} style={{ border: "1px solid var(--border)", borderRadius: 14, padding: 14, background: "var(--surface-2)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ width: 12, height: 12, borderRadius: 99, background: type.color }} />
@@ -435,11 +547,70 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
                   </div>
                 ))}
               </div>
+              {filteredMeetingTypes.length === 0 ? <EmptyText>Nenhum tipo encontrado com os filtros atuais.</EmptyText> : null}
+              <PaginationControls page={typePage} totalPages={pagedMeetingTypes.totalPages} totalItems={filteredMeetingTypes.length} onPageChange={setTypePage} />
+              <div style={{ height: 1, background: "var(--border)", margin: "18px 0" }} />
+              <div style={filterGridStyle}>
+                <Select
+                  value={occurrenceFilters.tenantId}
+                  onChange={(value) => {
+                    setOccurrenceFilters((current) => ({ ...current, tenantId: value, meetingTypeId: "" }));
+                    setOccurrencePage(1);
+                  }}
+                  options={[{ value: "", label: "Todas as localidades" }, ...tenants.map((tenant) => ({ value: tenant.id, label: tenant.name }))]}
+                />
+                <Select
+                  value={occurrenceFilters.meetingTypeId}
+                  onChange={(value) => {
+                    setOccurrenceFilters((current) => ({ ...current, meetingTypeId: value }));
+                    setOccurrencePage(1);
+                  }}
+                  options={[
+                    { value: "", label: "Todos os tipos" },
+                    ...typeItems
+                      .filter((type) => !occurrenceFilters.tenantId || type.tenantId === occurrenceFilters.tenantId)
+                      .map((type) => ({ value: type.id, label: type.name })),
+                  ]}
+                />
+                <Select
+                  value={occurrenceFilters.status}
+                  onChange={(value) => {
+                    setOccurrenceFilters((current) => ({ ...current, status: value }));
+                    setOccurrencePage(1);
+                  }}
+                  options={[
+                    { value: "", label: "Todos os status" },
+                    { value: "scheduled", label: "Agendadas" },
+                    { value: "completed", label: "Concluidas" },
+                    { value: "cancelled", label: "Canceladas" },
+                  ]}
+                />
+                <Input
+                  label="De"
+                  type="date"
+                  value={occurrenceFilters.dateFrom}
+                  onChange={(value) => {
+                    setOccurrenceFilters((current) => ({ ...current, dateFrom: value }));
+                    setOccurrencePage(1);
+                  }}
+                />
+                <Input
+                  label="Ate"
+                  type="date"
+                  value={occurrenceFilters.dateTo}
+                  onChange={(value) => {
+                    setOccurrenceFilters((current) => ({ ...current, dateTo: value }));
+                    setOccurrencePage(1);
+                  }}
+                />
+              </div>
               <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-                {occurrenceItems.slice(0, 8).map((occurrence) => (
+                {pagedOccurrences.items.map((occurrence) => (
                   <OccurrenceRow key={occurrence.id} occurrence={occurrence} onOpenAttendance={() => openAttendance(occurrence.id)} />
                 ))}
               </div>
+              {filteredOccurrences.length === 0 ? <EmptyText>Nenhuma ocorrencia encontrada com os filtros atuais.</EmptyText> : null}
+              <PaginationControls page={occurrencePage} totalPages={pagedOccurrences.totalPages} totalItems={filteredOccurrences.length} onPageChange={setOccurrencePage} />
             </Card>
           </div>
         ) : null}
@@ -450,12 +621,34 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
             <div style={{ display: "grid", gridTemplateColumns: "minmax(220px, 340px) 1fr", gap: 16 }}>
               <div style={stackStyle}>
                 <Select label="Ocorrencia" value={currentOccurrence?.id ?? selectedOccurrenceId} onChange={(value) => openAttendance(value)} options={occurrenceItems.map((item) => ({ value: item.id, label: `${item.meetingTypeName ?? "Reuniao"} · ${formatDate(item.occursOn)}` }))} />
-                <Input placeholder="Buscar na chamada" value={search} onChange={setSearch} icon={<IconSearch />} />
+                <Input
+                  placeholder="Buscar na chamada"
+                  value={search}
+                  onChange={(value) => {
+                    setSearch(value);
+                    setAttendancePage(1);
+                  }}
+                  icon={<IconSearch />}
+                />
+                <Select
+                  value={attendanceStatusFilter}
+                  onChange={(value) => {
+                    setAttendanceStatusFilter(value);
+                    setAttendancePage(1);
+                  }}
+                  options={[
+                    { value: "", label: "Todas as marcacoes" },
+                    { value: "unmarked", label: "Nao conferidos" },
+                    { value: "present", label: "Presentes" },
+                    { value: "absent", label: "Ausentes" },
+                    { value: "justified", label: "Justificados" },
+                  ]}
+                />
                 {currentOccurrence ? <Button type="button" variant="primary" disabled={submitting || attendance.some((item) => item.status === "unmarked")} onClick={closeAttendance} icon={<IconCheck />} full>Fechar chamada</Button> : null}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {attendance.length === 0 ? <EmptyText>Selecione uma ocorrencia para abrir a chamada.</EmptyText> : null}
-                {filteredAttendance.map((record) => (
+                {pagedAttendance.items.map((record) => (
                   <div key={record.id} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "center", padding: 12, border: "1px solid var(--border)", borderRadius: 14, background: "var(--surface-2)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                       <Avatar name={record.memberName ?? "Membro"} size={36} />
@@ -476,6 +669,8 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
                     </div>
                   </div>
                 ))}
+                {attendance.length > 0 && filteredAttendance.length === 0 ? <EmptyText>Nenhuma pessoa encontrada na chamada com os filtros atuais.</EmptyText> : null}
+                <PaginationControls page={attendancePage} totalPages={pagedAttendance.totalPages} totalItems={filteredAttendance.length} onPageChange={setAttendancePage} />
               </div>
             </div>
           </Card>
@@ -567,7 +762,54 @@ function attendanceButtonStyle(status: ChurchAttendanceStatus, active: boolean):
   };
 }
 
+function paginate<T>(items: T[], page: number, size: number) {
+  const totalPages = Math.max(1, Math.ceil(items.length / size));
+  const safePage = Math.min(Math.max(page, 1), totalPages);
+  const start = (safePage - 1) * size;
+  return {
+    items: items.slice(start, start + size),
+    totalPages,
+  };
+}
+
+function PaginationControls({
+  page,
+  totalPages,
+  totalItems,
+  onPageChange,
+}: Readonly<{
+  page: number;
+  totalPages: number;
+  totalItems: number;
+  onPageChange: (page: number) => void;
+}>) {
+  if (totalItems <= pageSize) return null;
+
+  const safePage = Math.min(Math.max(page, 1), totalPages);
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 14, flexWrap: "wrap" }}>
+      <span style={counterStyle}>
+        Pagina {safePage} de {totalPages} · {totalItems} resultado(s)
+      </span>
+      <div style={{ display: "flex", gap: 8 }}>
+        <Button type="button" variant="secondary" size="sm" disabled={safePage <= 1} onClick={() => onPageChange(safePage - 1)}>
+          Anterior
+        </Button>
+        <Button type="button" variant="secondary" size="sm" disabled={safePage >= totalPages} onClick={() => onPageChange(safePage + 1)}>
+          Proxima
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 const stackStyle: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 12 };
+const filterGridStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gap: 12,
+  marginBottom: 16,
+};
 const counterStyle: React.CSSProperties = { fontSize: 12, color: "var(--text-3)", fontWeight: 600 };
 const strongTextStyle: React.CSSProperties = { fontSize: 14, fontWeight: 800, color: "var(--text)", minWidth: 0 };
 const mutedTextStyle: React.CSSProperties = { fontSize: 12.5, color: "var(--text-2)", lineHeight: 1.45 };
