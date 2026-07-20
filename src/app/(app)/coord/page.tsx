@@ -9,7 +9,23 @@ import {
   listFollowups,
   listMembers,
   listSeeds,
+  listTenants,
 } from "@/server/repositories/mvp-repository";
+import {
+  listChurchAttendance,
+  listChurchMeetingTypes,
+  listChurchMemberships,
+  listChurchOccurrences,
+} from "@/server/repositories/church-repository";
+import type {
+  ChurchAttendanceRecord,
+  ChurchMeetingOccurrence,
+  ChurchMeetingType,
+  ChurchMembership,
+  DataScope,
+  Followup,
+  Member,
+} from "@/server/domain/mvp";
 import { Avatar, Button, Card, StatusDot } from "@/ui/v2-components/ui";
 import { DashboardMap } from "@/ui/mvp/dashboard-map";
 import {
@@ -21,11 +37,70 @@ import {
   IconBell,
   IconCalendar,
   IconCheck,
+  IconChart,
+  IconChurch,
   IconDoc,
+  IconFilter,
   IconHeart,
   IconHourglass,
+  IconMessage,
   IconUsers,
 } from "@/ui/v2-components/icons";
+
+type PageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+type ChurchPeriod = "day" | "week" | "month";
+
+type PeriodRange = {
+  start: string;
+  end: string;
+  label: string;
+};
+
+type ChurchMetricComparison = {
+  value: number;
+  previous: number | null;
+  delta: number | null;
+};
+
+type ChurchAttentionItem = {
+  member: Member;
+  caregiverName: string | null;
+  lastPresence: string | null;
+  sampleTotal: number;
+  presentTotal: number;
+  absentTotal: number;
+  justifiedTotal: number;
+  consecutiveAbsences: number;
+  frequency: number | null;
+  priority: "alta" | "media" | "baixa";
+  reason: string;
+  latestFollowup: Followup | null;
+  overdueAction: Followup | null;
+};
+
+type ChurchProfileDashboard = {
+  range: PeriodRange;
+  previousRange: PeriodRange;
+  activeMemberships: number;
+  closedOccurrences: ChurchMeetingOccurrence[];
+  pendingOccurrences: ChurchMeetingOccurrence[];
+  meetingTypes: ChurchMeetingType[];
+  presentPeople: ChurchMetricComparison;
+  averageFrequency: ChurchMetricComparison;
+  attendanceBase: {
+    present: number;
+    eligible: number;
+    absent: number;
+    justified: number;
+  };
+  trend: Array<{ label: string; present: number; eligible: number; rate: number | null }>;
+  attention: ChurchAttentionItem[];
+  inCareCases: number;
+  overdueContacts: number;
+};
 
 interface KpiCardProps {
   icon: React.ReactElement;
@@ -142,7 +217,6 @@ function StatusDonut({
   const stroke = 20;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
-  let offset = 0;
 
   const colors: Record<string, string> = {
     novo: "#EA580C",
@@ -150,14 +224,17 @@ function StatusDonut({
     concluido: "#16A34A",
     inativo: "#64748B",
   };
+  const segments = data.reduce<Array<{ item: (typeof data)[number]; length: number; offset: number }>>((acc, item) => {
+    const offset = acc.reduce((sum, segment) => sum + segment.length, 0);
+    const length = total > 0 ? (item.count / total) * circumference : 0;
+    return [...acc, { item, length, offset }];
+  }, []);
 
   return (
     <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
       <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
         <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--surface-2)" strokeWidth={stroke} />
-        {data.map((item) => {
-          const segmentLength = total > 0 ? (item.count / total) * circumference : 0;
-          const segment = (
+        {segments.map(({ item, length, offset }) => (
             <circle
               key={item.key}
               cx={size / 2}
@@ -166,14 +243,11 @@ function StatusDonut({
               fill="none"
               stroke={colors[item.key] ?? "#94A3B8"}
               strokeWidth={stroke}
-              strokeDasharray={`${segmentLength} ${circumference}`}
+              strokeDasharray={`${length} ${circumference}`}
               strokeDashoffset={-offset}
               strokeLinecap="butt"
             />
-          );
-          offset += segmentLength;
-          return segment;
-        })}
+        ))}
       </svg>
       <div
         style={{
@@ -276,16 +350,481 @@ function CapacityRow({ caregiver }: { caregiver: CaregiverPerformance }) {
   );
 }
 
-export default async function CoordDashboardPage() {
+function firstValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function todayDateOnly() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function parseDateOnly(value: string) {
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? new Date(`${todayDateOnly()}T00:00:00`) : parsed;
+}
+
+function toDateOnly(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+function addDays(value: string, amount: number) {
+  const date = parseDateOnly(value);
+  date.setDate(date.getDate() + amount);
+  return toDateOnly(date);
+}
+
+function formatDateLabel(value: string) {
+  return parseDateOnly(value).toLocaleDateString("pt-BR", { timeZone: "UTC" });
+}
+
+function formatShortDateLabel(value: string) {
+  return parseDateOnly(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "UTC" });
+}
+
+function resolvePeriodRange(period: ChurchPeriod, referenceDate: string): PeriodRange {
+  const reference = parseDateOnly(referenceDate);
+
+  if (period === "day") {
+    const day = toDateOnly(reference);
+    return { start: day, end: day, label: formatDateLabel(day) };
+  }
+
+  if (period === "month") {
+    const start = new Date(Date.UTC(reference.getUTCFullYear(), reference.getUTCMonth(), 1));
+    const end = new Date(Date.UTC(reference.getUTCFullYear(), reference.getUTCMonth() + 1, 0));
+    return {
+      start: toDateOnly(start),
+      end: toDateOnly(end),
+      label: start.toLocaleDateString("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" }),
+    };
+  }
+
+  const weekday = reference.getUTCDay();
+  const distanceFromMonday = weekday === 0 ? 6 : weekday - 1;
+  const start = new Date(reference);
+  start.setUTCDate(reference.getUTCDate() - distanceFromMonday);
+  const end = new Date(start);
+  end.setUTCDate(start.getUTCDate() + 6);
+  return {
+    start: toDateOnly(start),
+    end: toDateOnly(end),
+    label: `${formatShortDateLabel(toDateOnly(start))} a ${formatShortDateLabel(toDateOnly(end))}`,
+  };
+}
+
+function resolvePreviousRange(period: ChurchPeriod, range: PeriodRange): PeriodRange {
+  if (period === "day") {
+    return resolvePeriodRange(period, addDays(range.start, -1));
+  }
+
+  if (period === "month") {
+    const start = parseDateOnly(range.start);
+    start.setUTCMonth(start.getUTCMonth() - 1);
+    return resolvePeriodRange(period, toDateOnly(start));
+  }
+
+  return resolvePeriodRange(period, addDays(range.start, -7));
+}
+
+function isDateBetween(value: string, start: string, end: string) {
+  return value >= start && value <= end;
+}
+
+function isMembershipEligible(membership: ChurchMembership, occursOn: string) {
+  if (membership.status !== "active") return false;
+  if (membership.startedAt && membership.startedAt > occursOn) return false;
+  if (membership.endedAt && membership.endedAt < occursOn) return false;
+  return true;
+}
+
+function percent(numerator: number, denominator: number) {
+  return denominator > 0 ? Math.round((numerator / denominator) * 100) : null;
+}
+
+function comparison(value: number, previous: number | null): ChurchMetricComparison {
+  if (previous === null) {
+    return { value, previous: null, delta: null };
+  }
+
+  return { value, previous, delta: value - previous };
+}
+
+function formatComparison(item: ChurchMetricComparison, suffix = "") {
+  if (item.previous === null || item.delta === null) return "Sem base anterior";
+  const sign = item.delta > 0 ? "+" : "";
+  return `${sign}${item.delta}${suffix} vs. periodo anterior`;
+}
+
+async function loadAttendanceForOccurrences(occurrences: ChurchMeetingOccurrence[], scope: DataScope) {
+  const pairs = await Promise.all(
+    occurrences.map(async (occurrence) => ({
+      occurrence,
+      records: await listChurchAttendance(occurrence.id, scope),
+    })),
+  );
+  return pairs;
+}
+
+function summarizeAttendance(
+  pairs: Array<{ occurrence: ChurchMeetingOccurrence; records: ChurchAttendanceRecord[] }>,
+  memberships: ChurchMembership[],
+  meetingTypeId?: string,
+) {
+  let eligible = 0;
+  let present = 0;
+  let absent = 0;
+  let justified = 0;
+  const presentMembers = new Set<string>();
+
+  for (const { occurrence, records } of pairs) {
+    if (meetingTypeId && occurrence.meetingTypeId !== meetingTypeId) continue;
+    const eligibleMemberIds = new Set(
+      memberships
+        .filter((membership) => membership.tenantId === occurrence.tenantId && isMembershipEligible(membership, occurrence.occursOn))
+        .map((membership) => membership.memberId),
+    );
+    for (const record of records) {
+      if (!eligibleMemberIds.has(record.memberId)) continue;
+      if (record.status === "unmarked") continue;
+      eligible += 1;
+      if (record.status === "present") {
+        present += 1;
+        presentMembers.add(record.memberId);
+      }
+      if (record.status === "absent") absent += 1;
+      if (record.status === "justified") justified += 1;
+    }
+  }
+
+  return {
+    eligible,
+    present,
+    absent,
+    justified,
+    presentPeople: presentMembers.size,
+    averageFrequency: percent(present, eligible),
+  };
+}
+
+function buildTrend(
+  pairs: Array<{ occurrence: ChurchMeetingOccurrence; records: ChurchAttendanceRecord[] }>,
+  memberships: ChurchMembership[],
+  period: ChurchPeriod,
+  range: PeriodRange,
+  meetingTypeId?: string,
+) {
+  const buckets = new Map<string, { label: string; present: number; eligible: number }>();
+
+  for (const { occurrence, records } of pairs) {
+    if (meetingTypeId && occurrence.meetingTypeId !== meetingTypeId) continue;
+    const key =
+      period === "month"
+        ? `Semana ${Math.floor((parseDateOnly(occurrence.occursOn).getUTCDate() - 1) / 7) + 1}`
+        : occurrence.occursOn;
+    const label = period === "month" ? key : formatShortDateLabel(occurrence.occursOn);
+    const bucket = buckets.get(key) ?? { label, present: 0, eligible: 0 };
+    const eligibleMemberIds = new Set(
+      memberships
+        .filter((membership) => membership.tenantId === occurrence.tenantId && isMembershipEligible(membership, occurrence.occursOn))
+        .map((membership) => membership.memberId),
+    );
+    for (const record of records) {
+      if (!eligibleMemberIds.has(record.memberId) || record.status === "unmarked") continue;
+      bucket.eligible += 1;
+      if (record.status === "present") bucket.present += 1;
+    }
+    buckets.set(key, bucket);
+  }
+
+  if (period === "day" && buckets.size === 0) {
+    return [{ label: formatShortDateLabel(range.start), present: 0, eligible: 0, rate: null }];
+  }
+
+  return Array.from(buckets.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, bucket]) => ({
+      ...bucket,
+      rate: percent(bucket.present, bucket.eligible),
+    }));
+}
+
+function buildAttentionList(input: {
+  pairs: Array<{ occurrence: ChurchMeetingOccurrence; records: ChurchAttendanceRecord[] }>;
+  memberships: ChurchMembership[];
+  members: Member[];
+  caregiversById: Map<string, string>;
+  followups: Followup[];
+  meetingTypeId?: string;
+}) {
+  const memberMap = new Map(input.members.map((member) => [member.id, member]));
+  const followupsByMember = new Map<string, Followup[]>();
+  for (const followup of input.followups) {
+    const list = followupsByMember.get(followup.memberId) ?? [];
+    list.push(followup);
+    followupsByMember.set(followup.memberId, list);
+  }
+
+  const activeMemberIds = new Set(input.memberships.filter((membership) => membership.status === "active").map((membership) => membership.memberId));
+
+  const items: Array<ChurchAttentionItem | null> = Array.from(activeMemberIds)
+    .map((memberId) => {
+      const member = memberMap.get(memberId);
+      if (!member) return null;
+
+      const attendance = input.pairs
+        .filter(({ occurrence }) => !input.meetingTypeId || occurrence.meetingTypeId === input.meetingTypeId)
+        .flatMap(({ occurrence, records }) =>
+          records
+            .filter((record) => record.memberId === memberId && record.status !== "unmarked")
+            .map((record) => ({ record, occursOn: occurrence.occursOn })),
+        )
+        .sort((a, b) => a.occursOn.localeCompare(b.occursOn));
+
+      const sampleTotal = attendance.length;
+      const presentTotal = attendance.filter(({ record }) => record.status === "present").length;
+      const absentTotal = attendance.filter(({ record }) => record.status === "absent").length;
+      const justifiedTotal = attendance.filter(({ record }) => record.status === "justified").length;
+      const frequency = percent(presentTotal, sampleTotal);
+      const lastPresence = [...attendance].reverse().find(({ record }) => record.status === "present")?.occursOn ?? null;
+
+      let consecutiveAbsences = 0;
+      for (const item of [...attendance].reverse()) {
+        if (item.record.status === "present") break;
+        if (item.record.status === "absent") consecutiveAbsences += 1;
+      }
+
+      const latestFollowup: Followup | null =
+        (followupsByMember.get(memberId) ?? []).sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))[0] ?? null;
+      const overdueAction: Followup | null =
+        (followupsByMember.get(memberId) ?? [])
+          .filter((followup) => followup.nextActionAt && new Date(followup.nextActionAt) < new Date())
+          .sort((a, b) => (a.nextActionAt ?? "").localeCompare(b.nextActionAt ?? ""))[0] ?? null;
+
+      const daysWithoutPresence = lastPresence
+        ? Math.floor((parseDateOnly(todayDateOnly()).getTime() - parseDateOnly(lastPresence).getTime()) / 86_400_000)
+        : null;
+      const needsAttention =
+        consecutiveAbsences >= 2 ||
+        (sampleTotal >= 3 && frequency !== null && frequency < 50) ||
+        (daysWithoutPresence !== null && daysWithoutPresence >= 21 && sampleTotal >= 2) ||
+        overdueAction !== null;
+
+      if (!needsAttention) return null;
+
+      const priority: ChurchAttentionItem["priority"] =
+        overdueAction || consecutiveAbsences >= 3 || (frequency !== null && frequency < 35 && sampleTotal >= 3)
+          ? "alta"
+          : consecutiveAbsences >= 2 || (frequency !== null && frequency < 50)
+            ? "media"
+            : "baixa";
+
+      const reason = overdueAction
+        ? "Proxima acao vencida"
+        : consecutiveAbsences >= 2
+          ? `${consecutiveAbsences} ausencias consecutivas`
+          : frequency !== null
+            ? `Frequencia de ${frequency}% na amostra`
+            : "Sem presenca recente";
+
+      return {
+        member,
+        caregiverName: member.caregiverId ? input.caregiversById.get(member.caregiverId) ?? null : null,
+        lastPresence,
+        sampleTotal,
+        presentTotal,
+        absentTotal,
+        justifiedTotal,
+        consecutiveAbsences,
+        frequency,
+        priority,
+        reason,
+        latestFollowup,
+        overdueAction,
+      };
+    });
+
+  return items
+    .filter((item): item is ChurchAttentionItem => item !== null)
+    .sort((a, b) => {
+      const priorityWeight = { alta: 0, media: 1, baixa: 2 };
+      return priorityWeight[a.priority] - priorityWeight[b.priority] || b.consecutiveAbsences - a.consecutiveAbsences || a.member.name.localeCompare(b.member.name);
+    })
+    .slice(0, 6);
+}
+
+async function buildChurchProfileDashboard(input: {
+  scope: DataScope;
+  period: ChurchPeriod;
+  referenceDate: string;
+  meetingTypeId?: string;
+  members: Member[];
+  caregivers: Array<{ id: string; name: string }>;
+  followups: Followup[];
+}): Promise<ChurchProfileDashboard> {
+  const range = resolvePeriodRange(input.period, input.referenceDate);
+  const previousRange = resolvePreviousRange(input.period, range);
+  const sampleStart = addDays(range.end, -30);
+
+  const [memberships, meetingTypes, occurrences] = await Promise.all([
+    listChurchMemberships(input.scope),
+    listChurchMeetingTypes(input.scope),
+    listChurchOccurrences(input.scope),
+  ]);
+
+  const closedOccurrences = occurrences.filter(
+    (occurrence) =>
+      occurrence.status === "completed" &&
+      Boolean(occurrence.attendanceClosedAt) &&
+      isDateBetween(occurrence.occursOn, range.start, range.end) &&
+      (!input.meetingTypeId || occurrence.meetingTypeId === input.meetingTypeId),
+  );
+  const previousClosedOccurrences = occurrences.filter(
+    (occurrence) =>
+      occurrence.status === "completed" &&
+      Boolean(occurrence.attendanceClosedAt) &&
+      isDateBetween(occurrence.occursOn, previousRange.start, previousRange.end) &&
+      (!input.meetingTypeId || occurrence.meetingTypeId === input.meetingTypeId),
+  );
+  const sampleOccurrences = occurrences.filter(
+    (occurrence) =>
+      occurrence.status === "completed" &&
+      Boolean(occurrence.attendanceClosedAt) &&
+      isDateBetween(occurrence.occursOn, sampleStart, range.end) &&
+      (!input.meetingTypeId || occurrence.meetingTypeId === input.meetingTypeId),
+  );
+  const pendingOccurrences = occurrences.filter(
+    (occurrence) =>
+      occurrence.status !== "cancelled" &&
+      !occurrence.attendanceClosedAt &&
+      occurrence.occursOn <= range.end &&
+      (!input.meetingTypeId || occurrence.meetingTypeId === input.meetingTypeId),
+  );
+
+  const [periodPairs, previousPairs, samplePairs] = await Promise.all([
+    loadAttendanceForOccurrences(closedOccurrences, input.scope),
+    loadAttendanceForOccurrences(previousClosedOccurrences, input.scope),
+    loadAttendanceForOccurrences(sampleOccurrences, input.scope),
+  ]);
+
+  const currentSummary = summarizeAttendance(periodPairs, memberships, input.meetingTypeId);
+  const previousSummary = summarizeAttendance(previousPairs, memberships, input.meetingTypeId);
+  const activeMemberships = memberships.filter((membership) => {
+    if (membership.status !== "active") return false;
+    if (membership.startedAt && membership.startedAt > range.end) return false;
+    if (membership.endedAt && membership.endedAt < range.end) return false;
+    return true;
+  }).length;
+  const caregiversById = new Map(input.caregivers.map((caregiver) => [caregiver.id, caregiver.name]));
+  const attention = buildAttentionList({
+    pairs: samplePairs,
+    memberships,
+    members: input.members,
+    caregiversById,
+    followups: input.followups,
+    meetingTypeId: input.meetingTypeId,
+  });
+  const overdueContacts = input.followups.filter((followup) => followup.nextActionAt && new Date(followup.nextActionAt) < new Date()).length;
+  const inCareCases = input.members.filter((member) => member.status === "in_progress").length;
+
+  return {
+    range,
+    previousRange,
+    activeMemberships,
+    closedOccurrences,
+    pendingOccurrences,
+    meetingTypes,
+    presentPeople: comparison(currentSummary.presentPeople, previousClosedOccurrences.length > 0 ? previousSummary.presentPeople : null),
+    averageFrequency: comparison(currentSummary.averageFrequency ?? 0, previousSummary.averageFrequency),
+    attendanceBase: {
+      present: currentSummary.present,
+      eligible: currentSummary.eligible,
+      absent: currentSummary.absent,
+      justified: currentSummary.justified,
+    },
+    trend: buildTrend(periodPairs, memberships, input.period, range, input.meetingTypeId),
+    attention,
+    inCareCases,
+    overdueContacts,
+  };
+}
+
+function ChurchTrendChart({ data }: { data: ChurchProfileDashboard["trend"] }) {
+  const max = Math.max(...data.map((item) => item.eligible), 1);
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 10, minHeight: 140, paddingTop: 16 }}>
+      {data.length === 0 ? (
+        <p style={{ margin: 0, color: "var(--text-3)", fontSize: 13 }}>Sem chamada fechada no periodo.</p>
+      ) : (
+        data.map((item) => (
+          <div key={item.label} style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, minWidth: 42 }}>
+            <div style={{ height: 110, display: "flex", alignItems: "flex-end", position: "relative", borderBottom: "1px solid var(--border)" }}>
+              <div
+                style={{
+                  width: "100%",
+                  height: `${(item.eligible / max) * 100}%`,
+                  minHeight: item.eligible > 0 ? 12 : 2,
+                  borderRadius: 6,
+                  background: "var(--surface-2)",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: "auto 0 0",
+                    height: item.eligible > 0 ? `${(item.present / item.eligible) * 100}%` : "0%",
+                    background: "linear-gradient(180deg, #86EFAC 0%, #16A34A 100%)",
+                  }}
+                />
+              </div>
+              <span style={{ position: "absolute", top: -14, left: 0, right: 0, textAlign: "center", fontSize: 11, color: "var(--text)", fontWeight: 700 }}>
+                {item.rate === null ? "-" : `${item.rate}%`}
+              </span>
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", textAlign: "center" }}>{item.label}</span>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+function priorityColor(priority: ChurchAttentionItem["priority"]) {
+  if (priority === "alta") return "#E11D48";
+  if (priority === "media") return "#EA580C";
+  return "#2563EB";
+}
+
+export default async function CoordDashboardPage({ searchParams }: PageProps) {
+  const resolvedSearchParams = await searchParams;
   const session = await requireServerAuthSession("coordinator");
   const scope = getDataScopeFromSession(session);
+  const churchPeriod = (firstValue(resolvedSearchParams.churchPeriod) === "day" || firstValue(resolvedSearchParams.churchPeriod) === "month"
+    ? firstValue(resolvedSearchParams.churchPeriod)
+    : "week") as ChurchPeriod;
+  const churchDate = firstValue(resolvedSearchParams.churchDate) ?? todayDateOnly();
+  const churchMeetingTypeId = firstValue(resolvedSearchParams.churchMeetingTypeId) || undefined;
 
-  const [members, caregivers, followups, seeds] = await Promise.all([
+  const [members, caregivers, followups, seeds, tenants] = await Promise.all([
     listMembers(scope),
     listCaregivers(scope),
     listFollowups(scope),
     listSeeds(scope),
+    listTenants(scope),
   ]);
+  const churchProfile = await buildChurchProfileDashboard({
+    scope,
+    period: churchPeriod,
+    referenceDate: churchDate,
+    meetingTypeId: churchMeetingTypeId,
+    members,
+    caregivers,
+    followups,
+  });
+  const selectedChurchMeetingType = churchMeetingTypeId
+    ? churchProfile.meetingTypes.find((item) => item.id === churchMeetingTypeId)
+    : null;
 
   const operationalAlerts = countOperationalAlerts(members, seeds);
   const memberJourney = buildMemberJourneyDistribution(members);
@@ -517,6 +1056,202 @@ export default async function CoordDashboardPage() {
             accent="#7C3AED"
             bg="rgba(124,58,237,0.12)"
           />
+        </section>
+
+        <section style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <Card padding={20}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
+              <div>
+                <p style={{ margin: 0, fontSize: 10, fontWeight: 800, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--accent)" }}>
+                  Perfil da Igreja
+                </p>
+                <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--text)" }}>
+                  Frequencia e cuidado
+                </h2>
+                <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-3)", lineHeight: 1.45 }}>
+                  {churchProfile.range.label} · {selectedChurchMeetingType?.name ?? "Todos os tipos"} · {tenants[0]?.name ?? session.membership.tenantName}
+                </p>
+              </div>
+              <form action="/coord" style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+                <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
+                  Visao
+                  <select
+                    name="churchPeriod"
+                    defaultValue={churchPeriod}
+                    style={{ height: 38, minWidth: 112, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}
+                  >
+                    <option value="day">Dia</option>
+                    <option value="week">Semana</option>
+                    <option value="month">Mes</option>
+                  </select>
+                </label>
+                <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
+                  Data
+                  <input
+                    type="date"
+                    name="churchDate"
+                    defaultValue={churchDate}
+                    style={{ height: 38, minWidth: 150, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}
+                  />
+                </label>
+                <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
+                  Tipo
+                  <select
+                    name="churchMeetingTypeId"
+                    defaultValue={churchMeetingTypeId ?? ""}
+                    style={{ height: 38, minWidth: 180, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}
+                  >
+                    <option value="">Todos os tipos</option>
+                    {churchProfile.meetingTypes.map((type) => (
+                      <option key={type.id} value={type.id}>
+                        {type.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <Button type="submit" variant="primary" size="md" icon={<IconFilter />}>
+                  Filtrar
+                </Button>
+              </form>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginTop: 18 }}>
+              <KpiCard
+                icon={<IconChurch />}
+                label="Membros da Igreja"
+                value={churchProfile.activeMemberships}
+                sub="Vinculos ativos no fim do periodo"
+                accent="#2563EB"
+                bg="#DBEAFE"
+              />
+              <KpiCard
+                icon={<IconUsers />}
+                label="Pessoas que reuniram"
+                value={churchProfile.presentPeople.value}
+                sub={`${churchProfile.closedOccurrences.length} chamada(s) fechada(s) · ${formatComparison(churchProfile.presentPeople)}`}
+                accent="#16A34A"
+                bg="#DCFCE7"
+              />
+              <KpiCard
+                icon={<IconChart />}
+                label="Frequencia media"
+                value={churchProfile.attendanceBase.eligible > 0 ? `${churchProfile.averageFrequency.value}%` : "-"}
+                sub={
+                  churchProfile.attendanceBase.eligible > 0
+                    ? `${churchProfile.attendanceBase.present} presencas em ${churchProfile.attendanceBase.eligible} elegibilidades · ${formatComparison(churchProfile.averageFrequency, "pp")}`
+                    : "Sem chamada fechada no periodo"
+                }
+                accent="#7C3AED"
+                bg="rgba(124,58,237,0.12)"
+              />
+              <KpiCard
+                icon={<IconBell />}
+                label="Para revisao"
+                value={churchProfile.attention.length}
+                sub="Sinais objetivos de frequencia/cuidado"
+                accent="#EA580C"
+                bg="#FFEDD5"
+              />
+              <KpiCard
+                icon={<IconHeart />}
+                label="Casos em andamento"
+                value={churchProfile.inCareCases}
+                sub="Membros marcados em acompanhamento"
+                accent="#2563EB"
+                bg="#DBEAFE"
+              />
+              <KpiCard
+                icon={<IconCalendar />}
+                label="Contatos vencidos"
+                value={churchProfile.overdueContacts}
+                sub="Proximas acoes vencidas no cuidado"
+                accent="#E11D48"
+                bg="#FFE4E6"
+              />
+              <KpiCard
+                icon={<IconHourglass />}
+                label="Chamadas pendentes"
+                value={churchProfile.pendingOccurrences.length}
+                sub="Ocorrencias passadas sem fechamento"
+                accent="#E11D48"
+                bg="#FFE4E6"
+              />
+            </div>
+          </Card>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
+            <Card padding={20}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline", marginBottom: 8 }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--text)" }}>Tendencia de participacao</h3>
+                  <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>
+                    Verde indica presencas dentro da base elegivel de chamadas fechadas.
+                  </p>
+                </div>
+                <span style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 700 }}>
+                  Ausencias: {churchProfile.attendanceBase.absent} · Justificadas: {churchProfile.attendanceBase.justified}
+                </span>
+              </div>
+              <ChurchTrendChart data={churchProfile.trend} />
+            </Card>
+
+            <Card padding={0}>
+              <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--text)" }}>Pessoas para revisao</h3>
+                  <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>
+                    Fila inicial baseada em ausencias, baixa frequencia e proximas acoes vencidas.
+                  </p>
+                </div>
+                <Link href="/coord/igreja" style={{ color: "var(--accent)", textDecoration: "none", fontSize: 12.5, fontWeight: 800 }}>
+                  Igreja
+                </Link>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {churchProfile.attention.length > 0 ? (
+                  churchProfile.attention.map((item) => (
+                    <div key={item.member.id} style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 10 }}>
+                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 999, background: priorityColor(item.priority), flexShrink: 0 }} />
+                            <strong style={{ fontSize: 13.5, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {item.member.name}
+                            </strong>
+                          </div>
+                          <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-3)" }}>
+                            {item.caregiverName ?? "Sem cuidador"} · Ultima presenca: {item.lastPresence ? formatDateLabel(item.lastPresence) : "sem registro"}
+                          </p>
+                        </div>
+                        <span style={{ fontSize: 10.5, fontWeight: 800, color: priorityColor(item.priority), textTransform: "uppercase" }}>
+                          {item.priority}
+                        </span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-2)", lineHeight: 1.45 }}>
+                        {item.reason}. {item.presentTotal} presenca(s) em {item.sampleTotal} chamada(s) fechada(s) na amostra.
+                      </p>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <Link href={`/coord/membros/${item.member.id}/editar`} style={{ textDecoration: "none" }}>
+                          <Button variant="secondary" size="sm" icon={<IconHeart />}>
+                            Designar
+                          </Button>
+                        </Link>
+                        <Link href="/coord/acompanhamentos" style={{ textDecoration: "none" }}>
+                          <Button variant="secondary" size="sm" icon={<IconMessage />}>
+                            Iniciar contato
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p style={{ margin: 0, padding: 18, color: "var(--text-3)", fontSize: 13 }}>
+                    Nenhuma pessoa apareceu para revisao nesta amostra. Quando uma chamada for fechada, os sinais entram aqui.
+                  </p>
+                )}
+              </div>
+            </Card>
+          </div>
         </section>
 
         <DashboardMap items={mapItems} />
