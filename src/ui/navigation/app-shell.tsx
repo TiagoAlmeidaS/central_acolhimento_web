@@ -16,6 +16,7 @@ import {
   IconBuilding,
   IconSparkle,
   IconUser,
+  IconChurch,
 } from "@/ui/v2-components/icons";
 
 // Mapeamento de rotas e seus respectivos ícones da V2
@@ -24,6 +25,7 @@ const navItems = [
   { href: "/coord/cidades", label: "Cidades", icon: <IconBuilding size={20} /> },
   { href: "/coord/contatos", label: "Novos contatos", icon: <IconPlus size={20} /> },
   { href: "/coord/membros", label: "Membros", icon: <IconUsers size={20} /> },
+  { href: "/coord/igreja", label: "Igreja", icon: <IconChurch size={20} /> },
   { href: "/coord/cuidadores", label: "Cuidadores", icon: <IconHeart size={20} /> },
   { href: "/coord/acompanhamentos", label: "Acompanhamentos", icon: <IconCalendar size={20} /> },
   { href: "/coord/saidas", label: "Saidas", icon: <IconCar size={20} /> },

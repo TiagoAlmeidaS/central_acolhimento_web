@@ -10,6 +10,10 @@ export type OutingParticipantType = "caregiver" | "member" | "guest";
 export type OutingConstraintType = "must_stay_together";
 export type OutingAssignmentSource = "system" | "manual";
 export type TciSessionStatus = "draft" | "scheduled" | "confirmed" | "completed" | "cancelled";
+export type ChurchMembershipStatus = "active" | "inactive";
+export type ChurchRecurrenceKind = "none" | "weekly";
+export type ChurchOccurrenceStatus = "scheduled" | "completed" | "cancelled";
+export type ChurchAttendanceStatus = "unmarked" | "present" | "absent" | "justified";
 
 export type Tenant = {
   id: string;
@@ -216,6 +220,76 @@ export type TciSession = {
   notes: string;
   createdByTenantUserId: string | null;
   caregivers: TciSessionCaregiver[];
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type ChurchMembership = {
+  id: string;
+  tenantId: string;
+  memberId: string;
+  status: ChurchMembershipStatus;
+  startedAt: string | null;
+  endedAt: string | null;
+  notes: string;
+  createdByTenantUserId: string | null;
+  memberName?: string | null;
+  memberPhone?: string | null;
+  memberCity?: string | null;
+  caregiverName?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type ChurchMeetingType = {
+  id: string;
+  tenantId: string;
+  name: string;
+  description: string;
+  color: string;
+  active: boolean;
+  recurrenceKind: ChurchRecurrenceKind;
+  weekday: number | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  recurrenceStartsOn: string | null;
+  recurrenceEndsOn: string | null;
+  notes: string;
+  createdByTenantUserId: string | null;
+  occurrenceCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type ChurchMeetingOccurrence = {
+  id: string;
+  tenantId: string;
+  meetingTypeId: string;
+  occursOn: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  status: ChurchOccurrenceStatus;
+  attendanceClosedAt: string | null;
+  attendanceClosedByTenantUserId: string | null;
+  notes: string;
+  meetingTypeName?: string | null;
+  meetingTypeColor?: string | null;
+  attendanceTotals?: Record<ChurchAttendanceStatus, number>;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type ChurchAttendanceRecord = {
+  id: string;
+  tenantId: string;
+  occurrenceId: string;
+  memberId: string;
+  status: ChurchAttendanceStatus;
+  notes: string;
+  markedByTenantUserId: string | null;
+  markedAt: string | null;
+  memberName?: string | null;
+  memberPhone?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -466,6 +540,48 @@ export type CreateTciSessionInput = {
 };
 
 export type UpdateTciSessionInput = CreateTciSessionInput;
+
+export type CreateChurchMembershipInput = {
+  tenantId: string;
+  memberId: string;
+  startedAt?: string | null;
+  notes?: string;
+  createdByTenantUserId?: string | null;
+};
+
+export type UpdateChurchMembershipInput = {
+  status?: ChurchMembershipStatus;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  notes?: string;
+};
+
+export type CreateChurchMeetingTypeInput = {
+  tenantId: string;
+  name: string;
+  description?: string;
+  color?: string;
+  active?: boolean;
+  recurrenceKind?: ChurchRecurrenceKind;
+  weekday?: number | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  recurrenceStartsOn?: string | null;
+  recurrenceEndsOn?: string | null;
+  notes?: string;
+  createdByTenantUserId?: string | null;
+};
+
+export type UpdateChurchMeetingTypeInput = CreateChurchMeetingTypeInput;
+
+export type CreateChurchOccurrenceInput = {
+  tenantId: string;
+  meetingTypeId: string;
+  occursOn: string;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  notes?: string;
+};
 
 export type CreateCaregiverInvitationInput = {
   tenantId: string;

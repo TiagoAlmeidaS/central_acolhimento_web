@@ -9,6 +9,7 @@ Este repositório contém a aplicacao **central_acolhimento_web** no formato de 
 - [Next + Vercel Migration Spec](architecture/next-vercel-migration-spec.md) — estrategia de migracao e publicacao.
 - [Database Guide](database/README.md) — uso de migrations e seed para o schema atual.
 - [MVP Monolith Schema](database/mvp-monolith-schema.md) — entidades ativas do MVP (`tenants`, `caregivers`, `members`, `followups`, `seeds`).
+- [Igreja: membros e presenca em reunioes](architecture/church-members-attendance-spec.md) — modulo Igreja, recorrencia, chamadas e base para metricas pastorais.
 - [Postgres Setup on Vercel](database/vercel-postgres-setup.md) — variaveis e fluxo recomendado para conectar o banco na Vercel.
 - [Mapeamento das Telas Stitch](telas-stitch-mapping.md) — referencia visual usada para portar as telas.
 
