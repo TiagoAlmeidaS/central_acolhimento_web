@@ -11,6 +11,7 @@ import type {
   Member,
   Tenant,
 } from "@/server/domain/mvp";
+import { formatPhone, normalizePhone } from "@/ui/mvp/contact-form-utils";
 import { Avatar, Button, Card, Input, SectionTitle, Select, Textarea } from "@/ui/v2-components/ui";
 import { IconCalendar, IconCheck, IconChurch, IconClock, IconPlus, IconSearch, IconUsers, IconX } from "@/ui/v2-components/icons";
 
@@ -156,12 +157,18 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
 
   async function handleRegisterMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const normalizedPhone = normalizePhone(newMemberForm.phone);
+    if (normalizedPhone && (normalizedPhone.length !== 11 || normalizedPhone[2] !== "9")) {
+      setError("Informe um WhatsApp valido com DDD, digito 9 e os 8 numeros restantes.");
+      return;
+    }
+
     const created = await submitJson<ChurchMembership>("/api/church/members/register", {
       method: "POST",
       body: JSON.stringify({
         tenantId: newMemberForm.tenantId,
         name: newMemberForm.name,
-        phone: newMemberForm.phone,
+        phone: normalizedPhone,
         city: newMemberForm.city,
         churchStartedAt: newMemberForm.startedAt || null,
         churchNotes: newMemberForm.notes,
@@ -313,7 +320,7 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
               <SectionTitle>Adicionar membro existente</SectionTitle>
               <form onSubmit={handleLinkMember} style={stackStyle}>
                 <Select label="Localidade" value={membershipForm.tenantId} onChange={(value) => setMembershipForm((current) => ({ ...current, tenantId: value, memberId: "" }))} options={tenants.map((tenant) => ({ value: tenant.id, label: tenant.name }))} required />
-                <Select label="Membro" value={membershipForm.memberId} onChange={(value) => setMembershipForm((current) => ({ ...current, memberId: value }))} options={tenantMembers.map((member) => ({ value: member.id, label: `${member.name}${member.phone ? ` · ${member.phone}` : ""}` }))} placeholder="Selecione um membro" required />
+                <Select label="Membro" value={membershipForm.memberId} onChange={(value) => setMembershipForm((current) => ({ ...current, memberId: value }))} options={tenantMembers.map((member) => ({ value: member.id, label: `${member.name}${member.phone ? ` · ${formatPhone(member.phone)}` : ""}` }))} placeholder="Selecione um membro" required />
                 <Input label="Reune desde" type="date" value={membershipForm.startedAt} onChange={(value) => setMembershipForm((current) => ({ ...current, startedAt: value }))} />
                 <Textarea label="Observacoes" value={membershipForm.notes} onChange={(value) => setMembershipForm((current) => ({ ...current, notes: value }))} rows={2} />
                 <Button type="submit" disabled={submitting} icon={<IconPlus />} full>Vincular a Igreja</Button>
@@ -328,7 +335,14 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
                   setNewMemberForm((current) => ({ ...current, tenantId: value, city: tenant?.city ?? current.city }));
                 }} options={tenants.map((tenant) => ({ value: tenant.id, label: tenant.name }))} required />
                 <Input label="Nome" value={newMemberForm.name} onChange={(value) => setNewMemberForm((current) => ({ ...current, name: value }))} icon={<IconUsers />} required />
-                <Input label="WhatsApp" value={newMemberForm.phone} onChange={(value) => setNewMemberForm((current) => ({ ...current, phone: value }))} />
+                <Input
+                  label="WhatsApp"
+                  value={formatPhone(newMemberForm.phone)}
+                  onChange={(value) => setNewMemberForm((current) => ({ ...current, phone: normalizePhone(value) }))}
+                  placeholder="(00) 90000-0000"
+                  inputMode="numeric"
+                  hint="Use DDD + 9 + oito numeros."
+                />
                 <Input label="Cidade" value={newMemberForm.city} onChange={(value) => setNewMemberForm((current) => ({ ...current, city: value }))} />
                 <Input label="Reune desde" type="date" value={newMemberForm.startedAt} onChange={(value) => setNewMemberForm((current) => ({ ...current, startedAt: value }))} />
                 <Textarea label="Observacoes" value={newMemberForm.notes} onChange={(value) => setNewMemberForm((current) => ({ ...current, notes: value }))} rows={2} />
