@@ -31,6 +31,7 @@ function buildPageHref(basePath: string, searchParams: Record<string, string | s
 const STATUS_LABELS: Record<Seed["status"], string> = {
   new: "Novos",
   contacted: "Contatados",
+  waiting_visit: "Esperando Visita",
   in_progress: "Virou membro",
   consolidated: "Consolidados",
   inactive: "Inativos",
@@ -68,7 +69,7 @@ export default async function ContactsPage({ searchParams }: PageProps) {
     listSeeds(effectiveScope).then((items) => filterContacts(items, filters)),
     listSeedsPage(effectiveScope, filters, { page, pageSize }),
   ]);
-  const pending = filteredForSummary.filter((contact) => contact.status === "new" || contact.status === "contacted").length;
+  const pending = filteredForSummary.filter((contact) => contact.status === "new" || contact.status === "contacted" || contact.status === "waiting_visit").length;
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", padding: "0 0 32px" }}>

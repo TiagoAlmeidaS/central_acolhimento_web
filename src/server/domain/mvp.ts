@@ -1,7 +1,7 @@
 export type TenantStatus = "active" | "inactive";
 export type AppRole = "coordinator" | "caregiver";
 export type MemberStatus = "new" | "in_progress" | "consolidated" | "inactive";
-export type SeedStatus = "new" | "contacted" | "in_progress" | "consolidated" | "inactive";
+export type SeedStatus = "new" | "contacted" | "waiting_visit" | "in_progress" | "consolidated" | "inactive";
 export type FollowupType = "visit" | "call" | "message" | "prayer" | "other";
 export type InvitationStatus = "pending" | "accepted" | "revoked" | "expired";
 export type SignupChannelUseStatus = "submitted" | "approved" | "rejected";

@@ -59,12 +59,14 @@ type TabType = "home" | "details" | "new" | "schedule";
 const STATUS_MAP: Record<string, string> = {
   new: "aguardando",
   contacted: "aguardando",
+  waiting_visit: "esperando_visita",
   in_progress: "acompanhamento",
   consolidated: "concluido",
   inactive: "concluido",
   // V2 UI values mapping to themselves
   urgente: "urgente",
   aguardando: "aguardando",
+  esperando_visita: "esperando_visita",
   acompanhamento: "acompanhamento",
   concluido: "concluido",
 };

@@ -50,6 +50,13 @@ export const STATUS: Record<
     bg: "#DCFCE7",
     dot: "#16A34A",
   },
+  esperando_visita: {
+    key: "esperando_visita",
+    label: "Esperando Visita",
+    fg: "#0891B2",
+    bg: "#ECFEFF",
+    dot: "#06B6D4",
+  },
   inativo: {
     key: "inativo",
     label: "Inativo",
@@ -59,7 +66,7 @@ export const STATUS: Record<
   },
 };
 
-export const STATUS_ORDER = ["urgente", "novo", "aguardando", "acompanhamento", "concluido", "inativo"];
+export const STATUS_ORDER = ["urgente", "novo", "esperando_visita", "aguardando", "acompanhamento", "concluido", "inativo"];
 
 // ─── Avatar ────────────────────────────────────────────────────
 interface AvatarProps {
@@ -153,6 +160,8 @@ export const StatusPill: React.FC<StatusPillProps> = ({ status, size = "sm" }) =
     ? "urgente"
     : normalized.includes("nov")
     ? "novo"
+    : normalized.includes("visit") || normalized.includes("esperando")
+    ? "esperando_visita"
     : normalized.includes("aguard")
     ? "aguardando"
     : normalized.includes("inativ")
@@ -201,6 +210,8 @@ export const StatusDot: React.FC<StatusDotProps> = ({ status, size = 8 }) => {
     ? "urgente"
     : normalized.includes("nov")
     ? "novo"
+    : normalized.includes("visit") || normalized.includes("esperando")
+    ? "esperando_visita"
     : normalized.includes("aguard")
     ? "aguardando"
     : normalized.includes("inativ")

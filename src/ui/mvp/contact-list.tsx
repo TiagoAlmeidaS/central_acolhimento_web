@@ -9,6 +9,7 @@ import { Avatar, Button, Card, SectionTitle } from "@/ui/v2-components/ui";
 const statusLabels: Record<Seed["status"], string> = {
   new: "Novo",
   contacted: "Contatado",
+  waiting_visit: "Esperando Visita",
   in_progress: "Virou membro",
   consolidated: "Consolidado",
   inactive: "Inativo",
@@ -17,6 +18,7 @@ const statusLabels: Record<Seed["status"], string> = {
 const statusColors: Record<Seed["status"], { bg: string; fg: string }> = {
   new: { bg: "#FFEDD5", fg: "#C2410C" },
   contacted: { bg: "#DBEAFE", fg: "#1D4ED8" },
+  waiting_visit: { bg: "#ECFEFF", fg: "#0891B2" },
   in_progress: { bg: "#F3E8FF", fg: "#7C3AED" },
   consolidated: { bg: "#DCFCE7", fg: "#15803D" },
   inactive: { bg: "#F4F4F5", fg: "#71717A" },

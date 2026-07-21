@@ -29,6 +29,7 @@ const CIDADES_LIST = [
 const statusLabels: Record<Seed["status"], string> = {
   new: "Novo",
   contacted: "Contatado",
+  waiting_visit: "Esperando Visita",
   in_progress: "Virou membro",
   consolidated: "Consolidado",
   inactive: "Inativo",
@@ -37,6 +38,7 @@ const statusLabels: Record<Seed["status"], string> = {
 const statusColors: Record<Seed["status"], { bg: string; fg: string }> = {
   new: { bg: "#FFEDD5", fg: "#C2410C" },
   contacted: { bg: "#DBEAFE", fg: "#1D4ED8" },
+  waiting_visit: { bg: "#ECFEFF", fg: "#0891B2" },
   in_progress: { bg: "#F3E8FF", fg: "#7C3AED" },
   consolidated: { bg: "#DCFCE7", fg: "#15803D" },
   inactive: { bg: "#F4F4F5", fg: "#71717A" },
@@ -555,6 +557,20 @@ export function ContactManager({
             icon={<IconHeart />}
           />
 
+          <Select
+            label="Status do contato"
+            value={form.status}
+            onChange={(value) => setForm((current) => ({ ...current, status: value as Seed["status"] }))}
+            options={Object.entries(statusLabels)
+              .filter(([value]) => value !== "in_progress")
+              .map(([value, label]) => ({
+                value,
+                label,
+              }))}
+            placeholder="Selecione o status"
+            required
+          />
+
           <div>
             <label
               style={{
@@ -612,17 +628,27 @@ export function ContactManager({
               type="checkbox"
               checked={form.openHouse}
               onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  openHouse: event.target.checked,
-                  address: event.target.checked ? current.address : "",
-                  street: event.target.checked ? current.street : "",
-                  neighborhood: event.target.checked ? current.neighborhood : "",
-                  addressNumber: event.target.checked ? current.addressNumber : "",
-                  state: event.target.checked ? current.state : "",
-                  postalCode: event.target.checked ? current.postalCode : "",
-                  houseFrontImageUrl: event.target.checked ? current.houseFrontImageUrl : "",
-                }))
+                setForm((current) => {
+                  const checked = event.target.checked;
+                  let newStatus = current.status;
+                  if (checked && current.status === "new") {
+                    newStatus = "waiting_visit";
+                  } else if (!checked && current.status === "waiting_visit") {
+                    newStatus = "new";
+                  }
+                  return {
+                    ...current,
+                    openHouse: checked,
+                    status: newStatus,
+                    address: checked ? current.address : "",
+                    street: checked ? current.street : "",
+                    neighborhood: checked ? current.neighborhood : "",
+                    addressNumber: checked ? current.addressNumber : "",
+                    state: checked ? current.state : "",
+                    postalCode: checked ? current.postalCode : "",
+                    houseFrontImageUrl: checked ? current.houseFrontImageUrl : "",
+                  };
+                })
               }
             />
             <div>

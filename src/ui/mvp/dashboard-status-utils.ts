@@ -4,11 +4,12 @@ export type JourneyStatusKey = "novo" | "acompanhamento" | "concluido" | "inativ
 
 export function countOperationalAlerts(members: Member[], seeds: Seed[]) {
   return {
-    totalOpenContacts: seeds.filter((seed) => seed.status === "new" || seed.status === "contacted").length,
+    totalOpenContacts: seeds.filter((seed) => seed.status === "new" || seed.status === "contacted" || seed.status === "waiting_visit").length,
     membersWithoutCaregiver: members.filter((member) => !member.caregiverId).length,
     contactsWithoutCaregiver: seeds.filter((seed) => !seed.caregiverId).length,
     unassignedPeople: members.filter((member) => !member.caregiverId).length + seeds.filter((seed) => !seed.caregiverId).length,
     urgentMembers: members.filter((member) => member.isUrgent).length,
+    waitingVisits: seeds.filter((seed) => seed.status === "waiting_visit").length,
   };
 }
 

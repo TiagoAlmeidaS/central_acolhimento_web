@@ -88,14 +88,16 @@ describe("dashboard status utils", () => {
       createSeed({ id: "s1", status: "new", caregiverId: null }),
       createSeed({ id: "s2", status: "contacted", caregiverId: "cg-2" }),
       createSeed({ id: "s3", status: "in_progress", caregiverId: null }),
+      createSeed({ id: "s4", status: "waiting_visit", caregiverId: null }),
     ];
 
     expect(countOperationalAlerts(members, seeds)).toEqual({
-      totalOpenContacts: 2,
+      totalOpenContacts: 3,
       membersWithoutCaregiver: 1,
-      contactsWithoutCaregiver: 2,
-      unassignedPeople: 3,
+      contactsWithoutCaregiver: 3,
+      unassignedPeople: 4,
       urgentMembers: 1,
+      waitingVisits: 1,
     });
   });
 

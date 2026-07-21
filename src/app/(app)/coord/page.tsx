@@ -42,6 +42,7 @@ import {
   IconDoc,
   IconFilter,
   IconHeart,
+  IconHome,
   IconHourglass,
   IconMessage,
   IconUsers,
@@ -1325,9 +1326,17 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
             icon={<IconDoc />}
             label="Contatos na Triagem"
             value={operationalAlerts.totalOpenContacts}
-            sub="Seeds novos ou contatados"
+            sub="Novos, contatados ou em espera"
             accent="#7C3AED"
             bg="rgba(124,58,237,0.12)"
+          />
+          <KpiCard
+            icon={<IconHome />}
+            label="Esperando Visita"
+            value={operationalAlerts.waitingVisits}
+            sub="Casas abertas aguardando visita"
+            accent="#0891B2"
+            bg="#ECFEFF"
           />
           <KpiCard
             icon={<IconHourglass />}

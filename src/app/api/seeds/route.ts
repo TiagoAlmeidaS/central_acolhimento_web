@@ -64,7 +64,7 @@ export async function POST(request: Request) {
       state?: string;
       houseFrontImageUrl?: string | null;
       source?: string;
-      status?: "new" | "contacted" | "in_progress" | "consolidated" | "inactive";
+      status?: "new" | "contacted" | "waiting_visit" | "in_progress" | "consolidated" | "inactive";
       notes?: string;
       firstContactAt?: string | null;
       latitude?: number | null;
