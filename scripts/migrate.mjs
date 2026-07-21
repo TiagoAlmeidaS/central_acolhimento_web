@@ -96,15 +96,25 @@ async function applyMigration(client, name, sql) {
   }
 
   console.log(`[migrate] applying ${name}`);
-  await client.query("begin");
+  const disableTransaction = sql.includes("-- migrate:disable-transaction") || sql.includes("-- no-transaction");
 
-  try {
-    await client.query(sql);
-    await client.query(`insert into ${migrationTable} (name, checksum) values ($1, $2)`, [name, hash]);
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
+  if (disableTransaction) {
+    try {
+      await client.query(sql);
+      await client.query(`insert into ${migrationTable} (name, checksum) values ($1, $2)`, [name, hash]);
+    } catch (error) {
+      throw error;
+    }
+  } else {
+    await client.query("begin");
+    try {
+      await client.query(sql);
+      await client.query(`insert into ${migrationTable} (name, checksum) values ($1, $2)`, [name, hash]);
+      await client.query("commit");
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    }
   }
 }
 
