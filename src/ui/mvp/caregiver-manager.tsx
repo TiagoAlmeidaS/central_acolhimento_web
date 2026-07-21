@@ -56,6 +56,7 @@ export function CaregiverManager({
   });
   const [submitting, setSubmitting] = useState(false);
   const [busyAccessId, setBusyAccessId] = useState<string | null>(null);
+  const [busyPasswordId, setBusyPasswordId] = useState<string | null>(null);
   const [accessForms, setAccessForms] = useState<Record<string, { email: string; password: string }>>({});
   const [accessNotice, setAccessNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -153,6 +154,51 @@ export function CaregiverManager({
       return next;
     });
     startTransition(() => router.refresh());
+  }
+
+  async function resetCaregiverPassword(caregiver: Caregiver) {
+    const accessForm = getAccessForm(caregiver);
+    if (!accessForm.password) {
+      setError("Informe ou sugira uma nova senha para redefinir.");
+      return;
+    }
+
+    setBusyPasswordId(caregiver.id);
+    setError(null);
+    setAccessNotice(null);
+
+    const response = await fetch(`/api/caregivers/${caregiver.id}/password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        password: accessForm.password,
+      }),
+    });
+
+    setBusyPasswordId(null);
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      setError(payload.error ?? "Nao foi possivel redefinir a senha do cuidador.");
+      return;
+    }
+
+    setAccessNotice(
+      [
+        `Ola, ${caregiver.name}! Sua senha da Central de Acolhimento foi redefinida pela coordenacao.`,
+        "",
+        `E-mail: ${caregiver.email ?? accessForm.email}`,
+        `Senha provisoria: ${accessForm.password}`,
+        "",
+        "Depois de entrar, voce pode trocar essa senha em Perfil > Alterar senha.",
+      ].join("\n"),
+    );
+    setAccessForms((current) => ({
+      ...current,
+      [caregiver.id]: {
+        email: current[caregiver.id]?.email ?? caregiver.email ?? "",
+        password: "",
+      },
+    }));
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -308,7 +354,7 @@ export function CaregiverManager({
                 gap: 10,
               }}
             >
-              <span>Acesso criado. Mensagem pronta para enviar ao cuidador.</span>
+              <span>Mensagem pronta para enviar ao cuidador.</span>
               <button
                 type="button"
                 onClick={copyAccessNotice}
@@ -446,8 +492,32 @@ export function CaregiverManager({
 
                 <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
                   {caregiver.tenantUserId ? (
-                    <div style={{ fontSize: 12.5, color: "#15803D", fontWeight: 700 }}>
-                      Acesso ativo vinculado a este cuidador.
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      <div style={{ fontSize: 12.5, color: "#15803D", fontWeight: 700 }}>
+                        Acesso ativo vinculado a este cuidador.
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
+                        <input
+                          type="text"
+                          value={accessForm.password}
+                          onChange={(event) => updateAccessForm(caregiver.id, { password: event.target.value })}
+                          placeholder="nova senha provisoria"
+                          style={accessInputStyle}
+                        />
+                      </div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <Button type="button" size="sm" variant="secondary" onClick={() => generatePassword(caregiver.id)}>
+                          Sugerir senha
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => resetCaregiverPassword(caregiver)}
+                          disabled={busyPasswordId === caregiver.id}
+                        >
+                          {busyPasswordId === caregiver.id ? "Redefinindo..." : "Redefinir senha"}
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

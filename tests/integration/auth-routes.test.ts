@@ -235,6 +235,48 @@ describe("auth route integration", () => {
     expect(loginPayload.type).toBe("authenticated");
     expect(loginPayload.session.membership.role).toBe("caregiver");
     expect(loginPayload.session.membership.caregiverId).toBe("1");
+
+    cookieState.value = coordinatorSession;
+    const { POST: resetCaregiverPassword } = await import("@/app/api/caregivers/[caregiverId]/password/route");
+    const resetResponse = await resetCaregiverPassword(
+      new Request("http://localhost/api/caregivers/1/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          password: "Central@456",
+        }),
+      }),
+      { params: Promise.resolve({ caregiverId: "1" }) }
+    );
+
+    expect(resetResponse.status).toBe(200);
+    cookieState.value = "";
+
+    const oldPasswordLoginResponse = await login(
+      new Request("http://localhost/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "betania@igreja.org",
+          password: "Central@123",
+        }),
+      })
+    );
+    expect(oldPasswordLoginResponse.status).toBe(401);
+
+    const newPasswordLoginResponse = await login(
+      new Request("http://localhost/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "betania@igreja.org",
+          password: "Central@456",
+        }),
+      })
+    );
+    expect(newPasswordLoginResponse.status).toBe(200);
+    const newPasswordLoginPayload = (await newPasswordLoginResponse.json()) as { type: string; session: AuthSession };
+    expect(newPasswordLoginPayload.session.membership.caregiverId).toBe("1");
   });
 
   it("registers multiple caregivers through the same global signup channel", async () => {

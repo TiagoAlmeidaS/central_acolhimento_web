@@ -498,6 +498,55 @@ export async function createAccessForExistingCaregiver(input: {
   }
 }
 
+export async function resetExistingCaregiverPassword(input: {
+  caregiverId: string;
+  tenantId: string;
+  tenantUserId: string;
+  newPassword: string;
+}) {
+  if (!isDatabaseConfigured() && isInMemoryFallbackAllowed()) {
+    for (const record of localAuthStore.values()) {
+      const membership = record.memberships.find(
+        (item) => item.tenantId === input.tenantId && item.tenantUserId === input.tenantUserId,
+      );
+
+      if (!membership) {
+        continue;
+      }
+
+      record.appUser.password_hash = hashPassword(input.newPassword);
+      return {
+        appUserId: record.appUser.id,
+        email: record.appUser.email,
+      };
+    }
+
+    throw new Error("Cuidador sem usuario vinculado para redefinir senha.");
+  }
+
+  const db = ensureDb();
+  const result = await db.query<AppUserRow>(
+    `update app_users au
+        set password_hash = $3
+      from tenant_users tu
+      inner join caregivers c on c.tenant_user_id = tu.id
+      where au.id = tu.app_user_id
+        and c.id = $1
+        and c.tenant_id = $2
+      returning au.*`,
+    [input.caregiverId, input.tenantId, hashPassword(input.newPassword)],
+  );
+
+  if (!result.rows[0]) {
+    throw new Error("Cuidador sem usuario vinculado para redefinir senha.");
+  }
+
+  return {
+    appUserId: result.rows[0].id,
+    email: result.rows[0].email,
+  };
+}
+
 export async function registerCoordinatorAccount(input: {
   tenantName: string;
   city: string;
