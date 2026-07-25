@@ -867,7 +867,7 @@ export function CaregiverDashboardClient({
                           )}
                         </div>
                         <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 3 }}>
-                          Cadastrado em: {new Date(seed.createdAt).toLocaleDateString("pt-BR")}
+                          Cadastrado em: {seed.createdAt ? new Date(seed.createdAt).toLocaleDateString("pt-BR") : "Data indisponível"}
                         </div>
                       </div>
                     </div>
