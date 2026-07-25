@@ -1,6 +1,7 @@
 export type TenantStatus = "active" | "inactive";
 export type AppRole = "coordinator" | "caregiver";
 export type MemberStatus = "new" | "in_progress" | "consolidated" | "inactive";
+export type SpiritualTemperature = "cold" | "warm" | "hot";
 export type SeedStatus = "new" | "contacted" | "waiting_visit" | "in_progress" | "consolidated" | "inactive";
 export type FollowupType = "visit" | "call" | "message" | "prayer" | "other";
 export type InvitationStatus = "pending" | "accepted" | "revoked" | "expired";
@@ -104,6 +105,7 @@ export type Member = {
   city: string;
   birthDate: string | null;
   status: MemberStatus;
+  spiritualTemperature?: SpiritualTemperature | null;
   notes: string;
   caregiver?: string | null;
   lastContact?: string | null;
@@ -443,6 +445,7 @@ export type ConvertSeedToMemberInput = {
   latitude?: number | null;
   longitude?: number | null;
   isUrgent?: boolean;
+  spiritualTemperature?: SpiritualTemperature | null;
 };
 
 export type CreateMemberInput = {
@@ -461,6 +464,7 @@ export type CreateMemberInput = {
   city?: string;
   birthDate?: string | null;
   status?: MemberStatus;
+  spiritualTemperature?: SpiritualTemperature | null;
   notes?: string;
   latitude?: number | null;
   longitude?: number | null;

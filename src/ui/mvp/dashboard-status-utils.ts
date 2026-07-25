@@ -1,4 +1,4 @@
-import type { Member, Seed } from "@/server/domain/mvp";
+import type { Member, Seed, SpiritualTemperature } from "@/server/domain/mvp";
 
 export type JourneyStatusKey = "novo" | "acompanhamento" | "concluido" | "inativo";
 
@@ -46,4 +46,33 @@ export function mapMemberStatusToVisualStatus(status: Member["status"]) {
   if (status === "in_progress") return "acompanhamento";
   if (status === "consolidated") return "concluido";
   return "inativo";
+}
+
+export const TEMPERATURE_LABELS: Record<SpiritualTemperature, string> = {
+  cold: "Frio",
+  warm: "Morno",
+  hot: "Quente",
+};
+
+export function mapSpiritualTemperatureToVisualStatus(temperature: SpiritualTemperature | null | undefined) {
+  if (temperature === "cold") return "frio";
+  if (temperature === "warm") return "morno";
+  if (temperature === "hot") return "quente";
+  return null;
+}
+
+export function buildTemperatureDistribution(members: Member[]) {
+  const counts: Record<string, number> = { cold: 0, warm: 0, hot: 0, unassessed: 0 };
+  for (const member of members) {
+    if (member.spiritualTemperature === "cold") counts.cold += 1;
+    else if (member.spiritualTemperature === "warm") counts.warm += 1;
+    else if (member.spiritualTemperature === "hot") counts.hot += 1;
+    else counts.unassessed += 1;
+  }
+  return [
+    { key: "quente" as const, label: "Quente", count: counts.hot },
+    { key: "morno" as const, label: "Morno", count: counts.warm },
+    { key: "frio" as const, label: "Frio", count: counts.cold },
+    { key: null as any, label: "Sem avaliação", count: counts.unassessed },
+  ];
 }

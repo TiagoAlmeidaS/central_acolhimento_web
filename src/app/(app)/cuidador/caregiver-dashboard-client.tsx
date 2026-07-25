@@ -2,7 +2,8 @@
 
 import React, { startTransition, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { AuthSession, Caregiver, Followup, Member, Seed, Tenant } from "@/server/domain/mvp";
+import type { AuthSession, Caregiver, Followup, Member, Seed, SpiritualTemperature, Tenant } from "@/server/domain/mvp";
+import { mapSpiritualTemperatureToVisualStatus } from "@/ui/mvp/dashboard-status-utils";
 import {
   Avatar,
   Button,
@@ -225,6 +226,7 @@ export function CaregiverDashboardClient({
       notes: string;
       address?: string;
       isUrgent: boolean;
+      spiritualTemperature?: SpiritualTemperature | null;
     }> = [];
 
     initialMembers.forEach((m) => {
@@ -235,6 +237,7 @@ export function CaregiverDashboardClient({
         city: m.city || "",
         phone: m.phone || "",
         status: STATUS_MAP[m.status] ?? "acompanhamento",
+        spiritualTemperature: m.spiritualTemperature,
         lastContact: m.lastContact ?? "Nunca contatado",
         notes: m.notes || "",
         address: m.address || "",
@@ -796,7 +799,12 @@ export function CaregiverDashboardClient({
                         </span>
                       )}
                     </h3>
-                    <StatusPill status={item.status} size="xs" />
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <StatusPill status={item.status} size="xs" />
+                      {item.spiritualTemperature ? (
+                        <StatusPill status={mapSpiritualTemperatureToVisualStatus(item.spiritualTemperature) ?? ""} size="xs" />
+                      ) : null}
+                    </div>
                   </div>
 
                   <div style={{
@@ -959,7 +967,12 @@ export function CaregiverDashboardClient({
                 </div>
               </div>
 
-              <StatusPill status={selectedEntity.status} size="md" />
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <StatusPill status={selectedEntity.status} size="md" />
+                {selectedEntity.spiritualTemperature ? (
+                  <StatusPill status={mapSpiritualTemperatureToVisualStatus(selectedEntity.spiritualTemperature) ?? ""} size="sm" />
+                ) : null}
+              </div>
 
               {selectedEntity.address && (
                 <p style={{ margin: 0, fontSize: 12, color: "var(--text-3)" }}>

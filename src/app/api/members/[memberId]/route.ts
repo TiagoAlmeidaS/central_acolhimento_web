@@ -39,6 +39,7 @@ export async function PUT(request: Request, context: RouteContext) {
       city?: string;
       birthDate?: string | null;
       status?: "new" | "in_progress" | "consolidated" | "inactive";
+      spiritualTemperature?: "cold" | "warm" | "hot" | null;
       notes?: string;
       latitude?: number | null;
       longitude?: number | null;
@@ -65,6 +66,7 @@ export async function PUT(request: Request, context: RouteContext) {
       city: body.city,
       birthDate: body.birthDate ?? null,
       status: body.status,
+      spiritualTemperature: body.spiritualTemperature ?? null,
       notes: body.notes,
       latitude: body.latitude,
       longitude: body.longitude,

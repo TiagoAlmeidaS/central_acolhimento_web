@@ -63,6 +63,7 @@ export async function POST(request: Request) {
       city?: string;
       birthDate?: string | null;
       status?: "new" | "in_progress" | "consolidated" | "inactive";
+      spiritualTemperature?: "cold" | "warm" | "hot" | null;
       notes?: string;
       latitude?: number | null;
       longitude?: number | null;
@@ -92,6 +93,7 @@ export async function POST(request: Request) {
       city: body.city,
       birthDate: body.birthDate ?? null,
       status: body.status,
+      spiritualTemperature: body.spiritualTemperature ?? null,
       notes: body.notes,
       latitude: body.latitude,
       longitude: body.longitude,

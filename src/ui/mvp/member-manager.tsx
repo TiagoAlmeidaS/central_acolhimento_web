@@ -2,8 +2,8 @@
 
 import { startTransition, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Caregiver, Member, Tenant } from "@/server/domain/mvp";
-import { mapMemberStatusToVisualStatus } from "@/ui/mvp/dashboard-status-utils";
+import type { Caregiver, Member, SpiritualTemperature, Tenant } from "@/server/domain/mvp";
+import { mapMemberStatusToVisualStatus, mapSpiritualTemperatureToVisualStatus } from "@/ui/mvp/dashboard-status-utils";
 import {
   buildMemberAddress,
   formatPhone,
@@ -41,6 +41,12 @@ const statusLabels: Record<Member["status"], string> = {
   inactive: "Inativo",
 };
 
+const temperatureLabels: Record<SpiritualTemperature, string> = {
+  cold: "Frio",
+  warm: "Morno",
+  hot: "Quente",
+};
+
 const emptyForm = {
   tenantId: "",
   caregiverId: "",
@@ -57,6 +63,7 @@ const emptyForm = {
   // demais
   birthDate: "",
   status: "new" as Member["status"],
+  spiritualTemperature: null as SpiritualTemperature | null,
   notes: "",
   latitude: null as number | null,
   longitude: null as number | null,
@@ -94,6 +101,7 @@ export function MemberManager({
           city: initialEditing.city,
           birthDate: initialEditing.birthDate ?? "",
           status: initialEditing.status,
+          spiritualTemperature: initialEditing.spiritualTemperature ?? null,
           notes: initialEditing.notes,
           latitude: initialEditing.latitude,
           longitude: initialEditing.longitude,
@@ -104,6 +112,7 @@ export function MemberManager({
   const [assigningMemberId, setAssigningMemberId] = useState<string | null>(null);
   const [savingAssignId, setSavingAssignId] = useState<string | null>(null);
   const [savingStatusId, setSavingStatusId] = useState<string | null>(null);
+  const [savingTemperatureId, setSavingTemperatureId] = useState<string | null>(null);
   const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -129,6 +138,7 @@ export function MemberManager({
         city: initialEditing.city,
         birthDate: initialEditing.birthDate ?? "",
         status: initialEditing.status,
+        spiritualTemperature: initialEditing.spiritualTemperature ?? null,
         notes: initialEditing.notes,
         latitude: initialEditing.latitude,
         longitude: initialEditing.longitude,
@@ -158,6 +168,7 @@ export function MemberManager({
       city: member.city,
       birthDate: member.birthDate ?? "",
       status: member.status,
+      spiritualTemperature: member.spiritualTemperature ?? null,
       notes: member.notes,
       latitude: member.latitude,
       longitude: member.longitude,
@@ -267,6 +278,7 @@ export function MemberManager({
         city: form.city,
         birthDate: form.birthDate || null,
         status: form.status,
+        spiritualTemperature: form.spiritualTemperature ?? null,
         notes: form.notes,
         latitude: form.latitude,
         longitude: form.longitude,
@@ -319,6 +331,27 @@ export function MemberManager({
     if (!response.ok) {
       const payload = (await response.json().catch(() => ({}))) as { error?: string };
       setError(payload.error ?? "Nao foi possivel atualizar o status do membro.");
+      return;
+    }
+
+    startTransition(() => router.refresh());
+  }
+
+  async function updateMemberSpiritualTemperature(memberId: string, spiritualTemperature: SpiritualTemperature | null) {
+    setSavingTemperatureId(memberId);
+    setError(null);
+
+    const response = await fetch(`/api/members/${memberId}/spiritual-temperature`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ spiritualTemperature }),
+    });
+
+    setSavingTemperatureId(null);
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      setError(payload.error ?? "Nao foi possivel atualizar a temperatura espiritual.");
       return;
     }
 
@@ -591,6 +624,16 @@ export function MemberManager({
             options={Object.entries(statusLabels).map(([value, label]) => ({ value, label }))}
           />
 
+          <Select
+            label="Temperatura espiritual"
+            value={form.spiritualTemperature ?? ""}
+            onChange={(v) => setForm((f) => ({ ...f, spiritualTemperature: (v || null) as SpiritualTemperature | null }))}
+            options={[
+              { value: "", label: "Sem avaliação" },
+              ...Object.entries(temperatureLabels).map(([value, label]) => ({ value, label })),
+            ]}
+          />
+
           <div style={{ gridColumn: "1 / -1" }}>
             <label style={{ display: "inline-flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "10px 0" }}>
               <input
@@ -749,10 +792,15 @@ export function MemberManager({
                         </div>
                       </td>
 
-                      {/* Status */}
+                      {/* Status + Temperature */}
                       <td style={{ padding: "14px 14px" }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 180 }}>
-                          <StatusPill status={mapMemberStatusToVisualStatus(member.status)} size="sm" />
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <StatusPill status={mapMemberStatusToVisualStatus(member.status)} size="sm" />
+                            {mapSpiritualTemperatureToVisualStatus(member.spiritualTemperature) ? (
+                              <StatusPill status={mapSpiritualTemperatureToVisualStatus(member.spiritualTemperature)!} size="xs" />
+                            ) : null}
+                          </div>
                           <select
                             value={member.status}
                             onChange={(e) => updateMemberStatus(member.id, e.target.value as Member["status"])}
@@ -775,6 +823,35 @@ export function MemberManager({
                               </option>
                             ))}
                           </select>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <select
+                              value={member.spiritualTemperature ?? ""}
+                              onChange={(e) => updateMemberSpiritualTemperature(member.id, (e.target.value || null) as SpiritualTemperature | null)}
+                              disabled={savingTemperatureId === member.id}
+                              style={{
+                                flex: 1,
+                                padding: "6px 8px",
+                                borderRadius: 8,
+                                border: "1.5px solid var(--border)",
+                                background: "var(--surface)",
+                                color: "var(--text)",
+                                fontFamily: "inherit",
+                                fontSize: 11.5,
+                                outline: "none",
+                                cursor: savingTemperatureId === member.id ? "wait" : "pointer",
+                              }}
+                            >
+                              <option value="">Temp: Sem avaliação</option>
+                              {Object.entries(temperatureLabels).map(([value, label]) => (
+                                <option key={value} value={value}>
+                                  Temp: {label}
+                                </option>
+                              ))}
+                            </select>
+                            {savingTemperatureId === member.id ? (
+                              <span style={{ fontSize: 11, color: "var(--text-3)" }}>Salvando...</span>
+                            ) : null}
+                          </div>
                           {savingStatusId === member.id ? (
                             <span style={{ fontSize: 12, color: "var(--text-3)" }}>Atualizando status...</span>
                           ) : null}

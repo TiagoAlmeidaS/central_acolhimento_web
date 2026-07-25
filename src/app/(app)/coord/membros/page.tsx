@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import type { Member } from "@/server/domain/mvp";
+import type { Member, SpiritualTemperature } from "@/server/domain/mvp";
 import { listCaregivers, listMembers, listMembersPage, listTenants } from "@/server/repositories/mvp-repository";
 import { listAccessibleTenantIds } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
@@ -47,6 +47,12 @@ const STATUS_LABELS: Record<Member["status"], string> = {
   inactive: "Inativo",
 };
 
+const TEMPERATURE_LABELS: Record<SpiritualTemperature, string> = {
+  cold: "Frio",
+  warm: "Morno",
+  hot: "Quente",
+};
+
 export default async function MembersPage({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams;
   const session = await requireServerAuthSession("coordinator");
@@ -70,6 +76,7 @@ export default async function MembersPage({ searchParams }: PageProps) {
     dateTo: firstValue(resolvedSearchParams.dateTo),
     description: firstValue(resolvedSearchParams.description),
     status: (firstValue(resolvedSearchParams.status) as Member["status"] | "") ?? "",
+    spiritualTemperature: (firstValue(resolvedSearchParams.spiritualTemperature) as SpiritualTemperature | "") ?? "",
   };
 
   const effectiveScope = filters.tenantId
@@ -201,6 +208,14 @@ export default async function MembersPage({ searchParams }: PageProps) {
             <select name="status" defaultValue={filters.status ?? ""} style={inputStyle}>
               <option value="">Todos os status</option>
               {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <select name="spiritualTemperature" defaultValue={filters.spiritualTemperature ?? ""} style={inputStyle}>
+              <option value="">Todas as temperaturas</option>
+              {Object.entries(TEMPERATURE_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
                 </option>

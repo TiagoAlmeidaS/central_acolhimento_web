@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { startTransition, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
-import type { Caregiver, Member, Tenant } from "@/server/domain/mvp";
-import { mapMemberStatusToVisualStatus } from "@/ui/mvp/dashboard-status-utils";
+import type { Caregiver, Member, SpiritualTemperature, Tenant } from "@/server/domain/mvp";
+import { mapMemberStatusToVisualStatus, mapSpiritualTemperatureToVisualStatus, TEMPERATURE_LABELS } from "@/ui/mvp/dashboard-status-utils";
 import { groupSelectedMembersByCaregiver } from "@/ui/mvp/member-communication-utils";
 import { Avatar, Button, Card, SectionTitle, StatusPill } from "@/ui/v2-components/ui";
 
@@ -27,6 +27,7 @@ export function MemberList({
   const router = useRouter();
   const [savingAssignId, setSavingAssignId] = useState<string | null>(null);
   const [savingStatusId, setSavingStatusId] = useState<string | null>(null);
+  const [savingTemperatureId, setSavingTemperatureId] = useState<string | null>(null);
   const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
@@ -114,6 +115,26 @@ export function MemberList({
     if (!response.ok) {
       const payload = (await response.json().catch(() => ({}))) as { error?: string };
       setError(payload.error ?? "Nao foi possivel atualizar o status.");
+      return;
+    }
+
+    startTransition(() => router.refresh());
+  }
+
+  async function updateMemberTemperature(memberId: string, spiritualTemperature: SpiritualTemperature | null) {
+    setSavingTemperatureId(memberId);
+    setError(null);
+
+    const response = await fetch(`/api/members/${memberId}/spiritual-temperature`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ spiritualTemperature }),
+    });
+
+    setSavingTemperatureId(null);
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      setError(payload.error ?? "Nao foi possivel atualizar a temperatura.");
       return;
     }
 
@@ -347,7 +368,12 @@ export function MemberList({
                         {member.city || "Sem cidade"} · {tenant?.name ?? "Sem localidade"}
                       </div>
                     </div>
-                    <StatusPill status={mapMemberStatusToVisualStatus(member.status)} size="sm" />
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <StatusPill status={mapMemberStatusToVisualStatus(member.status)} size="sm" />
+                      {mapSpiritualTemperatureToVisualStatus(member.spiritualTemperature) ? (
+                        <StatusPill status={mapSpiritualTemperatureToVisualStatus(member.spiritualTemperature)!} size="xs" />
+                      ) : null}
+                    </div>
                   </div>
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
@@ -356,7 +382,7 @@ export function MemberList({
                       {member.lastContact ? <span>Ultimo contato: {member.lastContact}</span> : null}
                     </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
                       <select
                         value={member.status}
                         onChange={(event) => updateMemberStatus(member.id, event.target.value as Member["status"])}
@@ -372,6 +398,28 @@ export function MemberList({
                         }}
                       >
                         {Object.entries(statusLabels).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+
+                      <select
+                        value={member.spiritualTemperature ?? ""}
+                        onChange={(event) => updateMemberTemperature(member.id, (event.target.value || null) as SpiritualTemperature | null)}
+                        disabled={savingTemperatureId === member.id}
+                        style={{
+                          padding: "10px 12px",
+                          borderRadius: 10,
+                          border: "1.5px solid var(--border)",
+                          background: "var(--surface)",
+                          color: "var(--text)",
+                          fontFamily: "inherit",
+                          fontSize: 13,
+                        }}
+                      >
+                        <option value="">Temperatura</option>
+                        {Object.entries(TEMPERATURE_LABELS).map(([value, label]) => (
                           <option key={value} value={value}>
                             {label}
                           </option>

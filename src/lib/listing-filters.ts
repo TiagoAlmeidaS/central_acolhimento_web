@@ -1,4 +1,4 @@
-import type { Member, Seed } from "@/server/domain/mvp";
+import type { Member, Seed, SpiritualTemperature } from "@/server/domain/mvp";
 
 export type ContactListingFilters = {
   name?: string;
@@ -20,6 +20,7 @@ export type MemberListingFilters = {
   dateTo?: string;
   description?: string;
   status?: Member["status"] | "";
+  spiritualTemperature?: SpiritualTemperature | "";
 };
 
 export function normalizePage(value: string | undefined, fallback = 1) {
@@ -85,6 +86,7 @@ export function filterMembers(items: Member[], filters: MemberListingFilters) {
     if (filters.tenantId && item.tenantId !== filters.tenantId) return false;
     if (filters.caregiverId && item.caregiverId !== filters.caregiverId) return false;
     if (filters.status && item.status !== filters.status) return false;
+    if (filters.spiritualTemperature && item.spiritualTemperature !== filters.spiritualTemperature) return false;
     if (!includesNormalized(item.name, filters.name)) return false;
     if (!includesNormalized(item.city, filters.city)) return false;
     if (!includesNormalized(item.notes, filters.description)) return false;

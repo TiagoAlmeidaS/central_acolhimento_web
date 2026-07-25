@@ -19,6 +19,7 @@ import type {
   Member,
   PaginatedListResult,
   Seed,
+  SpiritualTemperature,
   Tenant,
   DataScope,
   UpdateCaregiverInput,
@@ -98,6 +99,7 @@ type MemberRow = {
   latitude: number | null;
   longitude: number | null;
   is_urgent: boolean;
+  spiritual_temperature: SpiritualTemperature | null;
 };
 
 type FollowupRow = {
@@ -196,6 +198,7 @@ function mapMember(row: MemberRow): Member {
     city: row.city,
     birthDate: serializeDateValue(row.birth_date),
     status: row.status,
+    spiritualTemperature: row.spiritual_temperature ?? null,
     notes: row.notes,
     createdAt: serializeDateValue(row.created_at) ?? undefined,
     latitude: row.latitude !== null ? Number(row.latitude) : null,
@@ -339,6 +342,7 @@ function buildLocalMembers(): Member[] {
         : member.status === "Consolidado"
           ? "consolidated"
           : "in_progress",
+    spiritualTemperature: null,
     notes: "",
     caregiver: member.caregiver,
     lastContact: member.lastContact,
@@ -958,6 +962,7 @@ export async function convertSeedToMember(seedId: string, input: ConvertSeedToMe
       city: seed.city,
       birthDate: input.birthDate ?? null,
       status: "new",
+      spiritualTemperature: input.spiritualTemperature ?? null,
       notes: input.notes ?? seed.notes,
       caregiver: localCaregiverName(input.caregiverId ?? seed.caregiverId),
       lastContact: formatDateLabel(seed.firstContactAt),
@@ -980,8 +985,8 @@ export async function convertSeedToMember(seedId: string, input: ConvertSeedToMe
   }
 
   const memberResult = await db.query<MemberRow>(
-    `insert into members (tenant_id, caregiver_id, seed_id, name, age, phone, address, city, birth_date, status, notes, latitude, longitude, is_urgent)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'new', $10, $11, $12, $13)
+    `insert into members (tenant_id, caregiver_id, seed_id, name, age, phone, address, city, birth_date, status, spiritual_temperature, notes, latitude, longitude, is_urgent)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'new', $10, $11, $12, $13, $14)
      returning *`,
     [
       row.tenant_id,
@@ -993,6 +998,7 @@ export async function convertSeedToMember(seedId: string, input: ConvertSeedToMe
       input.address ?? row.address,
       row.city,
       input.birthDate ?? null,
+      input.spiritualTemperature ?? null,
       input.notes ?? row.notes,
       input.latitude ?? row.latitude ?? null,
       input.longitude ?? row.longitude ?? null,
@@ -1082,6 +1088,7 @@ export async function createMember(input: CreateMemberInput): Promise<Member> {
       city: input.city ?? "",
       birthDate: input.birthDate ?? null,
       status: input.status ?? "new",
+      spiritualTemperature: input.spiritualTemperature ?? null,
       notes: input.notes ?? "",
       caregiver: localCaregiverName(input.caregiverId),
       lastContact: null,
@@ -1098,8 +1105,8 @@ export async function createMember(input: CreateMemberInput): Promise<Member> {
     `insert into members
        (tenant_id, caregiver_id, seed_id, name, age, phone,
         address, postal_code, street, neighborhood, address_number, state,
-        city, birth_date, status, notes, latitude, longitude, is_urgent)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        city, birth_date, status, spiritual_temperature, notes, latitude, longitude, is_urgent)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
      returning *`,
     [
       input.tenantId,
@@ -1117,6 +1124,7 @@ export async function createMember(input: CreateMemberInput): Promise<Member> {
       input.city ?? "",
       input.birthDate ?? null,
       input.status ?? "new",
+      input.spiritualTemperature ?? null,
       input.notes ?? "",
       input.latitude ?? null,
       input.longitude ?? null,
@@ -1171,6 +1179,7 @@ export async function updateMember(id: string, input: UpdateMemberInput): Promis
       city: input.city ?? "",
       birthDate: input.birthDate ?? null,
       status: input.status ?? "new",
+      spiritualTemperature: input.spiritualTemperature ?? null,
       notes: input.notes ?? "",
       caregiver: localCaregiverName(input.caregiverId),
       lastContact: null,
@@ -1233,10 +1242,11 @@ export async function updateMember(id: string, input: UpdateMemberInput): Promis
             city = $14,
             birth_date = $15,
             status = $16,
-            notes = $17,
-            latitude = $18,
-            longitude = $19,
-            is_urgent = $20
+            spiritual_temperature = $17,
+            notes = $18,
+            latitude = $19,
+            longitude = $20,
+            is_urgent = $21
       where id = $1
       returning *`,
     [
@@ -1256,6 +1266,7 @@ export async function updateMember(id: string, input: UpdateMemberInput): Promis
       input.city ?? "",
       input.birthDate ?? null,
       input.status ?? "new",
+      input.spiritualTemperature ?? null,
       input.notes ?? "",
       input.latitude ?? null,
       input.longitude ?? null,

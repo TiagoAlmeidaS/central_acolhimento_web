@@ -79,6 +79,7 @@ const members: Member[] = [
     createdAt: "2026-07-09T10:00:00.000Z",
     latitude: null,
     longitude: null,
+    spiritualTemperature: null,
   },
   {
     id: "member-2",
@@ -103,6 +104,7 @@ const members: Member[] = [
     createdAt: "2026-07-12T10:00:00.000Z",
     latitude: null,
     longitude: null,
+    spiritualTemperature: null,
   },
 ];
 

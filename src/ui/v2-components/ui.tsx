@@ -64,6 +64,27 @@ export const STATUS: Record<
     bg: "#E2E8F0",
     dot: "#64748B",
   },
+  frio: {
+    key: "frio",
+    label: "Frio",
+    fg: "#1D4ED8",
+    bg: "#DBEAFE",
+    dot: "#3B82F6",
+  },
+  morno: {
+    key: "morno",
+    label: "Morno",
+    fg: "#C2410C",
+    bg: "#FFEDD5",
+    dot: "#F59E0B",
+  },
+  quente: {
+    key: "quente",
+    label: "Quente",
+    fg: "#DC2626",
+    bg: "#FEE2E2",
+    dot: "#EF4444",
+  },
 };
 
 export const STATUS_ORDER = ["urgente", "novo", "esperando_visita", "aguardando", "acompanhamento", "concluido", "inativo"];
@@ -168,6 +189,12 @@ export const StatusPill: React.FC<StatusPillProps> = ({ status, size = "sm" }) =
     ? "inativo"
     : normalized.includes("concl") || normalized.includes("cons")
     ? "concluido"
+    : normalized.includes("frio")
+    ? "frio"
+    : normalized.includes("morno")
+    ? "morno"
+    : normalized.includes("quente")
+    ? "quente"
     : "acompanhamento";
 
   const s = STATUS[lookupKey];
