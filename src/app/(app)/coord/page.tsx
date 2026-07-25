@@ -28,6 +28,7 @@ import type {
 } from "@/server/domain/mvp";
 import { Avatar, Button, Card, StatusDot } from "@/ui/v2-components/ui";
 import { DashboardMap } from "@/ui/mvp/dashboard-map";
+import { WeeklySchedulePanel } from "@/ui/mvp/weekly-schedule-panel";
 import {
   buildMemberJourneyDistribution,
   countOperationalAlerts,
@@ -1268,6 +1269,8 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
                 <Link href="/coord/acompanhamentos"><Button variant="secondary" size="md" full icon={<IconCalendar />}>Novo Acompanhamento</Button></Link>
               </div>
             </Card>
+
+            <WeeklySchedulePanel followups={followups} />
           </>
         )}
 
