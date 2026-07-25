@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic";
+﻿export const dynamic = "force-dynamic";
 
 import React from "react";
 import Link from "next/link";
@@ -858,15 +858,28 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
 
   const caregiversTotal = caregivers.length;
   const caregiversActive = caregivers.filter((caregiver) => caregiver.active).length;
-  const caregiverPerformance: CaregiverPerformance[] = caregivers.slice(0, 4).map((caregiver) => {
+  const caregiverPerformance = caregivers.map((caregiver) => {
     const casesCount = members.filter((member) => member.caregiverId === caregiver.id).length;
-    const capacity = casesCount >= 4 ? "alta" : casesCount >= 2 ? "normal" : "baixa";
+    const lastAction = followups
+      .filter((f) => {
+        const member = members.find((m) => m.id === f.memberId);
+        return member?.caregiverId === caregiver.id;
+      })
+      .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))[0];
+    const capacity: "alta" | "normal" | "baixa" = casesCount >= 4 ? "alta" : casesCount >= 2 ? "normal" : "baixa";
     return {
       id: caregiver.id,
       name: caregiver.name,
       casos: casesCount,
       capacidade: capacity,
+      lastActionAt: lastAction?.occurredAt ?? null,
+      active: caregiver.active,
     };
+  }).sort((a, b) => {
+    if (a.lastActionAt && b.lastActionAt) return b.lastActionAt.localeCompare(a.lastActionAt);
+    if (a.lastActionAt) return -1;
+    if (b.lastActionAt) return 1;
+    return a.name.localeCompare(b.name);
   });
 
   const mapItems = [
@@ -910,6 +923,33 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
     }),
   ];
 
+  // Resolve active tab from search params
+  type DashTab = "igreja" | "tci" | "cuidados" | "cuidadores" | "acoes";
+  const rawTab = firstValue(resolvedSearchParams.tab);
+  const activeTab: DashTab =
+    rawTab === "tci" || rawTab === "cuidados" || rawTab === "cuidadores" || rawTab === "acoes"
+      ? rawTab
+      : "igreja";
+
+  const tabs: Array<{ key: DashTab; label: string }> = [
+    { key: "igreja", label: "Igreja" },
+    { key: "tci", label: "TCI" },
+    { key: "cuidados", label: "Cuidados" },
+    { key: "cuidadores", label: "Cuidadores" },
+    { key: "acoes", label: "Ultimas Acoes" },
+  ];
+
+  function tabHref(tab: DashTab) {
+    const params = new URLSearchParams();
+    params.set("tab", tab);
+    if (tab === "igreja") {
+      if (churchPeriod !== "week") params.set("churchPeriod", churchPeriod);
+      if (churchDate !== todayDateOnly()) params.set("churchDate", churchDate);
+      if (churchMeetingTypeId) params.set("churchMeetingTypeId", churchMeetingTypeId);
+    }
+    return `/coord?${params.toString()}`;
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: "var(--bg)" }}>
       <header
@@ -923,27 +963,10 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
         }}
       >
         <div>
-          <p
-            style={{
-              margin: 0,
-              fontSize: 10,
-              fontWeight: 800,
-              textTransform: "uppercase",
-              letterSpacing: "0.2em",
-              color: "var(--accent)",
-            }}
-          >
+          <p style={{ margin: 0, fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em", color: "var(--accent)" }}>
             Lideranca
           </p>
-          <h1
-            style={{
-              margin: "4px 0 0",
-              fontSize: 26,
-              fontWeight: 800,
-              letterSpacing: "-0.025em",
-              color: "var(--text)",
-            }}
-          >
+          <h1 style={{ margin: "4px 0 0", fontSize: 26, fontWeight: 800, letterSpacing: "-0.025em", color: "var(--text)" }}>
             Painel da Coordenacao
           </h1>
           <p style={{ margin: "4px 0 0", fontSize: 13.5, color: "var(--text-3)" }}>
@@ -953,536 +976,301 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
         <Avatar name={`${session.user.firstName} ${session.user.lastName}`} size={46} ring />
       </header>
 
-      <main
-        style={{
-          flex: 1,
-          padding: "32px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 24,
-          maxWidth: 1200,
-          width: "100%",
-          margin: "0 auto",
-        }}
-      >
-        {operationalAlerts.urgentMembers > 0 ? (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "16px 20px",
-              borderRadius: 16,
-              background: "var(--status-urgente-bg)",
-              border: "1px solid #FECACA",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div
-                style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 10,
-                  background: "#FEE2E2",
-                  color: "#E11D48",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <IconBell size={18} />
-              </div>
-              <div>
-                <p style={{ margin: 0, fontSize: 14.5, fontWeight: 700, color: "#991B1B" }}>
-                  {operationalAlerts.urgentMembers} caso{operationalAlerts.urgentMembers > 1 ? "s" : ""} urgente{operationalAlerts.urgentMembers > 1 ? "s" : ""} pendente{operationalAlerts.urgentMembers > 1 ? "s" : ""} de resposta
-                </p>
-                <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "#7F1D1D" }}>
-                  Verifique a timeline de acompanhamentos para delegar a um cuidador de plantao.
-                </p>
-              </div>
+      {operationalAlerts.urgentMembers > 0 && (
+        <div style={{ margin: "20px 32px 0", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderRadius: 14, background: "var(--status-urgente-bg)", border: "1px solid #FECACA" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: "#FEE2E2", color: "#E11D48", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <IconBell size={17} />
             </div>
+            <div>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#991B1B" }}>
+                {operationalAlerts.urgentMembers} caso{operationalAlerts.urgentMembers > 1 ? "s" : ""} urgente{operationalAlerts.urgentMembers > 1 ? "s" : ""} pendente{operationalAlerts.urgentMembers > 1 ? "s" : ""} de resposta
+              </p>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: "#7F1D1D" }}>Verifique a timeline de acompanhamentos para delegar a um cuidador de plantao.</p>
+            </div>
+          </div>
+          <Link href="/coord/acompanhamentos" style={{ padding: "8px 16px", borderRadius: 10, background: "#E11D48", color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
+            Verificar
+          </Link>
+        </div>
+      )}
+
+      <nav style={{ padding: "16px 32px 0", background: "var(--surface)", borderBottom: "1px solid var(--border)", display: "flex", gap: 4, overflowX: "auto" }}>
+        {tabs.map((t) => {
+          const isActive = activeTab === t.key;
+          return (
             <Link
-              href="/coord/acompanhamentos"
+              key={t.key}
+              href={tabHref(t.key)}
               style={{
-                padding: "8px 16px",
-                borderRadius: 10,
-                background: "#E11D48",
-                color: "#fff",
-                fontSize: 12,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "10px 18px",
+                borderRadius: "10px 10px 0 0",
                 fontWeight: 700,
+                fontSize: 13,
                 textDecoration: "none",
+                color: isActive ? "var(--accent)" : "var(--text-2)",
+                background: isActive ? "var(--bg)" : "transparent",
+                borderTop: isActive ? "2px solid var(--accent)" : "2px solid transparent",
+                borderLeft: isActive ? "1px solid var(--border)" : "1px solid transparent",
+                borderRight: isActive ? "1px solid var(--border)" : "1px solid transparent",
+                borderBottom: isActive ? "1px solid var(--bg)" : "none",
+                marginBottom: isActive ? -1 : 0,
+                whiteSpace: "nowrap",
               }}
             >
-              Verificar
+              {t.label}
             </Link>
-          </div>
-        ) : null}
+          );
+        })}
+      </nav>
 
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-            gap: 16,
-          }}
-        >
-          <KpiCard
-            icon={<IconUsers />}
-            label="Total Acolhidos"
-            value={total}
-            sub={`+${newContactsThisWeek} esta semana`}
-            accent="#2D7FF9"
-            bg="#E8F1FE"
-          />
-          <KpiCard
-            icon={<IconHeart />}
-            label="Sendo Cuidados"
-            value={activeMembers}
-            sub={`${total > 0 ? Math.round((activeMembers / total) * 100) : 0}% da base`}
-            accent="#16A34A"
-            bg="#DCFCE7"
-          />
-          <KpiCard
-            icon={<IconHourglass />}
-            label="Sem Cuidador"
-            value={operationalAlerts.unassignedPeople}
-            sub="Aguardando vinculacao"
-            accent="#EA580C"
-            bg="#FFEDD5"
-          />
-          <KpiCard
-            icon={<IconCheck />}
-            label="Concluidos"
-            value={completedMembers}
-            sub="Ciclos consolidados"
-            accent="#7C3AED"
-            bg="rgba(124,58,237,0.12)"
-          />
-        </section>
+      <main style={{ flex: 1, padding: "28px 32px", display: "flex", flexDirection: "column", gap: 24, maxWidth: 1280, width: "100%", margin: "0 auto" }}>
 
-        <section style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Card padding={20}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
-              <div>
-                <p style={{ margin: 0, fontSize: 10, fontWeight: 800, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--accent)" }}>
-                  Perfil da Igreja
-                </p>
-                <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--text)" }}>
-                  Frequencia e cuidado
-                </h2>
-                <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-3)", lineHeight: 1.45 }}>
-                  {churchProfile.range.label} · {selectedChurchMeetingType?.name ?? "Todos os tipos"} · {tenants[0]?.name ?? session.membership.tenantName}
-                </p>
-              </div>
-              <form action="/coord" style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-                <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
-                  Visao
-                  <select
-                    name="churchPeriod"
-                    defaultValue={churchPeriod}
-                    style={{ height: 38, minWidth: 112, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}
-                  >
-                    <option value="day">Dia</option>
-                    <option value="week">Semana</option>
-                    <option value="month">Mes</option>
-                  </select>
-                </label>
-                <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
-                  Data
-                  <input
-                    type="date"
-                    name="churchDate"
-                    defaultValue={churchDate}
-                    style={{ height: 38, minWidth: 150, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}
-                  />
-                </label>
-                <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
-                  Tipo
-                  <select
-                    name="churchMeetingTypeId"
-                    defaultValue={churchMeetingTypeId ?? ""}
-                    style={{ height: 38, minWidth: 180, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}
-                  >
-                    <option value="">Todos os tipos</option>
-                    {churchProfile.meetingTypes.map((type) => (
-                      <option key={type.id} value={type.id}>
-                        {type.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <Button type="submit" variant="primary" size="md" icon={<IconFilter />}>
-                  Filtrar
-                </Button>
-              </form>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginTop: 18 }}>
-              <KpiCard
-                icon={<IconChurch />}
-                label="Membros da Igreja"
-                value={churchProfile.activeMemberships}
-                sub="Vinculos ativos no fim do periodo"
-                accent="#2563EB"
-                bg="#DBEAFE"
-              />
-              <KpiCard
-                icon={<IconUsers />}
-                label="Pessoas que reuniram"
-                value={churchProfile.presentPeople.value}
-                sub={`${churchProfile.closedOccurrences.length} chamada(s) fechada(s) · ${formatComparison(churchProfile.presentPeople)}`}
-                accent="#16A34A"
-                bg="#DCFCE7"
-              />
-              <KpiCard
-                icon={<IconChart />}
-                label="Frequencia media"
-                value={churchProfile.attendanceBase.eligible > 0 ? `${churchProfile.averageFrequency.value}%` : "-"}
-                sub={
-                  churchProfile.attendanceBase.eligible > 0
-                    ? `${churchProfile.attendanceBase.present} presencas em ${churchProfile.attendanceBase.eligible} elegibilidades · ${formatComparison(churchProfile.averageFrequency, "pp")}`
-                    : "Sem chamada fechada no periodo"
-                }
-                accent="#7C3AED"
-                bg="rgba(124,58,237,0.12)"
-              />
-              <KpiCard
-                icon={<IconBell />}
-                label="Para revisao"
-                value={churchProfile.attention.length}
-                sub="Sinais objetivos de frequencia/cuidado"
-                accent="#EA580C"
-                bg="#FFEDD5"
-              />
-              <KpiCard
-                icon={<IconHeart />}
-                label="Casos em andamento"
-                value={churchProfile.inCareCases}
-                sub="Membros marcados em acompanhamento"
-                accent="#2563EB"
-                bg="#DBEAFE"
-              />
-              <KpiCard
-                icon={<IconCalendar />}
-                label="Contatos vencidos"
-                value={churchProfile.overdueContacts}
-                sub="Proximas acoes vencidas no cuidado"
-                accent="#E11D48"
-                bg="#FFE4E6"
-              />
-              <KpiCard
-                icon={<IconHourglass />}
-                label="Chamadas pendentes"
-                value={churchProfile.pendingOccurrences.length}
-                sub="Ocorrencias passadas sem fechamento"
-                accent="#E11D48"
-                bg="#FFE4E6"
-              />
-            </div>
-          </Card>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
+        {activeTab === "igreja" && (
+          <>
             <Card padding={20}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline", marginBottom: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--text)" }}>Tendencia de participacao</h3>
-                  <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>
-                    Verde indica presencas dentro da base elegivel de chamadas fechadas.
-                  </p>
+                  <p style={{ margin: 0, fontSize: 10, fontWeight: 800, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--accent)" }}>Perfil da Igreja</p>
+                  <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--text)" }}>Frequencia e cuidado</h2>
+                  <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-3)" }}>{churchProfile.range.label} Â· {selectedChurchMeetingType?.name ?? "Todos os tipos"} Â· {tenants[0]?.name ?? session.membership.tenantName}</p>
                 </div>
-                <span style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 700 }}>
-                  Ausencias: {churchProfile.attendanceBase.absent} · Justificadas: {churchProfile.attendanceBase.justified}
-                </span>
+                <form action="/coord" style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+                  <input type="hidden" name="tab" value="igreja" />
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
+                    Visao
+                    <select name="churchPeriod" defaultValue={churchPeriod} style={{ height: 38, minWidth: 112, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}>
+                      <option value="day">Dia</option>
+                      <option value="week">Semana</option>
+                      <option value="month">Mes</option>
+                    </select>
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
+                    Data
+                    <input type="date" name="churchDate" defaultValue={churchDate} style={{ height: 38, minWidth: 150, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }} />
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
+                    Tipo
+                    <select name="churchMeetingTypeId" defaultValue={churchMeetingTypeId ?? ""} style={{ height: 38, minWidth: 180, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}>
+                      <option value="">Todos os tipos</option>
+                      {churchProfile.meetingTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
+                    </select>
+                  </label>
+                  <Button type="submit" variant="primary" size="md" icon={<IconFilter />}>Filtrar</Button>
+                </form>
               </div>
-              <ChurchTrendChart data={churchProfile.trend} />
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginTop: 20 }}>
+                <KpiCard icon={<IconChurch />} label="Membros da Igreja" value={churchProfile.activeMemberships} sub="Vinculos ativos" accent="#2563EB" bg="#DBEAFE" />
+                <KpiCard icon={<IconUsers />} label="Pessoas que reuniram" value={churchProfile.presentPeople.value} sub={`${churchProfile.closedOccurrences.length} chamada(s) Â· ${formatComparison(churchProfile.presentPeople)}`} accent="#16A34A" bg="#DCFCE7" />
+                <KpiCard icon={<IconChart />} label="Frequencia media" value={churchProfile.attendanceBase.eligible > 0 ? `${churchProfile.averageFrequency.value}%` : "-"} sub={churchProfile.attendanceBase.eligible > 0 ? `${churchProfile.attendanceBase.present} de ${churchProfile.attendanceBase.eligible}` : "Sem chamada fechada"} accent="#7C3AED" bg="rgba(124,58,237,0.12)" />
+                <KpiCard icon={<IconBell />} label="Para revisao" value={churchProfile.attention.length} sub="Sinais de frequencia/cuidado" accent="#EA580C" bg="#FFEDD5" />
+                <KpiCard icon={<IconHeart />} label="Casos em andamento" value={churchProfile.inCareCases} sub="Em acompanhamento" accent="#2563EB" bg="#DBEAFE" />
+                <KpiCard icon={<IconCalendar />} label="Contatos vencidos" value={churchProfile.overdueContacts} sub="Proximas acoes vencidas" accent="#E11D48" bg="#FFE4E6" />
+                <KpiCard icon={<IconHourglass />} label="Chamadas pendentes" value={churchProfile.pendingOccurrences.length} sub="Sem fechamento" accent="#E11D48" bg="#FFE4E6" />
+              </div>
             </Card>
 
-            <Card padding={0}>
-              <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--text)" }}>Pessoas para revisao</h3>
-                  <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>
-                    Fila inicial baseada em ausencias, baixa frequencia e proximas acoes vencidas.
-                  </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
+              <Card padding={20}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline", marginBottom: 8 }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--text)" }}>Tendencia de participacao</h3>
+                    <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>Verde = presencas na base elegivel de chamadas fechadas.</p>
+                  </div>
+                  <span style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 700 }}>Aus: {churchProfile.attendanceBase.absent} Â· Just: {churchProfile.attendanceBase.justified}</span>
                 </div>
-                <Link href="/coord/igreja" style={{ color: "var(--accent)", textDecoration: "none", fontSize: 12.5, fontWeight: 800 }}>
-                  Igreja
-                </Link>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column" }}>
-                {churchProfile.attention.length > 0 ? (
-                  churchProfile.attention.map((item) => (
+                <ChurchTrendChart data={churchProfile.trend} />
+              </Card>
+              <Card padding={0}>
+                <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--text)" }}>Pessoas para revisao</h3>
+                    <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>Fila baseada em ausencias, frequencia e acoes vencidas.</p>
+                  </div>
+                  <Link href="/coord/igreja" style={{ color: "var(--accent)", textDecoration: "none", fontSize: 12.5, fontWeight: 800 }}>Igreja</Link>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  {churchProfile.attention.length > 0 ? churchProfile.attention.map((item) => (
                     <div key={item.member.id} style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 10 }}>
                       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
                         <div style={{ minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                             <span style={{ width: 8, height: 8, borderRadius: 999, background: priorityColor(item.priority), flexShrink: 0 }} />
-                            <strong style={{ fontSize: 13.5, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {item.member.name}
-                            </strong>
+                            <strong style={{ fontSize: 13.5, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.member.name}</strong>
                           </div>
-                          <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-3)" }}>
-                            {item.caregiverName ?? "Sem cuidador"} · Ultima presenca: {item.lastPresence ? formatDateLabel(item.lastPresence) : "sem registro"}
-                          </p>
+                          <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-3)" }}>{item.caregiverName ?? "Sem cuidador"} Â· Ultima presenca: {item.lastPresence ? formatDateLabel(item.lastPresence) : "sem registro"}</p>
                         </div>
-                        <span style={{ fontSize: 10.5, fontWeight: 800, color: priorityColor(item.priority), textTransform: "uppercase" }}>
-                          {item.priority}
-                        </span>
+                        <span style={{ fontSize: 10.5, fontWeight: 800, color: priorityColor(item.priority), textTransform: "uppercase" }}>{item.priority}</span>
                       </div>
-                      <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-2)", lineHeight: 1.45 }}>
-                        {item.reason}. {item.presentTotal} presenca(s) em {item.sampleTotal} chamada(s) fechada(s) na amostra.
-                      </p>
+                      <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-2)", lineHeight: 1.45 }}>{item.reason}. {item.presentTotal} presenca(s) em {item.sampleTotal} chamada(s).</p>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <Link href={`/coord/membros/${item.member.id}/editar`} style={{ textDecoration: "none" }}>
-                          <Button variant="secondary" size="sm" icon={<IconHeart />}>
-                            Designar
-                          </Button>
-                        </Link>
-                        <Link href="/coord/acompanhamentos" style={{ textDecoration: "none" }}>
-                          <Button variant="secondary" size="sm" icon={<IconMessage />}>
-                            Iniciar contato
-                          </Button>
-                        </Link>
+                        <Link href={`/coord/membros/${item.member.id}/editar`} style={{ textDecoration: "none" }}><Button variant="secondary" size="sm" icon={<IconHeart />}>Designar</Button></Link>
+                        <Link href="/coord/acompanhamentos" style={{ textDecoration: "none" }}><Button variant="secondary" size="sm" icon={<IconMessage />}>Iniciar contato</Button></Link>
                       </div>
                     </div>
-                  ))
-                ) : (
-                  <p style={{ margin: 0, padding: 18, color: "var(--text-3)", fontSize: 13 }}>
-                    Nenhuma pessoa apareceu para revisao nesta amostra. Quando uma chamada for fechada, os sinais entram aqui.
-                  </p>
-                )}
-              </div>
-            </Card>
-          </div>
-        </section>
-
-        <DashboardMap items={mapItems} />
-
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
-            gap: 20,
-          }}
-        >
-          <Card padding={20}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text)" }}>
-                  Acoes nos ultimos 7 dias
-                </h3>
-                <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-3)" }}>
-                  Total de {followups.length} acompanhamentos no periodo
-                </p>
-              </div>
+                  )) : <p style={{ margin: 0, padding: 18, color: "var(--text-3)", fontSize: 13 }}>Nenhuma pessoa para revisao nesta amostra.</p>}
+                </div>
+              </Card>
             </div>
-            <VisitChart data={visitsData} />
-          </Card>
+          </>
+        )}
 
-          <Card padding={20}>
-            <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 700, color: "var(--text)" }}>
-              Distribuicao por jornada do membro
-            </h3>
-            <div style={{ display: "flex", alignItems: "center", gap: 24, justifyContent: "center" }}>
-              <StatusDonut data={memberJourney} total={members.length} />
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
-                {memberJourney.map((item) => {
-                  const pct = members.length > 0 ? Math.round((item.count / members.length) * 100) : 0;
-                  return (
-                    <div key={item.key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <StatusDot status={item.key} size={8} />
-                      <span
-                        style={{
-                          flex: 1,
-                          fontSize: 12.5,
-                          color: "var(--text)",
-                          fontWeight: 500,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {item.label}
-                      </span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>{item.count}</span>
-                      <span style={{ fontSize: 11, color: "var(--text-3)", minWidth: 32, textAlign: "right" }}>
-                        {pct}%
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </Card>
-        </section>
-
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: 16,
-          }}
-        >
-          <KpiCard
-            icon={<IconDoc />}
-            label="Contatos na Triagem"
-            value={operationalAlerts.totalOpenContacts}
-            sub="Novos, contatados ou em espera"
-            accent="#7C3AED"
-            bg="rgba(124,58,237,0.12)"
-          />
-          <KpiCard
-            icon={<IconHome />}
-            label="Esperando Visita"
-            value={operationalAlerts.waitingVisits}
-            sub="Casas abertas aguardando visita"
-            accent="#0891B2"
-            bg="#ECFEFF"
-          />
-          <KpiCard
-            icon={<IconHourglass />}
-            label="Membros Sem Cuidador"
-            value={operationalAlerts.membersWithoutCaregiver}
-            sub="Precisam de designacao"
-            accent="#EA580C"
-            bg="#FFEDD5"
-          />
-          <KpiCard
-            icon={<IconUsers />}
-            label="Contatos Sem Cuidador"
-            value={operationalAlerts.contactsWithoutCaregiver}
-            sub="Fila operacional"
-            accent="#2D7FF9"
-            bg="#E8F1FE"
-          />
-          <KpiCard
-            icon={<IconBell />}
-            label="Casos Urgentes"
-            value={operationalAlerts.urgentMembers}
-            sub="Prioridade de resposta"
-            accent="#E11D48"
-            bg="#FFE4E6"
-          />
-        </section>
-
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
-            gap: 20,
-          }}
-        >
-          <Card padding={0}>
-            <div
-              style={{
-                padding: "16px 18px",
-                borderBottom: "1px solid var(--border)",
-                display: "flex",
-                alignItems: "baseline",
-                justifyContent: "space-between",
-              }}
-            >
-              <div>
-                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text)" }}>
-                  Equipe em acao
-                </h3>
-                <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--text-3)" }}>
-                  {caregiversActive} cuidadores ativos de {caregiversTotal}
-                </p>
-              </div>
-              <Link
-                href="/coord/cuidadores"
-                style={{
-                  color: "var(--accent)",
-                  fontSize: 12.5,
-                  fontWeight: 700,
-                  textDecoration: "none",
-                }}
-              >
-                Ver todos
-              </Link>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              {caregiverPerformance.length > 0 ? (
-                caregiverPerformance.map((caregiver) => (
-                  <CapacityRow key={caregiver.id} caregiver={caregiver} />
-                ))
-              ) : (
-                <p style={{ padding: 18, fontSize: 13, color: "var(--text-3)", margin: 0 }}>
-                  Nenhum cuidador cadastrado neste tenant.
-                </p>
-              )}
-            </div>
-          </Card>
-
-          <Card padding={20}>
-            <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 700, color: "var(--text)" }}>
-              Ultimas interacoes pastorais
-            </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {followups.slice(0, 3).map((item) => (
-                <div
-                  key={item.id}
-                  style={{
-                    padding: 12,
-                    borderRadius: 14,
-                    border: "1px solid var(--border)",
-                    background: "var(--surface-2)",
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                    <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text)" }}>
-                      {item.member ?? "Sem membro"}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        textTransform: "uppercase",
-                        color: "var(--accent)",
-                      }}
-                    >
-                      {item.type === "visit"
-                        ? "Visita"
-                        : item.type === "call"
-                          ? "Ligacao"
-                          : item.type === "message"
-                            ? "Mensagem"
-                            : item.type === "prayer"
-                              ? "Oracao"
-                              : "Outro"}
-                    </span>
-                  </div>
-                  <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "var(--text-2)", lineHeight: 1.4 }}>
-                    {item.notes}
-                  </p>
-                  <div
-                    style={{
-                      marginTop: 8,
-                      display: "flex",
-                      justifyContent: "space-between",
-                      fontSize: 11,
-                      color: "var(--text-3)",
-                    }}
-                  >
-                    <span>Registrado em: {new Date(item.occurredAt).toLocaleDateString("pt-BR")}</span>
-                    {item.nextActionAt ? (
-                      <span style={{ color: "var(--accent)", fontWeight: 600 }}>
-                        Prox: {new Date(item.nextActionAt).toLocaleDateString("pt-BR")}
-                      </span>
-                    ) : null}
+        {activeTab === "tci" && (
+          <>
+            <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+              <KpiCard icon={<IconUsers />} label="Total Acolhidos" value={total} sub={`+${newContactsThisWeek} esta semana`} accent="#2D7FF9" bg="#E8F1FE" />
+              <KpiCard icon={<IconHeart />} label="Sendo Cuidados" value={activeMembers} sub={`${total > 0 ? Math.round((activeMembers / total) * 100) : 0}% da base`} accent="#16A34A" bg="#DCFCE7" />
+              <KpiCard icon={<IconCheck />} label="Concluidos" value={completedMembers} sub="Ciclos consolidados" accent="#7C3AED" bg="rgba(124,58,237,0.12)" />
+              <KpiCard icon={<IconDoc />} label="Novos Contatos" value={operationalAlerts.totalOpenContacts} sub="Em fase de triagem" accent="#EA580C" bg="#FFEDD5" />
+            </section>
+            <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
+              <Card padding={20}>
+                <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 700, color: "var(--text)" }}>Distribuicao por jornada do membro</h3>
+                <div style={{ display: "flex", alignItems: "center", gap: 24, justifyContent: "center" }}>
+                  <StatusDonut data={memberJourney} total={members.length} />
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                    {memberJourney.map((item) => {
+                      const pct = members.length > 0 ? Math.round((item.count / members.length) * 100) : 0;
+                      return (
+                        <div key={item.key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <StatusDot status={item.key} size={8} />
+                          <span style={{ flex: 1, fontSize: 12.5, color: "var(--text)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>{item.count}</span>
+                          <span style={{ fontSize: 11, color: "var(--text-3)", minWidth: 32, textAlign: "right" }}>{pct}%</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-              ))}
-              <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-                <Link href="/coord/acompanhamentos" style={{ flex: 1 }}>
-                  <Button variant="secondary" size="md" full icon={<IconCalendar />}>
-                    Novo Acompanhamento
-                  </Button>
-                </Link>
+              </Card>
+              <Card padding={20}>
+                <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700, color: "var(--text)" }}>Acoes nos ultimos 7 dias</h3>
+                <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--text-3)" }}>Total de {followups.length} acompanhamentos</p>
+                <VisitChart data={visitsData} />
+              </Card>
+            </section>
+            <Card padding={0}>
+              <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text)" }}>Sessoes de TCI</h3>
+                  <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--text-3)" }}>Acompanhe as sessoes e cameras</p>
+                </div>
+                <Link href="/coord/tci" style={{ color: "var(--accent)", fontSize: 12.5, fontWeight: 700, textDecoration: "none" }}>Gerenciar TCI</Link>
               </div>
-            </div>
-          </Card>
-        </section>
+              <div style={{ padding: "20px 18px" }}>
+                <p style={{ margin: "0 0 14px", fontSize: 13, color: "var(--text-3)" }}>Acesse o modulo de TCI para visualizar sessoes, cameras e participantes.</p>
+                <Link href="/coord/tci"><Button variant="primary" size="md" icon={<IconUsers />}>Ir para TCI</Button></Link>
+              </div>
+            </Card>
+          </>
+        )}
+
+        {activeTab === "cuidados" && (
+          <>
+            <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+              <KpiCard icon={<IconDoc />} label="Contatos na Triagem" value={operationalAlerts.totalOpenContacts} sub="Novos, contatados ou em espera" accent="#7C3AED" bg="rgba(124,58,237,0.12)" />
+              <KpiCard icon={<IconHome />} label="Esperando Visita" value={operationalAlerts.waitingVisits} sub="Casas abertas aguardando visita" accent="#0891B2" bg="#ECFEFF" />
+              <KpiCard icon={<IconHourglass />} label="Membros Sem Cuidador" value={operationalAlerts.membersWithoutCaregiver} sub="Precisam de designacao" accent="#EA580C" bg="#FFEDD5" />
+              <KpiCard icon={<IconUsers />} label="Contatos Sem Cuidador" value={operationalAlerts.contactsWithoutCaregiver} sub="Fila operacional" accent="#2D7FF9" bg="#E8F1FE" />
+              <KpiCard icon={<IconBell />} label="Casos Urgentes" value={operationalAlerts.urgentMembers} sub="Prioridade de resposta" accent="#E11D48" bg="#FFE4E6" />
+              <KpiCard icon={<IconCalendar />} label="Contatos Vencidos" value={churchProfile.overdueContacts} sub="Proximas acoes vencidas" accent="#E11D48" bg="#FFE4E6" />
+            </section>
+            <DashboardMap items={mapItems} />
+            <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+              <KpiCard icon={<IconHeart />} label="Sendo Cuidados" value={activeMembers} sub={`${total > 0 ? Math.round((activeMembers / total) * 100) : 0}% da base`} accent="#16A34A" bg="#DCFCE7" />
+              <KpiCard icon={<IconHourglass />} label="Sem Cuidador (Total)" value={operationalAlerts.unassignedPeople} sub="Aguardando vinculacao" accent="#EA580C" bg="#FFEDD5" />
+            </section>
+          </>
+        )}
+
+        {activeTab === "cuidadores" && (
+          <>
+            <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+              <KpiCard icon={<IconUsers />} label="Total de Cuidadores" value={caregiversTotal} sub={`${caregiversActive} ativos`} accent="#2563EB" bg="#DBEAFE" />
+              <KpiCard icon={<IconHeart />} label="Casos Ativos" value={activeMembers} sub="Membros sendo acompanhados" accent="#16A34A" bg="#DCFCE7" />
+              <KpiCard icon={<IconHourglass />} label="Sem Cuidador" value={operationalAlerts.unassignedPeople} sub="Aguardando vinculacao" accent="#EA580C" bg="#FFEDD5" />
+            </section>
+            <Card padding={0}>
+              <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text)" }}>Equipe de cuidadores</h3>
+                  <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--text-3)" }}>{caregiversActive} ativos de {caregiversTotal} Â· Ordenado por ultima acao</p>
+                </div>
+                <Link href="/coord/cuidadores" style={{ color: "var(--accent)", fontSize: 12.5, fontWeight: 700, textDecoration: "none" }}>Gerenciar</Link>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {caregiverPerformance.length > 0 ? caregiverPerformance.map((caregiver) => (
+                  <div key={caregiver.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: "1px solid var(--border)" }}>
+                    <Avatar name={caregiver.name} size={38} ring />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{caregiver.name}</div>
+                        {!caregiver.active && <span style={{ fontSize: 10, fontWeight: 800, background: "#FEE2E2", color: "#E11D48", padding: "1px 6px", borderRadius: 4 }}>Inativo</span>}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
+                        {Array.from({ length: 5 }).map((_, index) => {
+                          const colorByCapacity = { alta: "#E11D48", normal: "#2563EB", baixa: "#16A34A" }[caregiver.capacidade];
+                          return <div key={`${caregiver.id}-${index}`} style={{ width: 14, height: 6, borderRadius: 2, background: index < Math.min(caregiver.casos, 5) ? colorByCapacity : "var(--border)" }} />;
+                        })}
+                        <span style={{ fontSize: 11.5, color: "var(--text-3)", marginLeft: 6 }}>{caregiver.casos} casos</span>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div style={{ fontSize: 11, color: "var(--text-3)", fontWeight: 600 }}>Ultima acao</div>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-2)", marginTop: 2 }}>{caregiver.lastActionAt ? new Date(caregiver.lastActionAt).toLocaleDateString("pt-BR") : "Sem registro"}</div>
+                    </div>
+                  </div>
+                )) : <p style={{ padding: 18, fontSize: 13, color: "var(--text-3)", margin: 0 }}>Nenhum cuidador cadastrado.</p>}
+              </div>
+            </Card>
+          </>
+        )}
+
+        {activeTab === "acoes" && (
+          <>
+            <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+              <KpiCard icon={<IconCalendar />} label="Total de Acoes" value={followups.length} sub="Acompanhamentos registrados" accent="#2D7FF9" bg="#E8F1FE" />
+              <KpiCard icon={<IconCalendar />} label="Acoes esta semana" value={visitsData.reduce((sum, d) => sum + d.n, 0)} sub="Ultimos 7 dias" accent="#16A34A" bg="#DCFCE7" />
+              <KpiCard icon={<IconBell />} label="Acoes Vencidas" value={churchProfile.overdueContacts} sub="Proximas acoes em atraso" accent="#E11D48" bg="#FFE4E6" />
+            </section>
+            <Card padding={20}>
+              <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700, color: "var(--text)" }}>Grafico de atividade semanal</h3>
+              <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--text-3)" }}>Acompanhamentos registrados por dia nos ultimos 7 dias</p>
+              <VisitChart data={visitsData} />
+            </Card>
+            <Card padding={20}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text)" }}>Ultimas interacoes pastorais</h3>
+                <Link href="/coord/acompanhamentos" style={{ color: "var(--accent)", fontSize: 12.5, fontWeight: 700, textDecoration: "none" }}>Ver todos</Link>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {followups.slice(0, 10).map((item) => (
+                  <div key={item.id} style={{ padding: 14, borderRadius: 14, border: "1px solid var(--border)", background: "var(--surface-2)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text)" }}>{item.member ?? "Sem membro"}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--accent)", flexShrink: 0 }}>
+                        {item.type === "visit" ? "Visita" : item.type === "call" ? "Ligacao" : item.type === "message" ? "Mensagem" : item.type === "prayer" ? "Oracao" : "Outro"}
+                      </span>
+                    </div>
+                    {item.notes && <p style={{ margin: "0 0 6px", fontSize: 12.5, color: "var(--text-2)", lineHeight: 1.4 }}>{item.notes}</p>}
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-3)" }}>
+                      <span>Registrado em: {new Date(item.occurredAt).toLocaleDateString("pt-BR")}</span>
+                      {item.nextActionAt && <span style={{ color: "var(--accent)", fontWeight: 600 }}>Prox: {new Date(item.nextActionAt).toLocaleDateString("pt-BR")}</span>}
+                    </div>
+                  </div>
+                ))}
+                {followups.length === 0 && <p style={{ margin: 0, padding: "20px 0", textAlign: "center", fontSize: 13, color: "var(--text-3)" }}>Nenhum acompanhamento registrado ainda.</p>}
+              </div>
+              <div style={{ marginTop: 16 }}>
+                <Link href="/coord/acompanhamentos"><Button variant="secondary" size="md" full icon={<IconCalendar />}>Novo Acompanhamento</Button></Link>
+              </div>
+            </Card>
+          </>
+        )}
+
       </main>
     </div>
   );

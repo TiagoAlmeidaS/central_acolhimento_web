@@ -54,6 +54,7 @@ interface Props {
 }
 
 type TabType = "home" | "details" | "new" | "schedule";
+type HomeTabType = "mine" | "unassigned";
 
 // Status mapping helper for the V2 UI
 const STATUS_MAP: Record<string, string> = {
@@ -98,12 +99,16 @@ export function CaregiverDashboardClient({
 
   // Navigation and selection state
   const [tab, setTab] = useState<TabType>("home");
+  const [homeTab, setHomeTab] = useState<HomeTabType>("mine");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedKind, setSelectedKind] = useState<"member" | "seed" | null>(null);
 
   // Search & Filter state
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
+
+  // Inactivate confirmation state
+  const [confirmInactivate, setConfirmInactivate] = useState(false);
 
   // Form states
   const [novaNota, setNovaNota] = useState("");
@@ -413,6 +418,89 @@ export function CaregiverDashboardClient({
     startTransition(() => router.refresh());
   }
 
+  // Inactivate seed or member
+  async function handleInactivate() {
+    if (!selectedId || !selectedKind) return;
+    setSubmitting(true);
+    setError(null);
+
+    let response: Response;
+    if (selectedKind === "seed") {
+      const currentSeed = initialSeeds.find((s) => s.id === selectedId);
+      if (!currentSeed) { setSubmitting(false); return; }
+      response = await fetch(`/api/seeds/${selectedId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId: currentSeed.tenantId,
+          referenceName: currentSeed.referenceName,
+          status: "inactive",
+        }),
+      });
+    } else {
+      response = await fetch(`/api/members/${selectedId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "inactive" }),
+      });
+    }
+
+    setSubmitting(false);
+    setConfirmInactivate(false);
+
+    if (!response.ok) {
+      setError("Não foi possível inativar o contato.");
+      return;
+    }
+
+    setTab("home");
+    setSelectedId(null);
+    setSelectedKind(null);
+    startTransition(() => router.refresh());
+  }
+
+  // Adopt an unassigned seed
+  async function handleAdoptSeed(seed: Seed) {
+    setSubmitting(true);
+    setError(null);
+
+    const response = await fetch(`/api/seeds/${seed.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tenantId: seed.tenantId,
+        referenceName: seed.referenceName,
+        caregiverId: session.membership.caregiverId,
+        age: seed.age,
+        phone: seed.phone,
+        city: seed.city,
+        status: seed.status,
+        notes: seed.notes,
+        openHouse: seed.openHouse,
+        address: seed.address,
+        street: seed.street,
+        neighborhood: seed.neighborhood,
+        addressNumber: seed.addressNumber,
+        state: seed.state,
+        postalCode: seed.postalCode,
+        source: seed.source,
+        latitude: seed.latitude,
+        longitude: seed.longitude,
+        isUrgent: seed.isUrgent,
+      }),
+    });
+
+    setSubmitting(false);
+
+    if (!response.ok) {
+      setError("Não foi possível assumir a responsabilidade deste contato.");
+      return;
+    }
+
+    setHomeTab("mine");
+    startTransition(() => router.refresh());
+  }
+
   // Create new contact (seed)
   async function handleCreateNew(e: React.FormEvent) {
     e.preventDefault();
@@ -539,6 +627,11 @@ export function CaregiverDashboardClient({
     startTransition(() => router.refresh());
   }
 
+  // Unassigned seeds (no caregiver assigned yet)
+  const unassignedSeeds = useMemo(() => {
+    return initialSeeds.filter((s) => !s.caregiverId && s.status !== "inactive" && s.status !== "in_progress");
+  }, [initialSeeds]);
+
   return (
     <div style={{ position: "relative", minHeight: "100%", background: "var(--bg)" }}>
       
@@ -563,7 +656,7 @@ export function CaregiverDashboardClient({
                 letterSpacing: "-0.025em", color: "var(--text)",
                 lineHeight: 1.15,
               }}>
-                Meus Assistidos
+                {homeTab === "mine" ? "Meus Assistidos" : "Sem Cuidador"}
               </h1>
               <div style={{
                 marginTop: 6, fontSize: 12, fontWeight: 700,
@@ -576,6 +669,67 @@ export function CaregiverDashboardClient({
             <Avatar name={`${session.user.firstName} ${session.user.lastName}`} size={46} online />
           </div>
 
+          {/* Sub-tabs: Mine / Unassigned */}
+          <div style={{ padding: "0 22px", display: "flex", gap: 8 }}>
+            <button
+              onClick={() => setHomeTab("mine")}
+              style={{
+                flex: 1,
+                padding: "9px 12px",
+                borderRadius: 12,
+                border: `1.5px solid ${homeTab === "mine" ? "var(--accent)" : "var(--border)"}`,
+                background: homeTab === "mine" ? "var(--accent-bg)" : "var(--surface)",
+                color: homeTab === "mine" ? "var(--accent)" : "var(--text-2)",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                transition: "all 0.15s ease",
+              }}
+            >
+              Meus Assistidos
+            </button>
+            <button
+              onClick={() => setHomeTab("unassigned")}
+              style={{
+                flex: 1,
+                padding: "9px 12px",
+                borderRadius: 12,
+                border: `1.5px solid ${homeTab === "unassigned" ? "#EA580C" : "var(--border)"}`,
+                background: homeTab === "unassigned" ? "#FFF7ED" : "var(--surface)",
+                color: homeTab === "unassigned" ? "#EA580C" : "var(--text-2)",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                transition: "all 0.15s ease",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+              }}
+            >
+              Sem Cuidador
+              {unassignedSeeds.length > 0 && (
+                <span style={{
+                  background: homeTab === "unassigned" ? "#EA580C" : "#FFEDD5",
+                  color: homeTab === "unassigned" ? "#fff" : "#C2410C",
+                  fontSize: 10,
+                  fontWeight: 800,
+                  padding: "1px 6px",
+                  borderRadius: 999,
+                  minWidth: 18,
+                  textAlign: "center",
+                }}>
+                  {unassignedSeeds.length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Content: Mine Tab */}
+          {homeTab === "mine" && (
+            <>
           {/* Search bar */}
           <div style={{ padding: "0 22px" }}>
             <SearchInput
@@ -668,6 +822,67 @@ export function CaregiverDashboardClient({
               </Card>
             ))}
           </div>
+            </>
+          )}
+
+          {/* Content: Unassigned Tab */}
+          {homeTab === "unassigned" && (
+            <div style={{ padding: "0 22px 100px", display: "flex", flexDirection: "column", gap: 12 }}>
+              {error && (
+                <div style={{ padding: "12px 14px", borderRadius: 10, background: "#FFF1F2", color: "#E11D48", fontSize: 12.5 }}>
+                  {error}
+                </div>
+              )}
+              {unassignedSeeds.length === 0 ? (
+                <div style={{ padding: "60px 20px", textAlign: "center" }}>
+                  <div style={{ fontSize: 36, marginBottom: 12 }}>🎉</div>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", margin: "0 0 4px" }}>Todos os contatos têm cuidador!</p>
+                  <p style={{ fontSize: 13, color: "var(--text-3)", margin: 0 }}>Não há contatos aguardando vinculação.</p>
+                </div>
+              ) : (
+                unassignedSeeds.map((seed) => (
+                  <Card key={seed.id} padding={16} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                      <Avatar name={seed.referenceName} size={46} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 3 }}>
+                          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {seed.referenceName}
+                          </h3>
+                          <StatusPill status={STATUS_MAP[seed.status] ?? "aguardando"} size="xs" />
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12.5, color: "var(--text-2)" }}>
+                          <IconMapPin size={12} color="var(--accent)" />
+                          <span style={{ color: "var(--accent)" }}>{seed.city}</span>
+                          {seed.phone && (
+                            <span style={{ color: "var(--text-3)", marginLeft: 8 }}>· {seed.phone}</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 3 }}>
+                          Cadastrado em: {new Date(seed.createdAt).toLocaleDateString("pt-BR")}
+                        </div>
+                      </div>
+                    </div>
+                    {seed.notes && (
+                      <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-2)", padding: "8px 10px", background: "var(--surface-2)", borderRadius: 8, border: "1px solid var(--border)", lineHeight: 1.4 }}>
+                        {seed.notes}
+                      </p>
+                    )}
+                    <Button
+                      variant="primary"
+                      size="md"
+                      full
+                      onClick={() => handleAdoptSeed(seed)}
+                      disabled={submitting}
+                      icon={<IconUsers />}
+                    >
+                      {submitting ? "Assumindo..." : "Assumir Responsabilidade"}
+                    </Button>
+                  </Card>
+                ))
+              )}
+            </div>
+          )}
 
           {/* Floating Action Button */}
           <button
@@ -828,8 +1043,59 @@ export function CaregiverDashboardClient({
               </div>
             )}
 
+            {/* Inactivate pill - shown for both seeds and members */}
+            {!confirmInactivate ? (
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <button
+                  onClick={() => setConfirmInactivate(true)}
+                  disabled={submitting}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "7px 16px", borderRadius: 999,
+                    background: "transparent", border: "1.5px solid #FECDD3",
+                    color: "#E11D48", fontSize: 12, fontWeight: 700,
+                    cursor: "pointer", fontFamily: "inherit",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  <IconX size={13} />
+                  Inativar contato
+                </button>
+              </div>
+            ) : (
+              <Card padding={16} style={{ background: "#FFF1F2", border: "1.5px solid #FECDD3" }}>
+                <p style={{ margin: "0 0 12px", fontSize: 13.5, fontWeight: 700, color: "#991B1B" }}>
+                  Tem certeza?
+                </p>
+                <p style={{ margin: "0 0 14px", fontSize: 12.5, color: "#7F1D1D", lineHeight: 1.5 }}>
+                  O contato será marcado como <strong>inativo</strong> e não aparecerá mais na lista de acompanhamento ativo.
+                </p>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    full
+                    onClick={() => setConfirmInactivate(false)}
+                    disabled={submitting}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    full
+                    style={{ background: "#E11D48", boxShadow: "none" }}
+                    onClick={handleInactivate}
+                    disabled={submitting}
+                  >
+                    {submitting ? "Inativando..." : "Confirmar Inativação"}
+                  </Button>
+                </div>
+              </Card>
+            )}
+
             {/* If seed, show conversion action */}
-            {selectedKind === "seed" && (
+            {selectedKind === "seed" && !confirmInactivate && (
               <Card padding={16} style={{ background: "#F5F3FF", border: "1px solid #DDD6FE" }}>
                 <p style={{ margin: 0, fontSize: 13, color: "#5B21B6", lineHeight: 1.5 }}>
                   Este contato está na lista de triagem. Inicie o acompanhamento para torná-lo um membro de acolhimento.
