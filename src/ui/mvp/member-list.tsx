@@ -454,6 +454,25 @@ export function MemberList({
 
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                     <Link
+                      href={`/coord/acompanhamentos?memberId=${member.id}`}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minHeight: 36,
+                        padding: "0 14px",
+                        borderRadius: 10,
+                        border: "1px solid var(--accent)",
+                        background: "var(--accent-bg)",
+                        color: "var(--accent)",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        textDecoration: "none",
+                      }}
+                    >
+                      Ação
+                    </Link>
+                    <Link
                       href={`/coord/membros/${member.id}/editar`}
                       style={{
                         display: "inline-flex",

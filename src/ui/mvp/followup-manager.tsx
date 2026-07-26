@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Caregiver, Followup, Member, Tenant } from "@/server/domain/mvp";
 import {
@@ -24,6 +24,7 @@ import {
   IconMapPin,
   IconClock,
   IconVideo,
+  IconChevronDown,
 } from "@/ui/v2-components/icons";
 
 const typeLabels: Record<Followup["type"], string> = {
@@ -130,24 +131,26 @@ export function FollowupManager({
   tenants,
   members,
   caregivers,
+  initialMemberId,
 }: Readonly<{
   followups: Followup[];
   tenants: Tenant[];
   members: Member[];
   caregivers: Caregiver[];
+  initialMemberId?: string;
 }>) {
   const router = useRouter();
   const [editing, setEditing] = useState<Followup | null>(null);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     ...emptyForm,
     tenantId: tenants[0]?.id ?? "",
-    memberId: members[0]?.id ?? "",
+    memberId: initialMemberId && members.some((m) => m.id === initialMemberId) ? initialMemberId : members[0]?.id ?? "",
     occurredAt: toDateTimeLocal(new Date().toISOString()),
-  });
+  }));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(!!initialMemberId);
   const [activeTab, setActiveTab] = useState<"history" | "schedule">("history");
 
   function resetForm() {
@@ -155,7 +158,7 @@ export function FollowupManager({
     setForm({
       ...emptyForm,
       tenantId: tenants[0]?.id ?? "",
-      memberId: members[0]?.id ?? "",
+      memberId: initialMemberId && members.some((m) => m.id === initialMemberId) ? initialMemberId : members[0]?.id ?? "",
       occurredAt: toDateTimeLocal(new Date().toISOString()),
     });
     setError(null);
@@ -253,12 +256,11 @@ export function FollowupManager({
                 placeholder="Localidade"
                 required
               />
-              <Select
+              <MemberSearchSelect
                 label="Pessoa acompanhada"
                 value={form.memberId}
                 onChange={(v) => setForm((f) => ({ ...f, memberId: v }))}
-                options={members.map((m) => ({ value: m.id, label: m.name }))}
-                placeholder="Selecione a pessoa"
+                members={members}
                 required
               />
               <Select
@@ -621,6 +623,131 @@ export function FollowupManager({
           </Card>
         );
       })()}
+    </div>
+  );
+}
+
+function MemberSearchSelect({
+  label,
+  value,
+  onChange,
+  members,
+  required,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  members: Member[];
+  required?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedMember = members.find((m) => m.id === value);
+  const filteredMembers = members.filter((m) =>
+    m.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div ref={containerRef} style={{ display: "flex", flexDirection: "column", gap: 8, position: "relative", minWidth: 0 }}>
+      {label && (
+        <label style={{
+          fontSize: 13.5, fontWeight: 600,
+          color: "var(--text)", letterSpacing: "-0.005em",
+        }}>
+          {label}
+        </label>
+      )}
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          display: "flex", alignItems: "center", gap: 10,
+          height: 54, padding: "0 18px",
+          background: "var(--surface)",
+          border: "1.5px solid var(--border)",
+          borderRadius: 14,
+          cursor: "pointer",
+          position: "relative",
+          justifyContent: "space-between",
+        }}
+      >
+        <span style={{
+          fontSize: 15,
+          color: value ? "var(--text)" : "var(--text-3)",
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>
+          {selectedMember?.name || "Selecione a pessoa"}
+        </span>
+        <span style={{ color: "var(--accent)", display: "flex", pointerEvents: "none" }}>
+          <IconChevronDown size={18} />
+        </span>
+      </div>
+
+      {isOpen && (
+        <div style={{
+          position: "absolute", top: "100%", left: 0, right: 0,
+          marginTop: 4,
+          background: "var(--surface)",
+          border: "1.5px solid var(--border)",
+          borderRadius: 14,
+          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+          zIndex: 1000,
+          maxHeight: 300,
+          display: "flex", flexDirection: "column", overflow: "hidden",
+        }}>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar membro..."
+            autoFocus
+            style={{
+              padding: "12px 14px", border: 0,
+              borderBottom: "1px solid var(--border)",
+              outline: "none", background: "var(--surface-2)",
+              fontSize: 14, fontFamily: "inherit", color: "var(--text)",
+            }}
+          />
+          <div style={{ overflowY: "auto", maxHeight: 250 }}>
+            {filteredMembers.map((m) => (
+              <div
+                key={m.id}
+                onClick={() => {
+                  onChange(m.id);
+                  setIsOpen(false);
+                  setSearch("");
+                }}
+                style={{
+                  padding: "10px 14px", cursor: "pointer",
+                  fontSize: 14, color: "var(--text)",
+                  background: m.id === value ? "var(--accent-bg)" : "transparent",
+                  transition: "background .1s",
+                }}
+                onMouseEnter={(e) => { if (m.id !== value) e.currentTarget.style.background = "var(--surface-2)"; }}
+                onMouseLeave={(e) => { if (m.id !== value) e.currentTarget.style.background = "transparent"; }}
+              >
+                {m.name}
+              </div>
+            ))}
+            {filteredMembers.length === 0 && (
+              <div style={{ padding: "14px", fontSize: 13, color: "var(--text-3)", textAlign: "center" }}>
+                Nenhum membro encontrado
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

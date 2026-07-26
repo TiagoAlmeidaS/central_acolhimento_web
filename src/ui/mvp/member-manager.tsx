@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { startTransition, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Caregiver, Member, SpiritualTemperature, Tenant } from "@/server/domain/mvp";
@@ -910,14 +911,28 @@ export function MemberManager({
                       {/* Actions */}
                       <td style={{ padding: "14px 14px" }}>
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <Link
+                            href={`/coord/acompanhamentos?memberId=${member.id}`}
+                            style={{
+                              display: "inline-flex", alignItems: "center", justifyContent: "center",
+                              padding: "6px 14px", borderRadius: 8,
+                              background: "var(--accent-bg)",
+                              border: "1px solid rgba(45,127,249,0.2)",
+                              color: "var(--accent)",
+                              fontSize: 13, fontWeight: 600, cursor: "pointer",
+                              fontFamily: "inherit", textDecoration: "none",
+                            }}
+                          >
+                            Ação
+                          </Link>
                           <button
                             type="button"
                             onClick={() => openEdit(member)}
                             style={{
                               padding: "6px 14px", borderRadius: 8,
-                              background: "var(--accent-bg)",
-                              border: "1px solid rgba(45,127,249,0.2)",
-                              color: "var(--accent)",
+                              background: "var(--surface-2)",
+                              border: "1px solid var(--border)",
+                              color: "var(--text)",
                               fontSize: 13, fontWeight: 600, cursor: "pointer",
                               fontFamily: "inherit",
                             }}
