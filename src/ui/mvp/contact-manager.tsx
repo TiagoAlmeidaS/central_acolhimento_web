@@ -2,7 +2,7 @@
 
 import { startTransition, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import type { Seed, Tenant } from "@/server/domain/mvp";
+import type { OutingEvent, Seed, Tenant } from "@/server/domain/mvp";
 import {
   estimateBase64Bytes,
   HOUSE_FRONT_IMAGE_MAX_DIMENSION,
@@ -143,6 +143,7 @@ const emptyForm = {
   houseFrontImageUrl: "",
   latitude: null as number | null,
   longitude: null as number | null,
+  outingEventId: "",
 };
 
 export function ContactManager({
@@ -150,11 +151,13 @@ export function ContactManager({
   tenants,
   hideList = false,
   initialEditing = null,
+  outings = [],
 }: Readonly<{
   contacts: Seed[];
   tenants: Tenant[];
   hideList?: boolean;
   initialEditing?: Seed | null;
+  outings?: OutingEvent[];
 }>) {
   const router = useRouter();
   const defaultTenant = tenants[0] ?? null;
@@ -181,6 +184,7 @@ export function ContactManager({
           houseFrontImageUrl: initialEditing.houseFrontImageUrl ?? "",
           latitude: initialEditing.latitude,
           longitude: initialEditing.longitude,
+          outingEventId: initialEditing.outingEventId ?? "",
         }
       : {
           ...emptyForm,
@@ -220,6 +224,7 @@ export function ContactManager({
         houseFrontImageUrl: initialEditing.houseFrontImageUrl ?? "",
         latitude: initialEditing.latitude,
         longitude: initialEditing.longitude,
+        outingEventId: initialEditing.outingEventId ?? "",
       });
     } else {
       const fallbackTenant = tenants.find((tenant) => tenant.id === form.tenantId) ?? defaultTenant;
@@ -270,6 +275,7 @@ export function ContactManager({
       houseFrontImageUrl: contact.houseFrontImageUrl ?? "",
       latitude: contact.latitude,
       longitude: contact.longitude,
+      outingEventId: contact.outingEventId ?? "",
     });
     setError(null);
     setSuccess(false);
@@ -407,6 +413,7 @@ export function ContactManager({
         houseFrontImageUrl: form.openHouse ? form.houseFrontImageUrl || null : null,
         latitude: form.openHouse ? form.latitude : null,
         longitude: form.openHouse ? form.longitude : null,
+        outingEventId: form.outingEventId || null,
       }),
     });
 
@@ -555,6 +562,16 @@ export function ContactManager({
             onChange={(value) => setForm((current) => ({ ...current, source: value }))}
             placeholder="Culto, visita, indicação, ligação..."
             icon={<IconHeart />}
+          />
+
+          <Select
+            label="Saida de origem"
+            value={form.outingEventId}
+            onChange={(value) => setForm((current) => ({ ...current, outingEventId: value }))}
+            options={outings
+              .filter((outing) => outing.tenantId === form.tenantId)
+              .map((outing) => ({ value: outing.id, label: `${outing.outingTypeName ?? "Nao classificada"} · ${outing.name}` }))}
+            placeholder="Sem saida vinculada"
           />
 
           <Select

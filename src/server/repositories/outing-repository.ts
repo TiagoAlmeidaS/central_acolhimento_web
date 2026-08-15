@@ -5,12 +5,15 @@ import type {
   AddOutingParticipantInput,
   CreateOutingConstraintInput,
   CreateOutingInput,
+  CreateOutingTypeInput,
   DataScope,
   OutingConstraintGroup,
   OutingDetail,
   OutingEvent,
   OutingGroup,
   OutingParticipant,
+  OutingType,
+  UpdateOutingTypeInput,
   UpdateOutingInput,
 } from "@/server/domain/mvp";
 import { listCaregivers, listMembers } from "@/server/repositories/mvp-repository";
@@ -24,6 +27,21 @@ type OutingEventRow = {
   target_group_size: number;
   allow_groups_without_car: boolean;
   status: OutingEvent["status"];
+  created_by_tenant_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+  outing_type_id: string | null;
+  outing_type_name?: string | null;
+  completed_at: string | null;
+  completed_by_tenant_user_id: string | null;
+};
+
+type OutingTypeRow = {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description: string;
+  active: boolean;
   created_by_tenant_user_id: string | null;
   created_at: string;
   updated_at: string;
@@ -76,6 +94,7 @@ type OutingGroupAssignmentRow = {
 };
 
 const localOutingEventsStore: OutingEvent[] = [];
+const localOutingTypesStore: OutingType[] = [];
 const localOutingParticipantsStore: OutingParticipant[] = [];
 const localOutingConstraintGroupsStore: OutingConstraintGroup[] = [];
 const localOutingGroupsStore: Array<Omit<OutingGroup, "participants">> = [];
@@ -103,6 +122,23 @@ function mapOuting(row: OutingEventRow): OutingEvent {
     targetGroupSize: Number(row.target_group_size),
     allowGroupsWithoutCar: !!row.allow_groups_without_car,
     status: row.status,
+    createdByTenantUserId: row.created_by_tenant_user_id,
+    createdAt: serializeDateValue(row.created_at) ?? undefined,
+    updatedAt: serializeDateValue(row.updated_at) ?? undefined,
+    outingTypeId: row.outing_type_id,
+    outingTypeName: row.outing_type_name ?? null,
+    completedAt: serializeDateValue(row.completed_at),
+    completedByTenantUserId: row.completed_by_tenant_user_id,
+  };
+}
+
+function mapOutingType(row: OutingTypeRow): OutingType {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    name: row.name,
+    description: row.description,
+    active: !!row.active,
     createdByTenantUserId: row.created_by_tenant_user_id,
     createdAt: serializeDateValue(row.created_at) ?? undefined,
     updatedAt: serializeDateValue(row.updated_at) ?? undefined,
@@ -333,10 +369,86 @@ function buildLocalOutingDetail(outing: OutingEvent): OutingDetail {
 
 export function resetLocalOutingsStore() {
   localOutingEventsStore.splice(0, localOutingEventsStore.length);
+  localOutingTypesStore.splice(0, localOutingTypesStore.length);
   localOutingParticipantsStore.splice(0, localOutingParticipantsStore.length);
   localOutingConstraintGroupsStore.splice(0, localOutingConstraintGroupsStore.length);
   localOutingGroupsStore.splice(0, localOutingGroupsStore.length);
   localOutingAssignmentsStore.splice(0, localOutingAssignmentsStore.length);
+}
+
+export async function listOutingTypes(scope?: DataScope, options?: { includeInactive?: boolean }): Promise<OutingType[]> {
+  if (!isDatabaseReady()) {
+    return localOutingTypesStore
+      .filter((item) => matchesScope(item.tenantId, scope) && (options?.includeInactive || item.active))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  const db = ensureDb();
+  const values: unknown[] = [];
+  const clauses: string[] = [];
+  if (scope?.tenantId) {
+    values.push(scope.tenantId);
+    clauses.push(`tenant_id = $${values.length}`);
+  } else if (scope?.tenantIds?.length) {
+    values.push(scope.tenantIds);
+    clauses.push(`tenant_id = ANY($${values.length})`);
+  }
+  if (!options?.includeInactive) clauses.push("active = true");
+  const where = clauses.length ? `where ${clauses.join(" and ")}` : "";
+  const result = await db.query<OutingTypeRow>(`select * from outing_types ${where} order by name asc`, values);
+  return result.rows.map(mapOutingType);
+}
+
+export async function createOutingType(input: CreateOutingTypeInput): Promise<OutingType> {
+  const name = input.name.trim();
+  if (!name) throw new Error("Nome do tipo de saida e obrigatorio.");
+  if (!isDatabaseReady()) {
+    if (localOutingTypesStore.some((item) => item.tenantId === input.tenantId && item.active && item.name.toLowerCase() === name.toLowerCase())) {
+      throw new Error("Ja existe um tipo de saida ativo com este nome.");
+    }
+    const now = new Date().toISOString();
+    const type: OutingType = {
+      id: crypto.randomUUID(), tenantId: input.tenantId, name, description: input.description?.trim() ?? "",
+      active: input.active ?? true, createdByTenantUserId: input.createdByTenantUserId ?? null, createdAt: now, updatedAt: now,
+    };
+    localOutingTypesStore.push(type);
+    return type;
+  }
+  const db = ensureDb();
+  const result = await db.query<OutingTypeRow>(
+    `insert into outing_types (tenant_id, name, description, active, created_by_tenant_user_id)
+     values ($1, $2, $3, $4, $5) returning *`,
+    [input.tenantId, name, input.description?.trim() ?? "", input.active ?? true, input.createdByTenantUserId ?? null],
+  );
+  return mapOutingType(result.rows[0]);
+}
+
+export async function updateOutingType(typeId: string, input: UpdateOutingTypeInput, scope?: DataScope): Promise<OutingType> {
+  const existing = (await listOutingTypes(scope, { includeInactive: true })).find((item) => item.id === typeId);
+  if (!existing) throw new Error("Tipo de saida nao encontrado.");
+  if (existing.tenantId !== input.tenantId) throw new Error("Acesso negado para outro tenant.");
+  const name = input.name.trim();
+  if (!name) throw new Error("Nome do tipo de saida e obrigatorio.");
+  if (!isDatabaseReady()) {
+    const duplicate = localOutingTypesStore.some((item) => item.id !== typeId && item.tenantId === input.tenantId && item.active && (input.active ?? true) && item.name.toLowerCase() === name.toLowerCase());
+    if (duplicate) throw new Error("Ja existe um tipo de saida ativo com este nome.");
+    const updated = { ...existing, name, description: input.description?.trim() ?? "", active: input.active ?? true, updatedAt: new Date().toISOString() };
+    localOutingTypesStore[localOutingTypesStore.findIndex((item) => item.id === typeId)] = updated;
+    return updated;
+  }
+  const db = ensureDb();
+  const result = await db.query<OutingTypeRow>(
+    `update outing_types set name = $2, description = $3, active = $4 where id = $1 returning *`,
+    [typeId, name, input.description?.trim() ?? "", input.active ?? true],
+  );
+  return mapOutingType(result.rows[0]);
+}
+
+async function resolveActiveOutingType(tenantId: string, typeId: string | null | undefined) {
+  if (!typeId) return null;
+  const type = (await listOutingTypes({ tenantId })).find((item) => item.id === typeId);
+  if (!type) throw new Error("Tipo de saida ativo nao encontrado para esta localidade.");
+  return type;
 }
 
 export async function listOutings(scope?: DataScope): Promise<OutingEvent[]> {
@@ -359,7 +471,10 @@ export async function listOutings(scope?: DataScope): Promise<OutingEvent[]> {
   }
 
   const where = clauses.length > 0 ? `where ${clauses.join(" and ")}` : "";
-  const result = await db.query<OutingEventRow>(`select * from outing_events ${where} order by created_at desc`, values);
+  const result = await db.query<OutingEventRow>(
+    `select e.*, ot.name as outing_type_name from outing_events e left join outing_types ot on ot.id = e.outing_type_id ${where.replaceAll("tenant_id", "e.tenant_id")} order by e.created_at desc`,
+    values,
+  );
   return result.rows.map(mapOuting);
 }
 
@@ -376,7 +491,10 @@ export async function getOutingDetail(outingId: string, scope?: DataScope): Prom
   }
 
   const db = ensureDb();
-  const outingResult = await db.query<OutingEventRow>("select * from outing_events where id = $1 limit 1", [outingId]);
+  const outingResult = await db.query<OutingEventRow>(
+    "select e.*, ot.name as outing_type_name from outing_events e left join outing_types ot on ot.id = e.outing_type_id where e.id = $1 limit 1",
+    [outingId],
+  );
   const outing = outingResult.rows[0] ? mapOuting(outingResult.rows[0]) : null;
 
   if (!outing) {
@@ -416,6 +534,7 @@ export async function getOutingDetail(outingId: string, scope?: DataScope): Prom
 }
 
 export async function createOuting(input: CreateOutingInput): Promise<OutingEvent> {
+  const outingType = await resolveActiveOutingType(input.tenantId, input.outingTypeId);
   if (!isDatabaseReady()) {
     const outing: OutingEvent = {
       id: crypto.randomUUID(),
@@ -426,6 +545,10 @@ export async function createOuting(input: CreateOutingInput): Promise<OutingEven
       targetGroupSize: Math.max(2, input.targetGroupSize ?? 4),
       allowGroupsWithoutCar: !!input.allowGroupsWithoutCar,
       status: "draft",
+      outingTypeId: outingType?.id ?? null,
+      outingTypeName: outingType?.name ?? null,
+      completedAt: null,
+      completedByTenantUserId: null,
       createdByTenantUserId: input.createdByTenantUserId ?? null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -437,8 +560,8 @@ export async function createOuting(input: CreateOutingInput): Promise<OutingEven
   const db = ensureDb();
   const result = await db.query<OutingEventRow>(
     `insert into outing_events
-       (tenant_id, name, description, scheduled_for, target_group_size, allow_groups_without_car, status, created_by_tenant_user_id)
-     values ($1, $2, $3, $4, $5, $6, 'draft', $7)
+       (tenant_id, name, description, scheduled_for, target_group_size, allow_groups_without_car, status, created_by_tenant_user_id, outing_type_id)
+     values ($1, $2, $3, $4, $5, $6, 'draft', $7, $8)
      returning *`,
     [
       input.tenantId,
@@ -448,6 +571,7 @@ export async function createOuting(input: CreateOutingInput): Promise<OutingEven
       Math.max(2, input.targetGroupSize ?? 4),
       !!input.allowGroupsWithoutCar,
       input.createdByTenantUserId ?? null,
+      outingType?.id ?? null,
     ],
   );
   return mapOuting(result.rows[0]);
@@ -455,6 +579,7 @@ export async function createOuting(input: CreateOutingInput): Promise<OutingEven
 
 export async function updateOuting(outingId: string, input: UpdateOutingInput, scope?: DataScope): Promise<OutingEvent> {
   const detail = await getOutingDetail(outingId, scope);
+  const outingType = await resolveActiveOutingType(input.tenantId, input.outingTypeId);
 
   if (detail.outing.status === "confirmed") {
     throw new Error("A saida confirmada precisa voltar para rascunho antes de ser alterada.");
@@ -469,6 +594,8 @@ export async function updateOuting(outingId: string, input: UpdateOutingInput, s
       scheduledFor: input.scheduledFor ?? null,
       targetGroupSize: Math.max(2, input.targetGroupSize ?? 4),
       allowGroupsWithoutCar: !!input.allowGroupsWithoutCar,
+      outingTypeId: outingType?.id ?? null,
+      outingTypeName: outingType?.name ?? null,
       updatedAt: new Date().toISOString(),
     };
     localOutingEventsStore[index] = updated;
@@ -482,10 +609,11 @@ export async function updateOuting(outingId: string, input: UpdateOutingInput, s
             description = $3,
             scheduled_for = $4,
             target_group_size = $5,
-            allow_groups_without_car = $6
+            allow_groups_without_car = $6,
+            outing_type_id = $7
       where id = $1
       returning *`,
-    [outingId, input.name, input.description?.trim() ?? "", input.scheduledFor ?? null, Math.max(2, input.targetGroupSize ?? 4), !!input.allowGroupsWithoutCar],
+    [outingId, input.name, input.description?.trim() ?? "", input.scheduledFor ?? null, Math.max(2, input.targetGroupSize ?? 4), !!input.allowGroupsWithoutCar, outingType?.id ?? null],
   );
   return mapOuting(result.rows[0]);
 }
@@ -765,6 +893,7 @@ export async function removeOutingConstraint(outingEventId: string, constraintId
 
 export async function generateOuting(outingEventId: string, scope?: DataScope): Promise<OutingDetail> {
   const detail = await getOutingDetail(outingEventId, scope);
+  if (detail.outing.completedAt) throw new Error("Reabra a execucao antes de gerar novos grupos.");
   const generatedGroups = generateOutingGroups({
     outingEventId,
     participants: detail.participants,
@@ -899,4 +1028,36 @@ export async function confirmOuting(outingEventId: string, scope?: DataScope): P
   const db = ensureDb();
   await db.query("update outing_events set status = 'confirmed' where id = $1", [outingEventId]);
   return getOutingDetail(outingEventId, scope);
+}
+
+export async function completeOuting(outingEventId: string, completedByTenantUserId: string, scope?: DataScope): Promise<OutingEvent> {
+  const detail = await getOutingDetail(outingEventId, scope);
+  if (detail.outing.completedAt) return detail.outing;
+  if (detail.outing.status !== "confirmed") throw new Error("Apenas uma saida confirmada pode ser concluida.");
+  if (!isDatabaseReady()) {
+    const index = localOutingEventsStore.findIndex((item) => item.id === outingEventId);
+    const completed = { ...detail.outing, completedAt: new Date().toISOString(), completedByTenantUserId, updatedAt: new Date().toISOString() };
+    localOutingEventsStore[index] = completed;
+    return completed;
+  }
+  const db = ensureDb();
+  await db.query(
+    `update outing_events set completed_at = coalesce(completed_at, now()), completed_by_tenant_user_id = coalesce(completed_by_tenant_user_id, $2) where id = $1`,
+    [outingEventId, completedByTenantUserId],
+  );
+  return (await getOutingDetail(outingEventId, scope)).outing;
+}
+
+export async function reopenOuting(outingEventId: string, scope?: DataScope): Promise<OutingEvent> {
+  const detail = await getOutingDetail(outingEventId, scope);
+  if (!detail.outing.completedAt) return detail.outing;
+  if (!isDatabaseReady()) {
+    const index = localOutingEventsStore.findIndex((item) => item.id === outingEventId);
+    const reopened = { ...detail.outing, completedAt: null, completedByTenantUserId: null, updatedAt: new Date().toISOString() };
+    localOutingEventsStore[index] = reopened;
+    return reopened;
+  }
+  const db = ensureDb();
+  await db.query("update outing_events set completed_at = null, completed_by_tenant_user_id = null where id = $1", [outingEventId]);
+  return (await getOutingDetail(outingEventId, scope)).outing;
 }

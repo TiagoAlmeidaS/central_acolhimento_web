@@ -3,7 +3,7 @@
 import { startTransition, useEffect, useMemo, useState, type FormEvent } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import type { Caregiver, Member, OutingDetail, OutingEvent, Tenant } from "@/server/domain/mvp";
+import type { Caregiver, Member, OutingDetail, OutingEvent, OutingType, Tenant } from "@/server/domain/mvp";
 import { Avatar, Button, Card, Input, SectionTitle, Select, Textarea } from "@/ui/v2-components/ui";
 import { IconCalendar, IconCar, IconCheck, IconPlus, IconRefresh, IconUsers, IconX } from "@/ui/v2-components/icons";
 import { formatParticipantAvailabilityMessage } from "@/ui/mvp/outing-manager-utils";
@@ -15,6 +15,7 @@ type ManagerProps = {
   tenants: Tenant[];
   caregivers: Caregiver[];
   members: Member[];
+  outingTypes: OutingType[];
 };
 
 type DetailResponse = OutingDetail;
@@ -33,6 +34,7 @@ const emptyOutingForm = {
   scheduledFor: "",
   targetGroupSize: "4",
   allowGroupsWithoutCar: false,
+  outingTypeId: "",
 };
 
 const emptyGuestForm = {
@@ -46,7 +48,7 @@ const emptyGuestForm = {
   notes: "",
 };
 
-export function OutingManager({ outings, tenants, caregivers, members }: Readonly<ManagerProps>) {
+export function OutingManager({ outings, outingTypes, tenants, caregivers, members }: Readonly<ManagerProps>) {
   const router = useRouter();
   const [items, setItems] = useState(outings);
   const [selectedOutingId, setSelectedOutingId] = useState(outings[0]?.id ?? "");
@@ -64,8 +66,11 @@ export function OutingManager({ outings, tenants, caregivers, members }: Readonl
   const [guestForm, setGuestForm] = useState(emptyGuestForm);
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
   const [constraintLabel, setConstraintLabel] = useState("");
+  const [typeItems, setTypeItems] = useState(outingTypes);
+  const [newTypeName, setNewTypeName] = useState("");
 
   async function loadOutingDetail(outingId: string) {
+    await Promise.resolve();
     setLoadingDetail(true);
 
     try {
@@ -85,12 +90,18 @@ export function OutingManager({ outings, tenants, caregivers, members }: Readonl
 
   useEffect(() => {
     if (!selectedOutingId) {
-      setDetail(null);
       return;
     }
 
     let cancelled = false;
-    loadOutingDetail(selectedOutingId)
+    fetch(`/api/outings/${selectedOutingId}`)
+      .then(async (response) => {
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => ({}))) as { error?: string };
+          throw new Error(payload.error ?? "Nao foi possivel carregar a saida.");
+        }
+        return response.json() as Promise<DetailResponse>;
+      })
       .then((payload) => {
         if (!cancelled) {
           setDetail(payload);
@@ -112,6 +123,7 @@ export function OutingManager({ outings, tenants, caregivers, members }: Readonl
   const availableMembers = useMemo(() => members.filter((member) => member.tenantId === activeTenantId), [members, activeTenantId]);
   const availableCaregivers = useMemo(() => caregivers.filter((caregiver) => caregiver.tenantId === activeTenantId), [caregivers, activeTenantId]);
   const currentTenant = tenants.find((tenant) => tenant.id === activeTenantId) ?? null;
+  const availableOutingTypes = typeItems.filter((item) => item.tenantId === outingForm.tenantId && item.active);
   const availabilityMessage = formatParticipantAvailabilityMessage({
     tenant: currentTenant,
     selectedType,
@@ -168,6 +180,7 @@ export function OutingManager({ outings, tenants, caregivers, members }: Readonl
         scheduledFor: outingForm.scheduledFor ? new Date(`${outingForm.scheduledFor}T09:00:00`).toISOString() : null,
         targetGroupSize: Number(outingForm.targetGroupSize || "4"),
         allowGroupsWithoutCar: outingForm.allowGroupsWithoutCar,
+        outingTypeId: outingForm.outingTypeId,
       }),
     });
 
@@ -184,6 +197,27 @@ export function OutingManager({ outings, tenants, caregivers, members }: Readonl
     setSuccess("Saida criada com sucesso.");
     await refreshOutings(created.id);
     startTransition(() => router.refresh());
+  }
+
+  async function handleCreateOutingType() {
+    if (!newTypeName.trim() || !outingForm.tenantId) return;
+    setSubmitting(true);
+    setError(null);
+    const response = await fetch("/api/outings/types", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tenantId: outingForm.tenantId, name: newTypeName.trim() }),
+    });
+    const payload = (await response.json().catch(() => ({}))) as OutingType & { error?: string };
+    setSubmitting(false);
+    if (!response.ok) {
+      setError(payload.error ?? "Nao foi possivel criar o tipo de saida.");
+      return;
+    }
+    setTypeItems((current) => [...current, payload].sort((a, b) => a.name.localeCompare(b.name)));
+    setOutingForm((current) => ({ ...current, outingTypeId: payload.id }));
+    setNewTypeName("");
+    setSuccess("Tipo de saida criado.");
   }
 
   async function handleAddParticipant(event: FormEvent<HTMLFormElement>) {
@@ -339,6 +373,23 @@ export function OutingManager({ outings, tenants, caregivers, members }: Readonl
     await refreshOutings(detail.outing.id);
   }
 
+  async function handleExecutionToggle() {
+    if (!detail) return;
+    setSubmitting(true);
+    setError(null);
+    setSuccess(null);
+    const action = detail.outing.completedAt ? "reopen" : "complete";
+    const response = await fetch(`/api/outings/${detail.outing.id}/${action}`, { method: "POST" });
+    setSubmitting(false);
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      setError(payload.error ?? "Nao foi possivel atualizar a execucao da saida.");
+      return;
+    }
+    setSuccess(action === "complete" ? "Saida concluida e pronta para o relatorio diario." : "Execucao da saida reaberta.");
+    await refreshOutings(detail.outing.id);
+  }
+
   function toggleParticipantSelection(participantId: string) {
     setSelectedParticipantIds((current) =>
       current.includes(participantId) ? current.filter((item) => item !== participantId) : [...current, participantId],
@@ -375,6 +426,22 @@ export function OutingManager({ outings, tenants, caregivers, members }: Readonl
               required
             />
             <Input label="Nome da saida" value={outingForm.name} onChange={(value) => setOutingForm((current) => ({ ...current, name: value }))} placeholder="Ex: Acao social da tarde" required />
+            <Select
+              label="Tipo de saida"
+              value={outingForm.outingTypeId}
+              onChange={(value) => setOutingForm((current) => ({ ...current, outingTypeId: value }))}
+              options={availableOutingTypes.map((item) => ({ value: item.id, label: item.name }))}
+              placeholder="Selecione o tipo"
+              required
+            />
+            <div style={{ display: "flex", gap: 8, alignItems: "end" }}>
+              <div style={{ flex: 1 }}>
+                <Input label="Criar novo tipo" value={newTypeName} onChange={setNewTypeName} placeholder="Adolescentes, TCI, Casas abertas..." />
+              </div>
+              <Button type="button" variant="secondary" size="md" onClick={handleCreateOutingType} disabled={submitting || !newTypeName.trim()} icon={<IconPlus />}>
+                Adicionar
+              </Button>
+            </div>
             <Textarea label="Descricao" value={outingForm.description} onChange={(value) => setOutingForm((current) => ({ ...current, description: value }))} placeholder="Contexto da saida, publico, observacoes..." rows={3} />
             <Input label="Data" type="date" value={outingForm.scheduledFor} onChange={(value) => setOutingForm((current) => ({ ...current, scheduledFor: value }))} icon={<IconCalendar />} />
             <Input label="Tamanho alvo do grupo" value={outingForm.targetGroupSize} onChange={(value) => setOutingForm((current) => ({ ...current, targetGroupSize: value.replace(/\D/g, "").slice(0, 2) || "4" }))} inputMode="numeric" />
@@ -420,7 +487,7 @@ export function OutingManager({ outings, tenants, caregivers, members }: Readonl
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 14.5, fontWeight: 700, color: "var(--text)" }}>{outing.name}</div>
                     <div style={{ fontSize: 12.5, color: "var(--text-2)", marginTop: 3 }}>
-                      {tenants.find((tenant) => tenant.id === outing.tenantId)?.name ?? "Tenant"} · {statusLabels[outing.status]}
+                      {tenants.find((tenant) => tenant.id === outing.tenantId)?.name ?? "Tenant"} · {outing.outingTypeName ?? "Nao classificada"} · {statusLabels[outing.status]}
                     </div>
                   </div>
                   <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent)" }}>
@@ -445,7 +512,7 @@ export function OutingManager({ outings, tenants, caregivers, members }: Readonl
               <div style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 4 }}>Saida ativa</div>
               <div style={{ fontSize: 18, fontWeight: 800, color: "var(--text)" }}>{detail.outing.name}</div>
               <div style={{ fontSize: 13, color: "var(--text-2)", marginTop: 4 }}>
-                {currentTenant?.name} · {statusLabels[detail.outing.status]} · alvo {detail.outing.targetGroupSize} por grupo
+                {currentTenant?.name} · {detail.outing.outingTypeName ?? "Nao classificada"} · {statusLabels[detail.outing.status]} · alvo {detail.outing.targetGroupSize} por grupo
               </div>
             </div>
 
@@ -642,6 +709,22 @@ export function OutingManager({ outings, tenants, caregivers, members }: Readonl
               <Button type="button" variant="secondary" size="md" onClick={handleConfirm} disabled={submitting || detail.groups.length === 0} icon={<IconCheck />} full>
                 Confirmar saida
               </Button>
+              <Button
+                type="button"
+                variant={detail.outing.completedAt ? "secondary" : "primary"}
+                size="md"
+                onClick={handleExecutionToggle}
+                disabled={submitting || detail.outing.status !== "confirmed"}
+                icon={detail.outing.completedAt ? <IconRefresh /> : <IconCheck />}
+                full
+              >
+                {detail.outing.completedAt ? "Reabrir execucao" : "Concluir execucao"}
+              </Button>
+              {detail.outing.completedAt ? (
+                <span style={{ fontSize: 12, color: "#15803D", textAlign: "center", fontWeight: 700 }}>
+                  Realizada em {new Date(detail.outing.completedAt).toLocaleString("pt-BR")}
+                </span>
+              ) : null}
             </div>
 
             <Card padding={16}>

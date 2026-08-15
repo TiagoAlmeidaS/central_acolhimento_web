@@ -5,11 +5,16 @@ import { listTenants } from "@/server/repositories/mvp-repository";
 import { listAccessibleTenantIds } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
 import { ContactManager } from "@/ui/mvp/contact-manager";
+import { listOutings } from "@/server/repositories/outing-repository";
 
 export default async function NewContactPage() {
   const session = await requireServerAuthSession("coordinator");
   const accessibleTenantIds = await listAccessibleTenantIds(session);
-  const tenants = (await listTenants()).filter((tenant) => accessibleTenantIds.includes(tenant.id));
+  const [allTenants, outings] = await Promise.all([
+    listTenants(),
+    listOutings({ tenantIds: accessibleTenantIds }),
+  ]);
+  const tenants = allTenants.filter((tenant) => accessibleTenantIds.includes(tenant.id));
 
   if (tenants.length === 0) {
     notFound();
@@ -25,7 +30,7 @@ export default async function NewContactPage() {
           Novo contato
         </h1>
       </div>
-      <ContactManager contacts={[]} tenants={tenants} hideList />
+      <ContactManager contacts={[]} tenants={tenants} outings={outings.filter((outing) => Boolean(outing.completedAt))} hideList />
     </div>
   );
 }

@@ -974,7 +974,16 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
             Localidade: {session.membership.tenantName} ({session.membership.tenantCity} - {session.membership.tenantState})
           </p>
         </div>
-        <Avatar name={`${session.user.firstName} ${session.user.lastName}`} size={46} ring />
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <Link
+            href={`/coord/relatorios/saidas?date=${todayDateOnly()}&tenantId=${session.membership.tenantId}`}
+            style={{ display: "inline-flex", alignItems: "center", gap: 8, minHeight: 42, padding: "0 16px", borderRadius: 12, background: "var(--accent)", color: "#fff", textDecoration: "none", fontSize: 13, fontWeight: 800 }}
+          >
+            <IconDoc size={17} />
+            Gerar relatorio
+          </Link>
+          <Avatar name={`${session.user.firstName} ${session.user.lastName}`} size={46} ring />
+        </div>
       </header>
 
       {operationalAlerts.urgentMembers > 0 && (

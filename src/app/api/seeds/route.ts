@@ -5,6 +5,7 @@ import { requireServerAuthSession } from "@/server/auth/session";
 import { validateHouseFrontImageDataUrl } from "@/lib/house-front-image";
 import { createSeed, listSeedsPage } from "@/server/repositories/mvp-repository";
 import { normalizePage, normalizePageSize, type ContactListingFilters } from "@/lib/listing-filters";
+import { getOutingDetail } from "@/server/repositories/outing-repository";
 
 export async function GET(request: Request) {
   try {
@@ -69,6 +70,7 @@ export async function POST(request: Request) {
       firstContactAt?: string | null;
       latitude?: number | null;
       longitude?: number | null;
+      outingEventId?: string | null;
     };
 
     if (!body.tenantId || !body.referenceName) {
@@ -83,8 +85,15 @@ export async function POST(request: Request) {
       return Response.json({ error: imageValidationError }, { status: 400 });
     }
 
+    const tenantId = await resolveTenantIdForUserAccess(session, body.tenantId);
+    if (body.outingEventId) {
+      if (session.membership.role !== "coordinator") {
+        return Response.json({ error: "Apenas a coordenacao pode vincular uma saida." }, { status: 403 });
+      }
+      await getOutingDetail(body.outingEventId, { tenantId });
+    }
     const seed = await createSeed({
-      tenantId: await resolveTenantIdForUserAccess(session, body.tenantId),
+      tenantId,
       caregiverId: resolveCaregiverId(session, body.caregiverId ?? null, { allowUnassignedForCoordinator: true }),
       referenceName: body.referenceName,
       age: body.age ?? null,
@@ -104,13 +113,16 @@ export async function POST(request: Request) {
       firstContactAt: body.firstContactAt ?? null,
       latitude: body.latitude,
       longitude: body.longitude,
+      outingEventId: body.outingEventId ?? null,
     });
 
     return Response.json(seed, { status: 201 });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao criar semente.";
+    const status = message.includes("Acesso negado") || message.includes("Apenas a coordenacao") ? 403 : message.includes("nao encontrad") ? 404 : 500;
     return Response.json(
-      { error: error instanceof Error ? error.message : "Erro ao criar semente." },
-      { status: 500 }
+      { error: message },
+      { status }
     );
   }
 }
