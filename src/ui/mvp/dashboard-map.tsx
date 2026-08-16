@@ -6,12 +6,16 @@ import { Card } from "@/ui/v2-components/ui";
 
 interface DashboardMapProps {
   items: DashboardMapItem[];
+  title?: string;
+  description?: string;
+  showLegend?: boolean;
 }
 
-export function DashboardMap({ items }: DashboardMapProps) {
+export function DashboardMap({ items, title = "Mapa de visitacao e acolhimento", description = "Visao geografica das casas abertas e do andamento pastoral no territorio.", showLegend = true }: DashboardMapProps) {
   const mapRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     const link = document.createElement("link");
@@ -22,6 +26,10 @@ export function DashboardMap({ items }: DashboardMapProps) {
     const script = document.createElement("script");
     script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
     script.onload = () => setLoaded(true);
+    script.onerror = () => {
+      console.warn("dashboard_map_unavailable", { title });
+      setFailed(true);
+    };
     document.body.appendChild(script);
 
     return () => {
@@ -32,7 +40,7 @@ export function DashboardMap({ items }: DashboardMapProps) {
         document.body.removeChild(script);
       } catch {}
     };
-  }, []);
+  }, [title]);
 
   useEffect(() => {
     if (!loaded || !containerRef.current) return;
@@ -115,13 +123,13 @@ export function DashboardMap({ items }: DashboardMapProps) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--text)", letterSpacing: "-0.015em" }}>
-            Mapa de visitacao e acolhimento
+            {title}
           </h3>
           <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>
-            Visao geografica das casas abertas e do andamento pastoral no territorio.
+            {description}
           </p>
         </div>
-        <div style={{ display: "flex", gap: 12, fontSize: 11, fontWeight: 700 }}>
+        {showLegend ? <div style={{ display: "flex", gap: 12, fontSize: 11, fontWeight: 700 }}>
           {[
             { label: "Urgente", color: "#E11D48" },
             { label: "Aguardando", color: "#EA580C" },
@@ -133,9 +141,13 @@ export function DashboardMap({ items }: DashboardMapProps) {
               <span style={{ color: "var(--text-2)" }}>{legendItem.label}</span>
             </div>
           ))}
-        </div>
+        </div> : null}
       </div>
-      <div
+      {failed ? (
+        <div role="status" style={{ minHeight: 160, display: "grid", placeItems: "center", padding: 24, borderRadius: 12, border: "1px solid var(--border)", color: "var(--text-3)", textAlign: "center" }}>
+          Mapa indisponivel. Os enderecos continuam disponiveis na lista do relatorio.
+        </div>
+      ) : <div
         ref={containerRef}
         style={{
           width: "100%",
@@ -146,7 +158,7 @@ export function DashboardMap({ items }: DashboardMapProps) {
           background: "var(--surface-2)",
           zIndex: 10,
         }}
-      />
+      />}
     </Card>
   );
 }

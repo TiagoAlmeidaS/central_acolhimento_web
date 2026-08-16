@@ -31,10 +31,11 @@ export async function POST(request: Request) {
       scheduledFor?: string | null;
       targetGroupSize?: number;
       allowGroupsWithoutCar?: boolean;
+      outingTypeId?: string;
     };
 
-    if (!body.tenantId || !body.name?.trim()) {
-      return Response.json({ error: "Campos obrigatorios: tenantId, name." }, { status: 400 });
+    if (!body.tenantId || !body.name?.trim() || !body.outingTypeId) {
+      return Response.json({ error: "Campos obrigatorios: tenantId, name, outingTypeId." }, { status: 400 });
     }
 
     const outing = await createOuting({
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
       targetGroupSize: body.targetGroupSize,
       allowGroupsWithoutCar: body.allowGroupsWithoutCar,
       createdByTenantUserId: session.membership.tenantUserId,
+      outingTypeId: body.outingTypeId,
     });
 
     return Response.json(outing, { status: 201 });

@@ -5,6 +5,7 @@ import { listSeeds, listTenants } from "@/server/repositories/mvp-repository";
 import { listAccessibleTenantIds } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
 import { ContactManager } from "@/ui/mvp/contact-manager";
+import { listOutings } from "@/server/repositories/outing-repository";
 
 type PageProps = {
   params: Promise<{ contactId: string }>;
@@ -14,9 +15,10 @@ export default async function EditContactPage({ params }: PageProps) {
   const { contactId } = await params;
   const session = await requireServerAuthSession("coordinator");
   const accessibleTenantIds = await listAccessibleTenantIds(session);
-  const [allTenants, contactsByTenant] = await Promise.all([
+  const [allTenants, contactsByTenant, outings] = await Promise.all([
     listTenants(),
     Promise.all(accessibleTenantIds.map((tenantId) => listSeeds({ tenantId }))),
+    listOutings({ tenantIds: accessibleTenantIds }),
   ]);
 
   const tenants = allTenants.filter((tenant) => accessibleTenantIds.includes(tenant.id));
@@ -36,7 +38,7 @@ export default async function EditContactPage({ params }: PageProps) {
           Editar contato
         </h1>
       </div>
-      <ContactManager contacts={[]} tenants={tenants} hideList initialEditing={contact} />
+      <ContactManager contacts={[]} tenants={tenants} outings={outings.filter((outing) => Boolean(outing.completedAt))} hideList initialEditing={contact} />
     </div>
   );
 }

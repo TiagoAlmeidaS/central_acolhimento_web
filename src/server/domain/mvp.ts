@@ -10,6 +10,7 @@ export type OutingStatus = "draft" | "generated" | "confirmed" | "cancelled";
 export type OutingParticipantType = "caregiver" | "member" | "guest";
 export type OutingConstraintType = "must_stay_together";
 export type OutingAssignmentSource = "system" | "manual";
+export type DailyOutingAgeGroup = "adolescent" | "other_known" | "unknown";
 export type TciSessionStatus = "draft" | "scheduled" | "confirmed" | "completed" | "cancelled";
 export type ChurchMembershipStatus = "active" | "inactive";
 export type ChurchRecurrenceKind = "none" | "weekly";
@@ -86,6 +87,7 @@ export type Seed = {
   latitude: number | null;
   longitude: number | null;
   isUrgent?: boolean;
+  outingEventId?: string | null;
 };
 
 export type Member = {
@@ -138,9 +140,73 @@ export type OutingEvent = {
   targetGroupSize: number;
   allowGroupsWithoutCar: boolean;
   status: OutingStatus;
+  outingTypeId: string | null;
+  outingTypeName?: string | null;
+  completedAt: string | null;
+  completedByTenantUserId: string | null;
   createdByTenantUserId: string | null;
   createdAt?: string;
   updatedAt?: string;
+};
+
+export type OutingType = {
+  id: string;
+  tenantId: string;
+  name: string;
+  description: string;
+  active: boolean;
+  createdByTenantUserId: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type DailyOutingReport = {
+  version: "daily-outing-v1";
+  generatedAt: string;
+  timezone: "America/Sao_Paulo";
+  date: string;
+  tenant: Pick<Tenant, "id" | "name" | "city" | "state">;
+  totals: {
+    completedOutings: number;
+    participations: number;
+    newContacts: number;
+    adolescents: number;
+    otherKnownAges: number;
+    unknownAges: number;
+    openHouses: number;
+    openHousesWithoutCoordinates: number;
+  };
+  byType: Array<{
+    outingTypeId: string | null;
+    name: string;
+    outings: number;
+    participations: number;
+    newContacts: number;
+    adolescents: number;
+    openHouses: number;
+  }>;
+  outings: Array<{
+    id: string;
+    name: string;
+    typeName: string;
+    completedAt: string;
+    participationCount: number;
+    newContactCount: number;
+  }>;
+  contacts: Array<{
+    id: string;
+    name: string;
+    age: number | null;
+    ageGroup: DailyOutingAgeGroup;
+    outingId: string;
+    outingName: string;
+    outingTypeName: string;
+    openHouse: boolean;
+    address: string;
+    city: string;
+    latitude: number | null;
+    longitude: number | null;
+  }>;
 };
 
 export type OutingParticipant = {
@@ -432,6 +498,7 @@ export type CreateSeedInput = {
   latitude?: number | null;
   longitude?: number | null;
   isUrgent?: boolean;
+  outingEventId?: string | null;
 };
 
 export type UpdateSeedInput = CreateSeedInput;
@@ -493,9 +560,20 @@ export type CreateOutingInput = {
   targetGroupSize?: number;
   allowGroupsWithoutCar?: boolean;
   createdByTenantUserId?: string | null;
+  outingTypeId?: string | null;
 };
 
 export type UpdateOutingInput = CreateOutingInput;
+
+export type CreateOutingTypeInput = {
+  tenantId: string;
+  name: string;
+  description?: string;
+  active?: boolean;
+  createdByTenantUserId?: string | null;
+};
+
+export type UpdateOutingTypeInput = Omit<CreateOutingTypeInput, "createdByTenantUserId">;
 
 export type AddOutingParticipantInput = {
   outingEventId: string;

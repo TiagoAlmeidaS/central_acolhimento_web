@@ -75,6 +75,7 @@ type SeedRow = {
   latitude: number | null;
   longitude: number | null;
   is_urgent: boolean;
+  outing_event_id: string | null;
 };
 
 type MemberRow = {
@@ -177,6 +178,7 @@ function mapSeed(row: SeedRow): Seed {
     latitude: row.latitude !== null ? Number(row.latitude) : null,
     longitude: row.longitude !== null ? Number(row.longitude) : null,
     isUrgent: !!row.is_urgent,
+    outingEventId: row.outing_event_id,
   };
 }
 
@@ -281,6 +283,7 @@ function buildLocalSeeds(): Seed[] {
       caregiver: "Maria Oliveira",
       latitude: null,
       longitude: null,
+      outingEventId: null,
     },
     {
       id: "local-seed-2",
@@ -305,6 +308,7 @@ function buildLocalSeeds(): Seed[] {
       caregiver: "Joao Silva",
       latitude: null,
       longitude: null,
+      outingEventId: null,
     },
   ];
 }
@@ -797,6 +801,8 @@ export async function createSeed(input: CreateSeedInput): Promise<Seed> {
       latitude: input.latitude ?? null,
       longitude: input.longitude ?? null,
       isUrgent: input.isUrgent ?? false,
+      outingEventId: input.outingEventId ?? null,
+      createdAt: new Date().toISOString(),
     };
     localSeedsStore.unshift(seed);
     return seed;
@@ -804,8 +810,8 @@ export async function createSeed(input: CreateSeedInput): Promise<Seed> {
 
   const db = ensureDb();
   const result = await db.query<SeedRow>(
-    `insert into seeds (tenant_id, caregiver_id, reference_name, age, phone, city, postal_code, open_house, address, street, neighborhood, address_number, state, house_front_image_url, source, status, notes, first_contact_at, latitude, longitude, is_urgent)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+    `insert into seeds (tenant_id, caregiver_id, reference_name, age, phone, city, postal_code, open_house, address, street, neighborhood, address_number, state, house_front_image_url, source, status, notes, first_contact_at, latitude, longitude, is_urgent, outing_event_id)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
      returning *`,
     [
       input.tenantId,
@@ -829,6 +835,7 @@ export async function createSeed(input: CreateSeedInput): Promise<Seed> {
       input.latitude ?? null,
       input.longitude ?? null,
       input.isUrgent ?? false,
+      input.outingEventId ?? null,
     ]
   );
   return mapSeed(result.rows[0]);
@@ -860,6 +867,8 @@ export async function updateSeed(id: string, input: UpdateSeedInput): Promise<Se
       latitude: input.latitude ?? null,
       longitude: input.longitude ?? null,
       isUrgent: input.isUrgent ?? false,
+      outingEventId: input.outingEventId ?? null,
+      createdAt: localSeedsStore.find((item) => item.id === id)?.createdAt ?? new Date().toISOString(),
     };
     const index = localSeedsStore.findIndex((item) => item.id === id);
     if (index >= 0) localSeedsStore[index] = seed;
@@ -889,7 +898,8 @@ export async function updateSeed(id: string, input: UpdateSeedInput): Promise<Se
             first_contact_at = $19,
             latitude = $20,
             longitude = $21,
-            is_urgent = $22
+            is_urgent = $22,
+            outing_event_id = $23
       where id = $1
       returning *`,
     [
@@ -915,6 +925,7 @@ export async function updateSeed(id: string, input: UpdateSeedInput): Promise<Se
       input.latitude ?? null,
       input.longitude ?? null,
       input.isUrgent ?? false,
+      input.outingEventId ?? null,
     ]
   );
   return mapSeed(result.rows[0]);

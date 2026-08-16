@@ -503,6 +503,15 @@ describe("MVP integration flow", () => {
     const targetMembers = members.slice(0, 2);
     expect(targetMembers).toHaveLength(2);
 
+    const { POST: createOutingTypeRoute } = await import("@/app/api/outings/types/route");
+    const typeResponse = await createOutingTypeRoute(new Request("http://localhost/api/outings/types", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tenantId: "1", name: "Adolescentes" }),
+    }));
+    expect(typeResponse.status).toBe(201);
+    const outingType = (await typeResponse.json()) as { id: string };
+
     const { POST: createOutingRoute } = await import("@/app/api/outings/route");
     const createOutingResponse = await createOutingRoute(
       new Request("http://localhost/api/outings", {
@@ -513,6 +522,7 @@ describe("MVP integration flow", () => {
           description: "Teste de distribuicao",
           targetGroupSize: 4,
           allowGroupsWithoutCar: false,
+          outingTypeId: outingType.id,
         }),
         headers: { "Content-Type": "application/json" },
       }),
@@ -621,6 +631,108 @@ describe("MVP integration flow", () => {
     expect(confirmResponse.status).toBe(200);
     const confirmedDetail = (await confirmResponse.json()) as { outing: { status: string } };
     expect(confirmedDetail.outing.status).toBe("confirmed");
+
+    const { POST: completeRoute } = await import("@/app/api/outings/[outingId]/complete/route");
+    const completedResponse = await completeRoute(
+      new Request(`http://localhost/api/outings/${createdOuting.id}/complete`, { method: "POST" }),
+      { params: Promise.resolve({ outingId: createdOuting.id }) },
+    );
+    expect(completedResponse.status).toBe(200);
+    const completed = (await completedResponse.json()) as { completedAt: string };
+    expect(completed.completedAt).toBeTruthy();
+
+    const completedAgainResponse = await completeRoute(
+      new Request(`http://localhost/api/outings/${createdOuting.id}/complete`, { method: "POST" }),
+      { params: Promise.resolve({ outingId: createdOuting.id }) },
+    );
+    expect((await completedAgainResponse.json() as { completedAt: string }).completedAt).toBe(completed.completedAt);
+
+    const { POST: createSeedRoute } = await import("@/app/api/seeds/route");
+    const seedResponse = await createSeedRoute(new Request("http://localhost/api/seeds", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tenantId: "1",
+        referenceName: "Contato adolescente",
+        age: 15,
+        city: "Sape",
+        openHouse: true,
+        address: "Rua do Relatorio, 10",
+        latitude: -7.09,
+        longitude: -35.23,
+        outingEventId: createdOuting.id,
+      }),
+    }));
+    expect(seedResponse.status).toBe(201);
+
+    const reportDate = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    const { GET: reportRoute } = await import("@/app/api/reports/outings/daily/route");
+    const reportResponse = await reportRoute(new Request(`http://localhost/api/reports/outings/daily?tenantId=1&date=${reportDate}`));
+    expect(reportResponse.status).toBe(200);
+    const report = (await reportResponse.json()) as { totals: { completedOutings: number; newContacts: number; adolescents: number; openHouses: number }; byType: Array<{ name: string }> };
+    expect(report.totals).toMatchObject({ completedOutings: 1, newContacts: 1, adolescents: 1, openHouses: 1 });
+    expect(report.byType[0]?.name).toBe("Adolescentes");
+  });
+
+  it("protects daily outing reports and execution against invalid state, role and tenant", async () => {
+    const coordinatorSession: AuthSession = {
+      user: { id: "isolated-coordinator", email: "isolated@igreja.org", firstName: "Coord", lastName: "Local" },
+      membership: {
+        tenantUserId: "isolated-tenant-user",
+        tenantId: "1",
+        tenantName: "Central Sape",
+        tenantCity: "Sape",
+        tenantState: "PB",
+        role: "coordinator",
+        caregiverId: null,
+      },
+      homePath: "/coord",
+    };
+    setSession(coordinatorSession);
+
+    const { GET: reportRoute } = await import("@/app/api/reports/outings/daily/route");
+    expect((await reportRoute(new Request("http://localhost/api/reports/outings/daily?tenantId=1&date=15-08-2026"))).status).toBe(400);
+    expect((await reportRoute(new Request("http://localhost/api/reports/outings/daily?tenantId=2&date=2026-08-15"))).status).toBe(403);
+
+    setSession({
+      ...coordinatorSession,
+      user: { id: "caregiver-user", email: "caregiver@igreja.org", firstName: "Care", lastName: "Giver" },
+      membership: { ...coordinatorSession.membership, role: "caregiver", caregiverId: "1" },
+      homePath: "/cuidador",
+    });
+    expect((await reportRoute(new Request("http://localhost/api/reports/outings/daily?tenantId=1&date=2026-08-15"))).status).toBe(403);
+
+    setSession(coordinatorSession);
+    const { POST: createType } = await import("@/app/api/outings/types/route");
+    const typeResponse = await createType(new Request("http://localhost/api/outings/types", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tenantId: "1", name: "TCI" }),
+    }));
+    const outingType = (await typeResponse.json()) as { id: string };
+    const { POST: createOuting } = await import("@/app/api/outings/route");
+    const outingResponse = await createOuting(new Request("http://localhost/api/outings", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tenantId: "1", name: "Saida em rascunho", outingTypeId: outingType.id }),
+    }));
+    const outing = (await outingResponse.json()) as { id: string };
+    const { POST: completeOuting } = await import("@/app/api/outings/[outingId]/complete/route");
+    const invalidCompletion = await completeOuting(
+      new Request(`http://localhost/api/outings/${outing.id}/complete`, { method: "POST" }),
+      { params: Promise.resolve({ outingId: outing.id }) },
+    );
+    expect(invalidCompletion.status).toBe(400);
+    expect(await invalidCompletion.json()).toMatchObject({ error: expect.stringMatching(/confirmada/i) });
+
+    setSession({
+      ...coordinatorSession,
+      user: { id: "local-app-user-tiago", email: "tiago@igreja.org", firstName: "Tiago", lastName: "Almeida" },
+      membership: { ...coordinatorSession.membership, tenantUserId: "local-tenant-user-tiago-sape" },
+    });
+    const { POST: createSeedRoute } = await import("@/app/api/seeds/route");
+    const crossTenantContact = await createSeedRoute(new Request("http://localhost/api/seeds", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tenantId: "2", referenceName: "Contato invalido", outingEventId: outing.id }),
+    }));
+    expect(crossTenantContact.status).toBe(403);
   });
 
   it("creates TCI chambers and sessions, lists the weekly agenda and blocks chamber conflicts", async () => {

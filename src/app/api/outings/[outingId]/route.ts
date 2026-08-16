@@ -26,10 +26,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ outi
       scheduledFor?: string | null;
       targetGroupSize?: number;
       allowGroupsWithoutCar?: boolean;
+      outingTypeId?: string;
     };
 
-    if (!body.tenantId || !body.name?.trim()) {
-      return Response.json({ error: "Campos obrigatorios: tenantId, name." }, { status: 400 });
+    if (!body.tenantId || !body.name?.trim() || !body.outingTypeId) {
+      return Response.json({ error: "Campos obrigatorios: tenantId, name, outingTypeId." }, { status: 400 });
     }
 
     const outing = await updateOuting(
@@ -41,6 +42,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ outi
         scheduledFor: body.scheduledFor ?? null,
         targetGroupSize: body.targetGroupSize,
         allowGroupsWithoutCar: body.allowGroupsWithoutCar,
+        outingTypeId: body.outingTypeId,
       },
       { tenantIds: await listAccessibleTenantIds(session) },
     );
