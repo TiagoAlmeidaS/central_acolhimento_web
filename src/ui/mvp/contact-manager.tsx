@@ -404,8 +404,8 @@ export function ContactManager({
         addressNumber: form.openHouse ? form.addressNumber.trim() : "",
         state: form.openHouse ? form.state.trim().toUpperCase().slice(0, 2) : "",
         houseFrontImageUrl: form.openHouse ? form.houseFrontImageUrl || null : null,
-        latitude: form.openHouse ? form.latitude : null,
-        longitude: form.openHouse ? form.longitude : null,
+        latitude: form.latitude,
+        longitude: form.longitude,
         outingEventId: form.outingEventId || null,
       }),
     });
@@ -669,6 +669,13 @@ export function ContactManager({
             </div>
           </label>
 
+          <LocationPicker
+            latitude={form.latitude}
+            longitude={form.longitude}
+            onChange={(lat, lng) => setForm((f) => ({ ...f, latitude: lat, longitude: lng }))}
+            onAddressFill={handleLocationFill}
+          />
+
           {form.openHouse ? (
             <>
               <Input
@@ -722,13 +729,6 @@ export function ContactManager({
                 }}
                 options={ESTADOS_BRASIL}
                 placeholder="UF"
-              />
-
-              <LocationPicker
-                latitude={form.latitude}
-                longitude={form.longitude}
-                onChange={(lat, lng) => setForm((f) => ({ ...f, latitude: lat, longitude: lng }))}
-                onAddressFill={handleLocationFill}
               />
 
               {addressPreview ? (
