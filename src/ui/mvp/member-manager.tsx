@@ -12,6 +12,7 @@ import {
   normalizePhone,
   normalizePostalCode,
 } from "@/ui/mvp/contact-form-utils";
+import { LocationPicker, type LocationAddressFill } from "@/ui/mvp/location-picker";
 import {
   Card,
   Button,
@@ -236,23 +237,15 @@ export function MemberManager({
     triggerGeocode(form.street, form.city, form.addressNumber, form.state, form.postalCode);
   }
 
-  function triggerGPS() {
-    if (!navigator.geolocation) {
-      setError("Geolocalização não é suportada.");
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setForm((current) => ({
-          ...current,
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        }));
-      },
-      (err) => {
-        setError(`Erro ao obter GPS: ${err.message}`);
-      }
-    );
+  function handleLocationFill(addr: LocationAddressFill) {
+    setForm((f) => ({
+      ...f,
+      street: addr.street || f.street,
+      neighborhood: addr.neighborhood || f.neighborhood,
+      city: addr.city || f.city,
+      state: addr.state || f.state,
+      postalCode: addr.postalCode ? normalizePostalCode(addr.postalCode) : f.postalCode,
+    }));
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -477,31 +470,16 @@ export function MemberManager({
                 📍 Endereço do membro
               </div>
 
-              {/* CEP + GPS */}
-              <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
-                <div style={{ flex: 1 }}>
-                  <Input
-                    label="CEP"
-                    value={formatPostalCode(form.postalCode)}
-                    onChange={(v) =>
-                      setForm((f) => ({ ...f, postalCode: normalizePostalCode(v) }))
-                    }
-                    onBlur={() => handleCEPLookup(form.postalCode)}
-                    placeholder="00000-000"
-                    icon={<IconMapPin />}
-                    inputMode="numeric"
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="md"
-                  onClick={triggerGPS}
-                  style={{ height: 54 }}
-                >
-                  GPS Atual
-                </Button>
-              </div>
+              {/* CEP */}
+              <Input
+                label="CEP"
+                value={formatPostalCode(form.postalCode)}
+                onChange={(v) => setForm((f) => ({ ...f, postalCode: normalizePostalCode(v) }))}
+                onBlur={() => handleCEPLookup(form.postalCode)}
+                placeholder="00000-000"
+                icon={<IconMapPin />}
+                inputMode="numeric"
+              />
 
               {/* Rua */}
               <Input
@@ -574,28 +552,13 @@ export function MemberManager({
                 placeholder="Selecione a cidade"
               />
 
-              {/* Badge de coordenadas */}
-              {form.latitude !== null && form.longitude !== null ? (
-                <div
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    background: "#F0FDF4",
-                    border: "1px solid #BBF7D0",
-                    fontSize: 12.5,
-                    color: "#15803D",
-                  }}
-                >
-                  📍 Coordenadas obtidas:{" "}
-                  <b>
-                    {form.latitude.toFixed(6)}, {form.longitude.toFixed(6)}
-                  </b>
-                </div>
-              ) : (
-                <div style={{ fontSize: 12, color: "var(--text-3)" }}>
-                  Preencha o CEP, Rua e Número para obter as coordenadas automáticas.
-                </div>
-              )}
+              {/* Seleção de localização */}
+              <LocationPicker
+                latitude={form.latitude}
+                longitude={form.longitude}
+                onChange={(lat, lng) => setForm((f) => ({ ...f, latitude: lat, longitude: lng }))}
+                onAddressFill={handleLocationFill}
+              />
 
               {/* Preview do endereço consolidado */}
               {addressPreview ? (
