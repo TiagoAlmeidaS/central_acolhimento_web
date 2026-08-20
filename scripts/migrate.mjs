@@ -10,7 +10,6 @@ const { Client } = pg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const migrationsDir = path.resolve(__dirname, "..", "supabase", "migrations");
-const migrationPrefixAllowlist = ["202607"];
 const migrationTable = "public.schema_migrations";
 const advisoryLockKey = 447311902;
 
@@ -67,7 +66,7 @@ async function listActiveMigrations() {
 
   return files
     .filter((file) => file.endsWith(".sql"))
-    .filter((file) => migrationPrefixAllowlist.some((prefix) => file.startsWith(prefix)))
+    .filter((file) => file >= "202607")
     .sort((left, right) => left.localeCompare(right));
 }
 

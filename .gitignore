@@ -43,3 +43,5 @@ coverage/
 # Optional
 *.log
 .cache/
+.vercel
+.env*
