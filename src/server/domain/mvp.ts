@@ -165,6 +165,7 @@ export type DailyOutingReport = {
   generatedAt: string;
   timezone: "America/Sao_Paulo";
   date: string;
+  dateTo: string;
   tenant: Pick<Tenant, "id" | "name" | "city" | "state">;
   totals: {
     completedOutings: number;
@@ -198,9 +199,9 @@ export type DailyOutingReport = {
     name: string;
     age: number | null;
     ageGroup: DailyOutingAgeGroup;
-    outingId: string;
-    outingName: string;
-    outingTypeName: string;
+    outingId: string | null;
+    outingName: string | null;
+    outingTypeName: string | null;
     openHouse: boolean;
     address: string;
     city: string;

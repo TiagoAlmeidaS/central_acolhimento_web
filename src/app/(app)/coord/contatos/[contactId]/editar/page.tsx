@@ -38,7 +38,7 @@ export default async function EditContactPage({ params }: PageProps) {
           Editar contato
         </h1>
       </div>
-      <ContactManager contacts={[]} tenants={tenants} outings={outings.filter((outing) => Boolean(outing.completedAt))} hideList initialEditing={contact} />
+      <ContactManager contacts={[]} tenants={tenants} outings={outings.filter((outing) => outing.status === "confirmed" || Boolean(outing.completedAt))} hideList initialEditing={contact} />
     </div>
   );
 }

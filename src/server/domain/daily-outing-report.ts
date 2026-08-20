@@ -16,6 +16,12 @@ export function saoPauloDayUtcRange(dateOnly: string) {
   return { start: start.toISOString(), end: end.toISOString() };
 }
 
+export function saoPauloDateRangeUtcBounds(dateFrom: string, dateTo: string) {
+  const { start } = saoPauloDayUtcRange(dateFrom);
+  const { end } = saoPauloDayUtcRange(dateTo);
+  return { start, end };
+}
+
 export function isIsoInHalfOpenRange(value: string | null | undefined, start: string, end: string) {
   if (!value) return false;
   const instant = new Date(value).toISOString();

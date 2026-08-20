@@ -31,14 +31,17 @@ function formatInstant(value: string) {
 export default async function DailyOutingReportPage({ searchParams }: Props) {
   const session = await requireServerAuthSession("coordinator");
   const params = await searchParams;
-  const requestedDate = first(params.date) ?? todayInSaoPaulo();
-  const date = isValidDateOnly(requestedDate) ? requestedDate : todayInSaoPaulo();
+  const today = todayInSaoPaulo();
+  const requestedDate = first(params.date) ?? today;
+  const requestedDateTo = first(params.dateTo) ?? requestedDate;
+  const date = isValidDateOnly(requestedDate) ? requestedDate : today;
+  const dateTo = isValidDateOnly(requestedDateTo) && requestedDateTo >= date ? requestedDateTo : date;
   const tenantId = await resolveTenantIdForUserAccess(session, first(params.tenantId) ?? session.membership.tenantId);
   const accessibleTenantIds = await listAccessibleTenantIds(session);
   const tenants = await listTenants({ tenantIds: accessibleTenantIds });
   const tenant = tenants.find((item) => item.id === tenantId);
   if (!tenant) throw new Error("Localidade nao encontrada.");
-  const report = await getDailyOutingReport(tenant, date);
+  const report = await getDailyOutingReport(tenant, date, dateTo);
   console.info("daily_outing_report_viewed", {
     version: report.version,
     tenantId: report.tenant.id,
@@ -57,7 +60,7 @@ export default async function DailyOutingReportPage({ searchParams }: Props) {
           <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Central de Acolhimento</p>
           <h1 style={{ margin: "6px 0 0", fontSize: 30, color: "var(--text)", letterSpacing: "-0.03em" }}>Relatorio diario de saidas</h1>
           <p style={{ margin: "7px 0 0", color: "var(--text-2)", fontSize: 14 }}>
-            {tenant.name} · {tenant.city}/{tenant.state} · {formatDate(report.date)}
+            {tenant.name} · {tenant.city}/{tenant.state} · {report.dateTo !== report.date ? `${formatDate(report.date)} a ${formatDate(report.dateTo)}` : formatDate(report.date)}
           </p>
           <p style={{ margin: "4px 0 0", color: "var(--text-3)", fontSize: 11.5 }}>
             Versao {report.version} · Gerado em {formatInstant(report.generatedAt)} · {report.timezone}
@@ -67,7 +70,8 @@ export default async function DailyOutingReportPage({ searchParams }: Props) {
       </header>
 
       <form method="get" className="report-controls" style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "end", padding: 16, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14 }}>
-        <label style={labelStyle}>Data<input name="date" type="date" defaultValue={date} style={inputStyle} /></label>
+        <label style={labelStyle}>De<input name="date" type="date" defaultValue={date} style={inputStyle} /></label>
+        <label style={labelStyle}>Ate<input name="dateTo" type="date" defaultValue={dateTo} style={inputStyle} /></label>
         <label style={labelStyle}>Localidade<select name="tenantId" defaultValue={tenantId} style={inputStyle}>{tenants.map((item) => <option key={item.id} value={item.id}>{item.name} - {item.city}/{item.state}</option>)}</select></label>
         <button type="submit" style={filterButtonStyle}>Atualizar relatorio</button>
       </form>
@@ -82,7 +86,7 @@ export default async function DailyOutingReportPage({ searchParams }: Props) {
       </section>
 
       {report.totals.completedOutings === 0 ? (
-        <Card padding={28}><div role="status" style={{ textAlign: "center", color: "var(--text-3)" }}>Nenhuma saida concluida nesta data.</div></Card>
+        <Card padding={28}><div role="status" style={{ textAlign: "center", color: "var(--text-3)" }}>Nenhuma saida concluida {dateTo !== date ? "neste periodo" : "nesta data"}.</div></Card>
       ) : (
         <>
           <ReportSection title="Resultado por tipo de saida">
@@ -94,11 +98,11 @@ export default async function DailyOutingReportPage({ searchParams }: Props) {
           </ReportSection>
 
           <ReportSection title="Novos contatos gerados">
-            {report.contacts.length === 0 ? <p style={emptyStyle}>Nenhum novo contato vinculado e criado nesta data.</p> : <div style={{ overflowX: "auto" }}><table style={tableStyle}><thead><tr><Th>Nome</Th><Th>Idade</Th><Th>Faixa</Th><Th>Saida</Th><Th>Tipo</Th><Th>Casa aberta</Th></tr></thead><tbody>{report.contacts.map((contact) => <tr key={contact.id}><Td strong>{contact.name}</Td><Td>{contact.age ?? "Nao informada"}</Td><Td>{contact.ageGroup === "adolescent" ? "Adolescente" : contact.ageGroup === "unknown" ? "Nao informada" : "Outra idade"}</Td><Td>{contact.outingName}</Td><Td>{contact.outingTypeName}</Td><Td>{contact.openHouse ? "Sim" : "Nao"}</Td></tr>)}</tbody></table></div>}
+            {report.contacts.length === 0 ? <p style={emptyStyle}>Nenhum novo contato registrado {dateTo !== date ? "neste periodo" : "nesta data"}.</p> : <div style={{ overflowX: "auto" }}><table style={tableStyle}><thead><tr><Th>Nome</Th><Th>Idade</Th><Th>Faixa</Th><Th>Saida</Th><Th>Tipo</Th><Th>Casa aberta</Th></tr></thead><tbody>{report.contacts.map((contact) => <tr key={contact.id}><Td strong>{contact.name}</Td><Td>{contact.age ?? "Nao informada"}</Td><Td>{contact.ageGroup === "adolescent" ? "Adolescente" : contact.ageGroup === "unknown" ? "Nao informada" : "Outra idade"}</Td><Td>{contact.outingName ?? <span style={{ color: "var(--text-3)" }}>Sem saida</span>}</Td><Td>{contact.outingTypeName ?? <span style={{ color: "var(--text-3)" }}>—</span>}</Td><Td>{contact.openHouse ? "Sim" : "Nao"}</Td></tr>)}</tbody></table></div>}
           </ReportSection>
 
           <section className="report-section">
-            {mappedHouses.length > 0 ? <DashboardMap title="Mapa das casas abertas" description={`${mappedHouses.length} casa(s) com coordenadas nesta data.`} showLegend={false} items={mappedHouses.map((contact) => ({ id: contact.id, name: contact.name, city: contact.city, address: contact.address, status: "novo", caregiver: null, lastContact: "Gerado pela saida", latitude: contact.latitude, longitude: contact.longitude, age: contact.age }))} /> : <Card padding={24}><h2 style={sectionTitleStyle}>Mapa das casas abertas</h2><p style={emptyStyle}>Nenhuma casa aberta com coordenadas nesta data.</p></Card>}
+            {mappedHouses.length > 0 ? <DashboardMap title="Mapa das casas abertas" description={`${mappedHouses.length} casa(s) com coordenadas nesta data.`} showLegend={false} items={mappedHouses.map((contact) => ({ id: contact.id, name: contact.name, city: contact.city, address: contact.address, status: "novo", caregiver: null, lastContact: contact.outingName ?? "Contato do dia", latitude: contact.latitude as number, longitude: contact.longitude as number, age: contact.age }))} /> : <Card padding={24}><h2 style={sectionTitleStyle}>Mapa das casas abertas</h2><p style={emptyStyle}>Nenhuma casa aberta com coordenadas nesta data.</p></Card>}
           </section>
 
           {unmappedHouses.length > 0 ? <ReportSection title="Casas abertas sem localizacao no mapa"><ul style={{ margin: 0, paddingLeft: 20 }}>{unmappedHouses.map((contact) => <li key={contact.id} style={{ marginBottom: 6 }}>{contact.name} · {contact.address || contact.city || "Endereco nao informado"}</li>)}</ul></ReportSection> : null}

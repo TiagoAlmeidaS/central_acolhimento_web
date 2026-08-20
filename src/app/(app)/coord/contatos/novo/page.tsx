@@ -30,7 +30,7 @@ export default async function NewContactPage() {
           Novo contato
         </h1>
       </div>
-      <ContactManager contacts={[]} tenants={tenants} outings={outings.filter((outing) => Boolean(outing.completedAt))} hideList />
+      <ContactManager contacts={[]} tenants={tenants} outings={outings.filter((outing) => outing.status === "confirmed" || Boolean(outing.completedAt))} hideList />
     </div>
   );
 }

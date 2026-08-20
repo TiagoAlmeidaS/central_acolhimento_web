@@ -3,7 +3,7 @@ import {
   DAILY_OUTING_REPORT_TIMEZONE,
   DAILY_OUTING_REPORT_VERSION,
   isIsoInHalfOpenRange,
-  saoPauloDayUtcRange,
+  saoPauloDateRangeUtcBounds,
 } from "@/server/domain/daily-outing-report";
 import type { DailyOutingReport, OutingDetail, Seed, Tenant } from "@/server/domain/mvp";
 import { listSeeds } from "@/server/repositories/mvp-repository";
@@ -12,40 +12,41 @@ import { getOutingDetail, listOutings } from "@/server/repositories/outing-repos
 type ReportSource = {
   tenant: Tenant;
   date: string;
+  dateTo?: string;
   outingDetails: OutingDetail[];
   seeds: Seed[];
   generatedAt?: string;
 };
 
 export function buildDailyOutingReport(source: ReportSource): DailyOutingReport {
-  const { start, end } = saoPauloDayUtcRange(source.date);
+  const dateTo = source.dateTo ?? source.date;
+  const { start, end } = saoPauloDateRangeUtcBounds(source.date, dateTo);
   const completedDetails = source.outingDetails.filter(({ outing }) =>
     isIsoInHalfOpenRange(outing.completedAt, start, end),
   );
   const completedIds = new Set(completedDetails.map(({ outing }) => outing.id));
   const seeds = source.seeds.filter((seed) =>
-    Boolean(seed.outingEventId && completedIds.has(seed.outingEventId)) &&
     isIsoInHalfOpenRange(seed.createdAt, start, end),
   );
-  const detailsById = new Map(completedDetails.map((detail) => [detail.outing.id, detail]));
+  const detailsById = new Map(source.outingDetails.map((detail) => [detail.outing.id, detail]));
 
   const contacts: DailyOutingReport["contacts"] = seeds.map((seed) => {
-    const detail = detailsById.get(seed.outingEventId!);
+    const detail = seed.outingEventId ? detailsById.get(seed.outingEventId) : undefined;
     return {
       id: seed.id,
       name: seed.referenceName,
       age: seed.age,
       ageGroup: classifyDailyOutingAge(seed.age),
-      outingId: detail!.outing.id,
-      outingName: detail!.outing.name,
-      outingTypeName: detail!.outing.outingTypeName ?? "Nao classificada",
+      outingId: detail?.outing.id ?? null,
+      outingName: detail?.outing.name ?? null,
+      outingTypeName: detail?.outing.outingTypeName ?? null,
       openHouse: seed.openHouse,
       address: seed.address,
       city: seed.city,
       latitude: seed.latitude,
       longitude: seed.longitude,
     };
-  }).sort((a, b) => a.outingTypeName.localeCompare(b.outingTypeName) || a.outingName.localeCompare(b.outingName) || a.name.localeCompare(b.name));
+  }).sort((a, b) => (a.outingTypeName ?? "").localeCompare(b.outingTypeName ?? "") || (a.outingName ?? "").localeCompare(b.outingName ?? "") || a.name.localeCompare(b.name));
 
   const outings: DailyOutingReport["outings"] = completedDetails.map((detail) => ({
     id: detail.outing.id,
@@ -82,6 +83,7 @@ export function buildDailyOutingReport(source: ReportSource): DailyOutingReport 
     generatedAt: source.generatedAt ?? new Date().toISOString(),
     timezone: DAILY_OUTING_REPORT_TIMEZONE,
     date: source.date,
+    dateTo,
     tenant: { id: source.tenant.id, name: source.tenant.name, city: source.tenant.city, state: source.tenant.state },
     totals: {
       completedOutings: outings.length,
@@ -99,10 +101,10 @@ export function buildDailyOutingReport(source: ReportSource): DailyOutingReport 
   };
 }
 
-export async function getDailyOutingReport(tenant: Tenant, date: string): Promise<DailyOutingReport> {
+export async function getDailyOutingReport(tenant: Tenant, date: string, dateTo?: string): Promise<DailyOutingReport> {
   const scope = { tenantId: tenant.id };
   const [outings, seeds] = await Promise.all([listOutings(scope), listSeeds(scope)]);
   const completedOutings = outings.filter((outing) => outing.completedAt);
   const outingDetails = await Promise.all(completedOutings.map((outing) => getOutingDetail(outing.id, scope)));
-  return buildDailyOutingReport({ tenant, date, outingDetails, seeds });
+  return buildDailyOutingReport({ tenant, date, dateTo, outingDetails, seeds });
 }
