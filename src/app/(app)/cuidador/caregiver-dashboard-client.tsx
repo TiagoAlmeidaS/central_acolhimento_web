@@ -31,6 +31,7 @@ import {
   IconWhatsappFilled,
   IconX,
 } from "@/ui/v2-components/icons";
+import { LocationPicker, type LocationAddressFill } from "@/ui/mvp/location-picker";
 
 const ESTADOS_BRASIL = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", 
@@ -183,23 +184,15 @@ export function CaregiverDashboardClient({
     triggerNewFormGeocode(newForm.street, newForm.city, newForm.addressNumber, newForm.state, newForm.postalCode);
   }
 
-  function triggerNewFormGPS() {
-    if (!navigator.geolocation) {
-      setError("Geolocalização não é suportada.");
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setNewForm((current) => ({
-          ...current,
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        }));
-      },
-      (err) => {
-        setError(`Erro ao obter GPS: ${err.message}`);
-      }
-    );
+  function handleNewFormLocationFill(addr: LocationAddressFill) {
+    setNewForm((f) => ({
+      ...f,
+      street: addr.street || f.street,
+      neighborhood: addr.neighborhood || f.neighborhood,
+      city: addr.city || f.city,
+      state: addr.state || f.state,
+      postalCode: addr.postalCode || f.postalCode,
+    }));
   }
 
   // Schedule Reunion Form
@@ -535,8 +528,8 @@ export function CaregiverDashboardClient({
         addressNumber: newForm.openHouse ? newForm.addressNumber : "",
         state: newForm.openHouse ? newForm.state : "",
         postalCode: newForm.openHouse ? newForm.postalCode : "",
-        latitude: newForm.openHouse ? newForm.latitude : null,
-        longitude: newForm.openHouse ? newForm.longitude : null,
+        latitude: newForm.latitude,
+        longitude: newForm.longitude,
       }),
     });
 
@@ -1357,8 +1350,6 @@ export function CaregiverDashboardClient({
                     neighborhood: e.target.checked ? current.neighborhood : "",
                     addressNumber: e.target.checked ? current.addressNumber : "",
                     state: e.target.checked ? current.state : "PB",
-                    latitude: e.target.checked ? current.latitude : null,
-                    longitude: e.target.checked ? current.longitude : null,
                   }))
                 }
               />
@@ -1370,23 +1361,23 @@ export function CaregiverDashboardClient({
               </div>
             </label>
 
+            <LocationPicker
+              latitude={newForm.latitude}
+              longitude={newForm.longitude}
+              onChange={(lat, lng) => setNewForm((f) => ({ ...f, latitude: lat, longitude: lng }))}
+              onAddressFill={handleNewFormLocationFill}
+            />
+
             {newForm.openHouse && (
               <>
-                <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
-                  <div style={{ flex: 1 }}>
-                    <Input
-                      label="CEP"
-                      value={newForm.postalCode}
-                      onChange={(v) => setNewForm((f) => ({ ...f, postalCode: v }))}
-                      onBlur={() => handleNewFormCEPLookup(newForm.postalCode)}
-                      placeholder="00000-000"
-                      icon={<IconMapPin />}
-                    />
-                  </div>
-                  <Button type="button" variant="secondary" size="md" onClick={triggerNewFormGPS} style={{ height: 54 }}>
-                    GPS Atual
-                  </Button>
-                </div>
+                <Input
+                  label="CEP"
+                  value={newForm.postalCode}
+                  onChange={(v) => setNewForm((f) => ({ ...f, postalCode: v }))}
+                  onBlur={() => handleNewFormCEPLookup(newForm.postalCode)}
+                  placeholder="00000-000"
+                  icon={<IconMapPin />}
+                />
 
                 <Input
                   label="Rua"
@@ -1425,24 +1416,6 @@ export function CaregiverDashboardClient({
                   placeholder="UF"
                 />
 
-                {newForm.latitude !== null && newForm.longitude !== null ? (
-                  <div
-                    style={{
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      background: "#F0FDF4",
-                      border: "1px solid #BBF7D0",
-                      fontSize: 12.5,
-                      color: "#15803D",
-                    }}
-                  >
-                    📍 Coordenadas obtidas: <b>{newForm.latitude.toFixed(6)}, {newForm.longitude.toFixed(6)}</b>
-                  </div>
-                ) : (
-                  <div style={{ fontSize: 12, color: "var(--text-3)" }}>
-                    Preencha o CEP, Rua e Número para obter as coordenadas automáticas.
-                  </div>
-                )}
               </>
             )}
 
