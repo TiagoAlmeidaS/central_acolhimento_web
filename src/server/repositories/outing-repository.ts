@@ -13,6 +13,7 @@ import type {
   OutingGroup,
   OutingParticipant,
   OutingType,
+  SaveManualOutingGroupsInput,
   UpdateOutingTypeInput,
   UpdateOutingInput,
 } from "@/server/domain/mvp";
@@ -973,6 +974,66 @@ export async function generateOuting(outingEventId: string, scope?: DataScope): 
   }
 
   return getOutingDetail(outingEventId, scope);
+}
+
+export async function saveManualOutingGroups(input: SaveManualOutingGroupsInput, scope?: DataScope): Promise<OutingDetail> {
+  const detail = await getOutingDetail(input.outingEventId, scope);
+  if (detail.outing.status === "confirmed") throw new Error("A saida confirmada precisa voltar para rascunho antes de alterar os grupos.");
+  if (detail.outing.completedAt) throw new Error("Reabra a execucao antes de alterar os grupos.");
+
+  const participantMap = new Map(detail.participants.map((participant) => [participant.id, participant]));
+  const assigned = new Set<string>();
+  const normalizedGroups = input.groups.map((group, index) => {
+    const name = group.name.trim();
+    if (!name) throw new Error(`Informe o nome do grupo ${index + 1}.`);
+    const participantIds = [...new Set(group.participantIds)];
+    for (const participantId of participantIds) {
+      if (!participantMap.has(participantId)) throw new Error("Um dos participantes nao pertence a esta saida.");
+      if (assigned.has(participantId)) throw new Error("Um participante nao pode estar em mais de um grupo.");
+      assigned.add(participantId);
+    }
+    const driver = group.driverParticipantId ? participantMap.get(group.driverParticipantId) : null;
+    if (group.driverParticipantId && (!driver || !participantIds.includes(group.driverParticipantId))) {
+      throw new Error(`O motorista do ${name} precisa estar entre os participantes do grupo.`);
+    }
+    if (driver && (!driver.hasCar || !driver.isDriver)) throw new Error(`O motorista do ${name} nao esta habilitado para dirigir.`);
+    return {
+      name,
+      driverParticipantId: driver?.id ?? null,
+      carCapacityTotal: driver ? 1 + Math.max(0, driver.carSeats) : null,
+      participantIds,
+      sortOrder: index,
+    };
+  });
+
+  if (!isDatabaseReady()) {
+    clearLocalGroupsForOuting(input.outingEventId);
+    for (const group of normalizedGroups) {
+      const id = crypto.randomUUID();
+      localOutingGroupsStore.push({ id, outingEventId: input.outingEventId, name: group.name, driverParticipantId: group.driverParticipantId, carCapacityTotal: group.carCapacityTotal, sortOrder: group.sortOrder, assignedBy: "manual", createdAt: new Date().toISOString() });
+      for (const participantId of group.participantIds) localOutingAssignmentsStore.push({ outingGroupId: id, outingParticipantId: participantId, assignedBy: "manual" });
+    }
+    const outingIndex = localOutingEventsStore.findIndex((item) => item.id === input.outingEventId);
+    localOutingEventsStore[outingIndex] = { ...localOutingEventsStore[outingIndex], status: normalizedGroups.length ? "generated" : "draft", updatedAt: new Date().toISOString() };
+    return buildLocalOutingDetail(localOutingEventsStore[outingIndex]);
+  }
+
+  const db = ensureDb();
+  await db.query("begin");
+  try {
+    await db.query("delete from outing_group_assignments where outing_group_id in (select id from outing_groups where outing_event_id = $1)", [input.outingEventId]);
+    await db.query("delete from outing_groups where outing_event_id = $1", [input.outingEventId]);
+    for (const group of normalizedGroups) {
+      const inserted = await db.query<OutingGroupRow>(`insert into outing_groups (outing_event_id, name, driver_participant_id, car_capacity_total, sort_order) values ($1, $2, $3, $4, $5) returning *`, [input.outingEventId, group.name, group.driverParticipantId, group.carCapacityTotal, group.sortOrder]);
+      for (const participantId of group.participantIds) await db.query(`insert into outing_group_assignments (outing_group_id, outing_participant_id, assigned_by) values ($1, $2, 'manual')`, [inserted.rows[0].id, participantId]);
+    }
+    await db.query("update outing_events set status = $2 where id = $1", [input.outingEventId, normalizedGroups.length ? "generated" : "draft"]);
+    await db.query("commit");
+  } catch (error) {
+    await db.query("rollback");
+    throw error;
+  }
+  return getOutingDetail(input.outingEventId, scope);
 }
 
 export async function confirmOuting(outingEventId: string, scope?: DataScope): Promise<OutingDetail> {

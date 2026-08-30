@@ -582,6 +582,15 @@ Na V1:
 
 ## Fases de implementacao
 
+### Evidencia de implementacao da revisao manual
+
+- a composicao manual e persistida atomicamente por `PUT /api/outings/[outingId]/groups`;
+- a coordenacao pode criar e remover grupos, distribuir participantes e trocar o motorista antes da confirmacao;
+- participantes podem permanecer temporariamente em `Sem grupo` durante a revisao, mas a confirmacao continua exigindo distribuicao completa;
+- grupos confirmados ou saidas concluidas nao aceitam alteracao manual;
+- atribuicoes manuais usam `outing_assignment_source = manual` e preservam o modelo de dados existente;
+- vinculos inseparaveis, presenca de motorista e capacidade continuam validados na confirmacao.
+
 ### Fase 1
 
 - spec

@@ -597,6 +597,15 @@ export type CreateOutingConstraintInput = {
   participantIds: string[];
 };
 
+export type SaveManualOutingGroupsInput = {
+  outingEventId: string;
+  groups: Array<{
+    name: string;
+    driverParticipantId?: string | null;
+    participantIds: string[];
+  }>;
+};
+
 export type CreateTciChamberInput = {
   tenantId: string;
   name: string;

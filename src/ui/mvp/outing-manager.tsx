@@ -354,6 +354,59 @@ export function OutingManager({ outings, outingTypes, tenants, caregivers, membe
     await refreshOutings(detail.outing.id);
   }
 
+  async function saveManualGroups(groups: Array<{ name: string; driverParticipantId: string | null; participantIds: string[] }>, message: string) {
+    if (!detail) return;
+    setSubmitting(true);
+    setError(null);
+    setSuccess(null);
+    const response = await fetch(`/api/outings/${detail.outing.id}/groups`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ groups }),
+    });
+    setSubmitting(false);
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      setError(payload.error ?? "Nao foi possivel salvar os grupos.");
+      return;
+    }
+    setSuccess(message);
+    await refreshOutings(detail.outing.id);
+  }
+
+  function currentManualGroups() {
+    return (detail?.groups ?? []).map((group) => ({
+      name: group.name,
+      driverParticipantId: group.driverParticipantId,
+      participantIds: group.participants.map((participant) => participant.id),
+    }));
+  }
+
+  async function handleAddManualGroup() {
+    const groups = currentManualGroups();
+    await saveManualGroups([...groups, { name: `Grupo ${groups.length + 1}`, driverParticipantId: null, participantIds: [] }], "Grupo adicionado.");
+  }
+
+  async function handleDeleteGroup(groupIndex: number) {
+    await saveManualGroups(currentManualGroups().filter((_, index) => index !== groupIndex), "Grupo removido; seus participantes ficaram sem grupo.");
+  }
+
+  async function handleMoveParticipant(participantId: string, targetGroupIndex: number | null) {
+    const groups = currentManualGroups().map((group) => ({
+      ...group,
+      participantIds: group.participantIds.filter((id) => id !== participantId),
+      driverParticipantId: group.driverParticipantId === participantId ? null : group.driverParticipantId,
+    }));
+    if (targetGroupIndex !== null) groups[targetGroupIndex]?.participantIds.push(participantId);
+    await saveManualGroups(groups, targetGroupIndex === null ? "Participante movido para sem grupo." : "Participante movido.");
+  }
+
+  async function handleChangeDriver(groupIndex: number, driverParticipantId: string) {
+    const groups = currentManualGroups();
+    if (groups[groupIndex]) groups[groupIndex].driverParticipantId = driverParticipantId || null;
+    await saveManualGroups(groups, "Motorista atualizado.");
+  }
+
   async function handleConfirm() {
     if (!detail) return;
     setSubmitting(true);
@@ -420,7 +473,7 @@ export function OutingManager({ outings, outingTypes, tenants, caregivers, membe
             <Select
               label="Localidade"
               value={outingForm.tenantId}
-              onChange={(value) => setOutingForm((current) => ({ ...current, tenantId: value }))}
+              onChange={(value) => setOutingForm((current) => ({ ...current, tenantId: value, outingTypeId: "" }))}
               options={tenants.map((tenant) => ({ value: tenant.id, label: `${tenant.name} - ${tenant.city}/${tenant.state}` }))}
               placeholder="Selecione a localidade"
               required
@@ -434,6 +487,11 @@ export function OutingManager({ outings, outingTypes, tenants, caregivers, membe
               placeholder="Selecione o tipo"
               required
             />
+            {outingForm.tenantId && availableOutingTypes.length === 0 ? (
+              <div role="status" style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid #FDE68A", background: "#FFFBEB", color: "#92400E", fontSize: 12.5 }}>
+                Nenhum tipo ativo nesta localidade. Crie o primeiro tipo abaixo para liberar a saída.
+              </div>
+            ) : null}
             <div style={{ display: "flex", gap: 8, alignItems: "end" }}>
               <div style={{ flex: 1 }}>
                 <Input label="Criar novo tipo" value={newTypeName} onChange={setNewTypeName} placeholder="Adolescentes, TCI, Casas abertas..." />
@@ -728,12 +786,25 @@ export function OutingManager({ outings, outingTypes, tenants, caregivers, membe
             </div>
 
             <Card padding={16}>
-              <SectionTitle action={<span style={{ fontSize: 12, color: "var(--text-3)" }}>{detail.groups.length} grupo(s)</span>}>Resultado da geracao</SectionTitle>
+              <SectionTitle action={<Button type="button" variant="secondary" size="sm" onClick={handleAddManualGroup} disabled={submitting || detail.outing.status === "confirmed"} icon={<IconPlus />}>Adicionar grupo</Button>}>Grupos da saída</SectionTitle>
+              {detail.participants.some((participant) => !detail.groups.some((group) => group.participants.some((item) => item.id === participant.id))) ? (
+                <div style={{ padding: "12px 14px", marginBottom: 12, borderRadius: 14, border: "1px solid #FDE68A", background: "#FFFBEB" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#92400E", marginBottom: 8 }}>Participantes sem grupo</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {detail.participants.filter((participant) => !detail.groups.some((group) => group.participants.some((item) => item.id === participant.id))).map((participant) => (
+                      <div key={participant.id} style={{ display: "grid", gridTemplateColumns: "minmax(120px, 1fr) minmax(150px, 220px)", gap: 8, alignItems: "center" }}>
+                        <span style={{ fontSize: 13 }}>{participant.displayName}</span>
+                        <Select value="" onChange={(value) => handleMoveParticipant(participant.id, Number(value))} options={detail.groups.map((group, index) => ({ value: String(index), label: `Adicionar a ${group.name}` }))} placeholder="Escolher grupo" disabled={submitting || detail.outing.status === "confirmed"} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
                 {detail.groups.length === 0 ? (
                   <p style={{ margin: 0, fontSize: 13, color: "var(--text-3)" }}>Ainda nao existem grupos gerados.</p>
                 ) : null}
-                {detail.groups.map((group) => (
+                {detail.groups.map((group, groupIndex) => (
                   <div key={group.id} style={{ padding: "14px 16px", borderRadius: 16, border: "1px solid var(--border)", background: "var(--surface-2)" }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                       <div>
@@ -748,13 +819,18 @@ export function OutingManager({ outings, outingTypes, tenants, caregivers, membe
                         {group.participants.length}/{group.carCapacityTotal ?? detail.outing.targetGroupSize}
                       </Badge>
                     </div>
+                    <div style={{ marginTop: 10 }}>
+                      <Select label="Motorista" value={group.driverParticipantId ?? ""} onChange={(value) => handleChangeDriver(groupIndex, value)} options={[{ value: "", label: "Sem motorista" }, ...group.participants.filter((participant) => participant.hasCar && participant.isDriver).map((participant) => ({ value: participant.id, label: participant.displayName }))]} disabled={submitting || detail.outing.status === "confirmed"} />
+                    </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
                       {group.participants.map((participant) => (
-                        <div key={participant.id} style={{ fontSize: 13, color: "var(--text)" }}>
-                          {participant.displayName}
+                        <div key={participant.id} style={{ display: "grid", gridTemplateColumns: "minmax(100px, 1fr) minmax(130px, 180px)", gap: 8, alignItems: "center", fontSize: 13, color: "var(--text)" }}>
+                          <span>{participant.displayName}</span>
+                          <Select value={String(groupIndex)} onChange={(value) => handleMoveParticipant(participant.id, value === "unassigned" ? null : Number(value))} options={[{ value: "unassigned", label: "Sem grupo" }, ...detail.groups.map((target, index) => ({ value: String(index), label: target.name }))]} disabled={submitting || detail.outing.status === "confirmed"} />
                         </div>
                       ))}
                     </div>
+                    <Button type="button" variant="danger" size="sm" onClick={() => handleDeleteGroup(groupIndex)} disabled={submitting || detail.outing.status === "confirmed"} icon={<IconX />} style={{ marginTop: 12 }}>Remover grupo</Button>
                   </div>
                 ))}
               </div>

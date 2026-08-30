@@ -527,6 +527,7 @@ interface SelectProps {
   placeholder?: string;
   icon?: React.ReactElement;
   required?: boolean;
+  disabled?: boolean;
 }
 
 export const Select: React.FC<SelectProps> = ({
@@ -536,6 +537,7 @@ export const Select: React.FC<SelectProps> = ({
   options,
   placeholder,
   required,
+  disabled,
 }) => (
   <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
     {label && (
@@ -567,6 +569,7 @@ export const Select: React.FC<SelectProps> = ({
         value={value || ""}
         onChange={(e) => onChange && onChange(e.target.value)}
         required={required}
+        disabled={disabled}
         style={{
           flex: 1,
           border: 0,

@@ -615,12 +615,40 @@ describe("MVP integration flow", () => {
     expect(generateResponse.status).toBe(200);
     const generatedDetail = (await generateResponse.json()) as {
       outing: { status: string };
-      groups: Array<{ participants: Array<{ id: string }> }>;
+      groups: Array<{ name: string; driverParticipantId: string | null; participants: Array<{ id: string }> }>;
     };
     expect(generatedDetail.outing.status).toBe("generated");
     expect(generatedDetail.groups.length).toBeGreaterThan(0);
     const coupleGroup = generatedDetail.groups.find((group) => group.participants.some((participant) => participant.id === outingMemberA.id));
     expect(coupleGroup?.participants.some((participant) => participant.id === outingMemberB.id)).toBe(true);
+
+    const { PUT: saveManualGroupsRoute } = await import("@/app/api/outings/[outingId]/groups/route");
+    const manualGroups = generatedDetail.groups.map((group) => ({
+      name: group.name,
+      driverParticipantId: group.driverParticipantId,
+      participantIds: group.participants.map((participant) => participant.id),
+    }));
+    const addFreeGroupResponse = await saveManualGroupsRoute(
+      new Request(`http://localhost/api/outings/${createdOuting.id}/groups`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groups: [...manualGroups, { name: "Grupo livre", driverParticipantId: null, participantIds: [] }] }),
+      }),
+      { params: Promise.resolve({ outingId: createdOuting.id }) },
+    );
+    expect(addFreeGroupResponse.status).toBe(200);
+    expect(((await addFreeGroupResponse.json()) as { groups: unknown[] }).groups).toHaveLength(manualGroups.length + 1);
+
+    const restoreManualGroupsResponse = await saveManualGroupsRoute(
+      new Request(`http://localhost/api/outings/${createdOuting.id}/groups`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groups: manualGroups }),
+      }),
+      { params: Promise.resolve({ outingId: createdOuting.id }) },
+    );
+    expect(restoreManualGroupsResponse.status).toBe(200);
+    expect(((await restoreManualGroupsResponse.json()) as { groups: Array<{ assignedBy: string }> }).groups.every((group) => group.assignedBy === "manual")).toBe(true);
 
     const { POST: confirmRoute } = await import("@/app/api/outings/[outingId]/confirm/route");
     const confirmResponse = await confirmRoute(
