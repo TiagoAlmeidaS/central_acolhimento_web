@@ -19,6 +19,7 @@ import type {
   Member,
   PaginatedListResult,
   Seed,
+  SeedStatusHistoryEntry,
   SpiritualTemperature,
   Tenant,
   DataScope,
@@ -76,6 +77,17 @@ type SeedRow = {
   longitude: number | null;
   is_urgent: boolean;
   outing_event_id: string | null;
+  updated_at: string;
+};
+
+type SeedStatusHistoryRow = {
+  id: string;
+  tenant_id: string;
+  seed_id: string;
+  previous_status: Seed["status"] | null;
+  new_status: Seed["status"];
+  changed_by_tenant_user_id: string | null;
+  changed_at: string;
 };
 
 type MemberRow = {
@@ -175,6 +187,7 @@ function mapSeed(row: SeedRow): Seed {
     notes: row.notes,
     firstContactAt: serializeDateValue(row.first_contact_at),
     createdAt: serializeDateValue(row.created_at) ?? undefined,
+    updatedAt: serializeDateValue(row.updated_at) ?? undefined,
     latitude: row.latitude !== null ? Number(row.latitude) : null,
     longitude: row.longitude !== null ? Number(row.longitude) : null,
     isUrgent: !!row.is_urgent,
@@ -375,6 +388,7 @@ const localCaregiversStore = buildLocalCaregivers();
 const localSeedsStore = buildLocalSeeds();
 const localMembersStore = buildLocalMembers();
 const localFollowupsStore = buildLocalFollowups();
+const localSeedStatusHistoryStore: SeedStatusHistoryEntry[] = [];
 
 export function resetLocalMvpStore() {
   localTenantsStore.splice(0, localTenantsStore.length, ...buildLocalTenants());
@@ -382,6 +396,7 @@ export function resetLocalMvpStore() {
   localSeedsStore.splice(0, localSeedsStore.length, ...buildLocalSeeds());
   localMembersStore.splice(0, localMembersStore.length, ...buildLocalMembers());
   localFollowupsStore.splice(0, localFollowupsStore.length, ...buildLocalFollowups());
+  localSeedStatusHistoryStore.splice(0, localSeedStatusHistoryStore.length);
 }
 
 export function updateLocalCaregiverIdentity(
@@ -513,6 +528,36 @@ function appendScopedWhereClause(
     values.push(scope.caregiverId);
     clauses.push(`${caregiverColumn} = $${values.length}`);
   }
+}
+
+function mapSeedStatusHistory(row: SeedStatusHistoryRow): SeedStatusHistoryEntry {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    seedId: row.seed_id,
+    previousStatus: row.previous_status,
+    newStatus: row.new_status,
+    changedByTenantUserId: row.changed_by_tenant_user_id,
+    changedAt: serializeDateValue(row.changed_at) ?? new Date(0).toISOString(),
+  };
+}
+
+function recordLocalSeedStatusHistory(input: {
+  tenantId: string;
+  seedId: string;
+  previousStatus: Seed["status"] | null;
+  newStatus: Seed["status"];
+  changedByTenantUserId?: string | null;
+}) {
+  localSeedStatusHistoryStore.unshift({
+    id: crypto.randomUUID(),
+    tenantId: input.tenantId,
+    seedId: input.seedId,
+    previousStatus: input.previousStatus,
+    newStatus: input.newStatus,
+    changedByTenantUserId: input.changedByTenantUserId ?? null,
+    changedAt: new Date().toISOString(),
+  });
 }
 
 export async function listTenants(scope?: DataScope): Promise<Tenant[]> {
@@ -761,6 +806,32 @@ export async function listSeeds(scope?: DataScope): Promise<Seed[]> {
   });
 }
 
+export async function listSeedStatusHistory(scope?: DataScope): Promise<SeedStatusHistoryEntry[]> {
+  if (!isDatabaseReady()) {
+    return localSeedStatusHistoryStore.filter((item) => matchesScope(item, scope));
+  }
+
+  const db = ensureDb();
+  const values: unknown[] = [];
+  const clauses: string[] = [];
+  if (scope?.tenantId) {
+    values.push(scope.tenantId);
+    clauses.push(`tenant_id = $${values.length}`);
+  } else if (scope?.tenantIds?.length) {
+    values.push(scope.tenantIds);
+    clauses.push(`tenant_id = ANY($${values.length})`);
+  }
+  const where = clauses.length > 0 ? `where ${clauses.join(" and ")}` : "";
+  const result = await db.query<SeedStatusHistoryRow>(
+    `select id, tenant_id, seed_id, previous_status, new_status, changed_by_tenant_user_id, changed_at
+       from seed_status_history
+       ${where}
+      order by changed_at desc`,
+    values,
+  );
+  return result.rows.map(mapSeedStatusHistory);
+}
+
 export async function listSeedsPage(
   scope: DataScope | undefined,
   filters: ContactListingFilters,
@@ -775,8 +846,9 @@ export async function listSeedsPage(
   return paginateItems(filtered, pagination.page, pagination.pageSize);
 }
 
-export async function createSeed(input: CreateSeedInput): Promise<Seed> {
+export async function createSeed(input: CreateSeedInput, options?: { changedByTenantUserId?: string | null }): Promise<Seed> {
   if (!isDatabaseReady()) {
+    const now = new Date().toISOString();
     const seed = {
       id: crypto.randomUUID(),
       tenantId: input.tenantId,
@@ -802,9 +874,17 @@ export async function createSeed(input: CreateSeedInput): Promise<Seed> {
       longitude: input.longitude ?? null,
       isUrgent: input.isUrgent ?? false,
       outingEventId: input.outingEventId ?? null,
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     };
     localSeedsStore.unshift(seed);
+    recordLocalSeedStatusHistory({
+      tenantId: seed.tenantId,
+      seedId: seed.id,
+      previousStatus: null,
+      newStatus: seed.status,
+      changedByTenantUserId: options?.changedByTenantUserId ?? null,
+    });
     return seed;
   }
 
@@ -841,8 +921,10 @@ export async function createSeed(input: CreateSeedInput): Promise<Seed> {
   return mapSeed(result.rows[0]);
 }
 
-export async function updateSeed(id: string, input: UpdateSeedInput): Promise<Seed> {
+export async function updateSeed(id: string, input: UpdateSeedInput, options?: { changedByTenantUserId?: string | null }): Promise<Seed> {
   if (!isDatabaseReady()) {
+    const currentSeed = localSeedsStore.find((item) => item.id === id);
+    const now = new Date().toISOString();
     const seed = {
       id,
       tenantId: input.tenantId,
@@ -868,67 +950,103 @@ export async function updateSeed(id: string, input: UpdateSeedInput): Promise<Se
       longitude: input.longitude ?? null,
       isUrgent: input.isUrgent ?? false,
       outingEventId: input.outingEventId ?? null,
-      createdAt: localSeedsStore.find((item) => item.id === id)?.createdAt ?? new Date().toISOString(),
+      createdAt: currentSeed?.createdAt ?? now,
+      updatedAt: now,
     };
     const index = localSeedsStore.findIndex((item) => item.id === id);
     if (index >= 0) localSeedsStore[index] = seed;
+    if (currentSeed && currentSeed.status !== seed.status) {
+      recordLocalSeedStatusHistory({
+        tenantId: seed.tenantId,
+        seedId: seed.id,
+        previousStatus: currentSeed.status,
+        newStatus: seed.status,
+        changedByTenantUserId: options?.changedByTenantUserId ?? null,
+      });
+    }
     return seed;
   }
 
   const db = ensureDb();
-  const result = await db.query<SeedRow>(
-    `update seeds
-        set tenant_id = $2,
-            caregiver_id = $3,
-            reference_name = $4,
-            age = $5,
-            phone = $6,
-            city = $7,
-            postal_code = $8,
-            open_house = $9,
-            address = $10,
-            street = $11,
-            neighborhood = $12,
-            address_number = $13,
-            state = $14,
-            house_front_image_url = $15,
-            source = $16,
-            status = $17,
-            notes = $18,
-            first_contact_at = $19,
-            latitude = $20,
-            longitude = $21,
-            is_urgent = $22,
-            outing_event_id = $23
-      where id = $1
-      returning *`,
-    [
-      id,
-      input.tenantId,
-      input.caregiverId ?? null,
-      input.referenceName,
-      input.age ?? null,
-      input.phone ?? "",
-      input.city ?? "",
-      input.postalCode ?? "",
-      input.openHouse ?? false,
-      input.address ?? composeContactAddress(input),
-      input.street ?? "",
-      input.neighborhood ?? "",
-      input.addressNumber ?? "",
-      input.state ?? "",
-      input.houseFrontImageUrl ?? null,
-      input.source ?? "",
-      input.status ?? "new",
-      input.notes ?? "",
-      input.firstContactAt ?? null,
-      input.latitude ?? null,
-      input.longitude ?? null,
-      input.isUrgent ?? false,
-      input.outingEventId ?? null,
-    ]
-  );
-  return mapSeed(result.rows[0]);
+  const client = await db.connect();
+  try {
+    await client.query("begin");
+    const currentResult = await client.query<SeedRow>("select * from seeds where id = $1 limit 1", [id]);
+    const currentSeed = currentResult.rows[0];
+    if (!currentSeed) {
+      throw new Error("Novo contato nao encontrado.");
+    }
+
+    const nextStatus = input.status ?? "new";
+    const result = await client.query<SeedRow>(
+      `update seeds
+          set tenant_id = $2,
+              caregiver_id = $3,
+              reference_name = $4,
+              age = $5,
+              phone = $6,
+              city = $7,
+              postal_code = $8,
+              open_house = $9,
+              address = $10,
+              street = $11,
+              neighborhood = $12,
+              address_number = $13,
+              state = $14,
+              house_front_image_url = $15,
+              source = $16,
+              status = $17,
+              notes = $18,
+              first_contact_at = $19,
+              latitude = $20,
+              longitude = $21,
+              is_urgent = $22,
+              outing_event_id = $23
+        where id = $1
+        returning *`,
+      [
+        id,
+        input.tenantId,
+        input.caregiverId ?? null,
+        input.referenceName,
+        input.age ?? null,
+        input.phone ?? "",
+        input.city ?? "",
+        input.postalCode ?? "",
+        input.openHouse ?? false,
+        input.address ?? composeContactAddress(input),
+        input.street ?? "",
+        input.neighborhood ?? "",
+        input.addressNumber ?? "",
+        input.state ?? "",
+        input.houseFrontImageUrl ?? null,
+        input.source ?? "",
+        nextStatus,
+        input.notes ?? "",
+        input.firstContactAt ?? null,
+        input.latitude ?? null,
+        input.longitude ?? null,
+        input.isUrgent ?? false,
+        input.outingEventId ?? null,
+      ],
+    );
+
+    if (currentSeed.status !== nextStatus) {
+      await client.query(
+        `insert into seed_status_history (tenant_id, seed_id, previous_status, new_status, changed_by_tenant_user_id, changed_at)
+         values ($1, $2, $3, $4, $5, now())`,
+        [input.tenantId, id, currentSeed.status, nextStatus, options?.changedByTenantUserId ?? null],
+      );
+    }
+
+    await client.query("commit");
+    return mapSeed(result.rows[0]);
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function deleteSeed(id: string): Promise<void> {
@@ -949,7 +1067,7 @@ export async function deleteSeed(id: string): Promise<void> {
   }
 }
 
-export async function convertSeedToMember(seedId: string, input: ConvertSeedToMemberInput = {}) {
+export async function convertSeedToMember(seedId: string, input: ConvertSeedToMemberInput = {}, options?: { changedByTenantUserId?: string | null }) {
   if (!isDatabaseReady()) {
     const seed = localSeedsStore.find((item) => item.id === seedId);
     if (!seed) {
@@ -984,7 +1102,16 @@ export async function convertSeedToMember(seedId: string, input: ConvertSeedToMe
 
     localMembersStore.unshift(member);
     const index = localSeedsStore.findIndex((item) => item.id === seedId);
-    localSeedsStore[index] = { ...seed, status: "in_progress" };
+    localSeedsStore[index] = { ...seed, status: "in_progress", updatedAt: new Date().toISOString() };
+    if (seed.status !== "in_progress") {
+      recordLocalSeedStatusHistory({
+        tenantId: seed.tenantId,
+        seedId: seed.id,
+        previousStatus: seed.status,
+        newStatus: "in_progress",
+        changedByTenantUserId: options?.changedByTenantUserId ?? null,
+      });
+    }
     return member;
   }
 
@@ -1017,6 +1144,13 @@ export async function convertSeedToMember(seedId: string, input: ConvertSeedToMe
     ]
   );
 
+  if (row.status !== "in_progress") {
+    await db.query(
+      `insert into seed_status_history (tenant_id, seed_id, previous_status, new_status, changed_by_tenant_user_id, changed_at)
+       values ($1, $2, $3, 'in_progress', $4, now())`,
+      [row.tenant_id, seedId, row.status, options?.changedByTenantUserId ?? null],
+    );
+  }
   await db.query(`update seeds set status = 'in_progress' where id = $1`, [seedId]);
   return mapMember(memberResult.rows[0]);
 }

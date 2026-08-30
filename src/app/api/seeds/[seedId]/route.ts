@@ -67,30 +67,34 @@ export async function PUT(request: Request, context: RouteContext) {
       if (session.membership.role !== "coordinator") return Response.json({ error: "Apenas a coordenacao pode vincular uma saida." }, { status: 403 });
       await getOutingDetail(body.outingEventId, { tenantId });
     }
-    const seed = await updateSeed(seedId, {
-      tenantId,
-      caregiverId: resolveCaregiverId(session, body.caregiverId ?? null, { allowUnassignedForCoordinator: true }),
-      referenceName: body.referenceName,
-      age: body.age ?? null,
-      phone: body.phone,
-      city: body.city,
-      postalCode: body.postalCode,
-      openHouse: body.openHouse,
-      address: body.address,
-      street: body.street,
-      neighborhood: body.neighborhood,
-      addressNumber: body.addressNumber,
-      state: body.state,
-      houseFrontImageUrl: body.houseFrontImageUrl ?? null,
-      source: body.source,
-      status: body.status,
-      notes: body.notes,
-      firstContactAt: body.firstContactAt ?? null,
-      latitude: body.latitude,
-      longitude: body.longitude,
-      isUrgent: body.isUrgent,
-      outingEventId: body.outingEventId ?? null,
-    });
+    const seed = await updateSeed(
+      seedId,
+      {
+        tenantId,
+        caregiverId: resolveCaregiverId(session, body.caregiverId ?? null, { allowUnassignedForCoordinator: true }),
+        referenceName: body.referenceName,
+        age: body.age ?? null,
+        phone: body.phone,
+        city: body.city,
+        postalCode: body.postalCode,
+        openHouse: body.openHouse,
+        address: body.address,
+        street: body.street,
+        neighborhood: body.neighborhood,
+        addressNumber: body.addressNumber,
+        state: body.state,
+        houseFrontImageUrl: body.houseFrontImageUrl ?? null,
+        source: body.source,
+        status: body.status,
+        notes: body.notes,
+        firstContactAt: body.firstContactAt ?? null,
+        latitude: body.latitude,
+        longitude: body.longitude,
+        isUrgent: body.isUrgent,
+        outingEventId: body.outingEventId ?? null,
+      },
+      { changedByTenantUserId: session.membership.tenantUserId },
+    );
 
     return Response.json(seed);
   } catch (error) {

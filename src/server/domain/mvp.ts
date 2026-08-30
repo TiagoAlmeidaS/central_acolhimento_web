@@ -84,10 +84,48 @@ export type Seed = {
   firstContactAt: string | null;
   caregiver?: string | null;
   createdAt?: string;
+  updatedAt?: string;
   latitude: number | null;
   longitude: number | null;
   isUrgent?: boolean;
   outingEventId?: string | null;
+};
+
+export type SeedStatusHistoryEntry = {
+  id: string;
+  tenantId: string;
+  seedId: string;
+  previousStatus: SeedStatus | null;
+  newStatus: SeedStatus;
+  changedByTenantUserId: string | null;
+  changedAt: string;
+};
+
+export type PeopleDashboardView = "contacts" | "church";
+export type PeopleDashboardPeriod = "day" | "week" | "month";
+
+export type PeopleDashboardFilters = {
+  view: PeopleDashboardView;
+  period: PeopleDashboardPeriod;
+  referenceDate: string;
+  state: string;
+  city: string | null;
+  tenantId: string | null;
+  meetingTypeId: string | null;
+};
+
+export type PeopleDashboardSnapshot = {
+  generatedAt: string;
+  timezone: "America/Sao_Paulo";
+  filters: PeopleDashboardFilters;
+  availableStates: string[];
+  availableCities: string[];
+  availableTenants: Array<{ id: string; name: string; city: string; state: string }>;
+  summary: Record<string, number | null>;
+  timeline: Array<{ key: string; label: string; values: Record<string, number> }>;
+  cities: Array<{ state: string; city: string; values: Record<string, number> }>;
+  people: Array<Record<string, string | number | null>>;
+  warnings: string[];
 };
 
 export type Member = {

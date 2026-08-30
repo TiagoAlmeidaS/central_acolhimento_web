@@ -89,6 +89,13 @@ const localChurchMeetingTypes: ChurchMeetingType[] = [];
 const localChurchOccurrences: ChurchMeetingOccurrence[] = [];
 const localChurchAttendance: ChurchAttendanceRecord[] = [];
 
+export function resetLocalChurchStore() {
+  localChurchMemberships.splice(0, localChurchMemberships.length);
+  localChurchMeetingTypes.splice(0, localChurchMeetingTypes.length);
+  localChurchOccurrences.splice(0, localChurchOccurrences.length);
+  localChurchAttendance.splice(0, localChurchAttendance.length);
+}
+
 function isDatabaseReady() {
   if (!isDatabaseConfigured()) {
     if (isInMemoryFallbackAllowed()) {
