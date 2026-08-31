@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createSessionToken } from "@/server/auth/session";
 import type { AuthSession } from "@/server/domain/mvp";
 import { listFollowups, listMembers, listSeeds, resetLocalMvpStore } from "@/server/repositories/mvp-repository";
+import { closeChurchAttendance, createChurchMeetingType, createChurchMembership, createChurchOccurrence, markChurchAttendance, prepareChurchAttendance, resetLocalChurchStore } from "@/server/repositories/church-repository";
 import { resetLocalAuthStore } from "@/server/repositories/auth-repository";
 import { resetLocalOutingsStore } from "@/server/repositories/outing-repository";
 import { resetLocalTciStore } from "@/server/repositories/tci-repository";
@@ -42,6 +43,7 @@ describe("MVP integration flow", () => {
     resetLocalAuthStore();
     resetLocalOutingsStore();
     resetLocalTciStore();
+    resetLocalChurchStore();
     cookieState.value = "";
   });
 
@@ -399,6 +401,114 @@ describe("MVP integration flow", () => {
     expect(lines[0]).toContain("id;nome;idade;telefone;status");
     expect(lines.length).toBeGreaterThan(1);
     expect(lines.slice(1).every((line) => line.includes("in_progress"))).toBe(true);
+  });
+
+  it("builds the people dashboard snapshot for contacts and exports the same scope", async () => {
+    setSession({
+      user: { id: "user-1", email: "tiago@igreja.org", firstName: "Tiago", lastName: "Souza" },
+      membership: {
+        tenantUserId: "tenant-user-1",
+        tenantId: "1",
+        tenantName: "Central Sape",
+        tenantCity: "Sape",
+        tenantState: "PB",
+        role: "coordinator",
+        caregiverId: null,
+      },
+      homePath: "/coord",
+    });
+
+    const { POST: createContactRoute } = await import("@/app/api/seeds/route");
+    const createResponse = await createContactRoute(new Request("http://localhost/api/seeds", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tenantId: "1",
+        referenceName: "Contato Dashboard",
+        city: "Sape",
+        state: "PB",
+        status: "waiting_visit",
+        notes: "Gerado para o dashboard",
+      }),
+    }));
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as { id: string };
+
+    const { PUT: updateSeedRoute } = await import("@/app/api/seeds/[seedId]/route");
+    const updateResponse = await updateSeedRoute(new Request(`http://localhost/api/seeds/${created.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tenantId: "1",
+        referenceName: "Contato Dashboard",
+        city: "Sape",
+        state: "PB",
+        status: "contacted",
+        notes: "Atualizado para gerar historico",
+      }),
+    }), { params: Promise.resolve({ seedId: created.id }) });
+    expect(updateResponse.status).toBe(200);
+
+    const today = new Date().toISOString().slice(0, 10);
+    const { GET: dashboardRoute } = await import("@/app/api/dashboard/people/route");
+    const dashboardResponse = await dashboardRoute(new Request(`http://localhost/api/dashboard/people?view=contacts&period=week&referenceDate=${today}&state=PB`));
+    expect(dashboardResponse.status).toBe(200);
+    const snapshot = (await dashboardResponse.json()) as { summary: Record<string, number>; people: Array<{ id: string; currentStatus: string }>; filters: { state: string } };
+    expect(snapshot.filters.state).toBe("PB");
+    expect(snapshot.summary.generatedContacts).toBeGreaterThan(0);
+    expect(snapshot.summary.statusChangesInPeriod).toBeGreaterThan(0);
+    expect(snapshot.people.some((item) => item.id === created.id && item.currentStatus === "contacted")).toBe(true);
+
+    const { GET: exportContactsRoute } = await import("@/app/api/reports/people/contacts/route");
+    const exportResponse = await exportContactsRoute(new Request(`http://localhost/api/reports/people/contacts?format=csv&period=week&referenceDate=${today}&state=PB`));
+    expect(exportResponse.status).toBe(200);
+    expect(exportResponse.headers.get("Content-Type")).toContain("text/csv");
+    const csv = await exportResponse.text();
+    expect(csv).toContain("status_atual");
+    expect(csv).toContain("Contato Dashboard");
+  });
+
+  it("builds church attendance snapshot from closed occurrences and exports PDF", async () => {
+    setSession({
+      user: { id: "user-1", email: "tiago@igreja.org", firstName: "Tiago", lastName: "Souza" },
+      membership: {
+        tenantUserId: "tenant-user-1",
+        tenantId: "1",
+        tenantName: "Central Sape",
+        tenantCity: "Sape",
+        tenantState: "PB",
+        role: "coordinator",
+        caregiverId: null,
+      },
+      homePath: "/coord",
+    });
+
+    const members = await listMembers({ tenantId: "1" });
+    const targetMember = members[0];
+    expect(targetMember).toBeDefined();
+
+    const meetingType = await createChurchMeetingType({ tenantId: "1", name: "Culto Domingo", recurrenceKind: "none" });
+    await createChurchMembership({ tenantId: "1", memberId: targetMember.id });
+    const today = new Date().toISOString().slice(0, 10);
+    const occurrence = await createChurchOccurrence({ tenantId: "1", meetingTypeId: meetingType.id, occursOn: today });
+    await prepareChurchAttendance(occurrence.id, { tenantId: "1" });
+    await markChurchAttendance(occurrence.id, targetMember.id, "present", "", "tenant-user-1", { tenantId: "1" });
+    await closeChurchAttendance(occurrence.id, "tenant-user-1", { tenantId: "1" });
+
+    const { GET: dashboardRoute } = await import("@/app/api/dashboard/people/route");
+    const dashboardResponse = await dashboardRoute(new Request(`http://localhost/api/dashboard/people?view=church&period=week&referenceDate=${today}&state=PB&meetingTypeId=${meetingType.id}`));
+    expect(dashboardResponse.status).toBe(200);
+    const snapshot = (await dashboardResponse.json()) as { summary: Record<string, number | null>; people: Array<{ id: string; presences: number }> };
+    expect(snapshot.summary.gatheringPeople).toBeGreaterThan(0);
+    expect(snapshot.summary.averageFrequency).toBe(100);
+    expect(snapshot.people.some((item) => item.id === targetMember.id && item.presences === 1)).toBe(true);
+
+    const { GET: exportRoute } = await import("@/app/api/reports/people/church-attendance/route");
+    const exportResponse = await exportRoute(new Request(`http://localhost/api/reports/people/church-attendance?format=pdf&period=week&referenceDate=${today}&state=PB&meetingTypeId=${meetingType.id}`));
+    expect(exportResponse.status).toBe(200);
+    expect(exportResponse.headers.get("Content-Type")).toContain("application/pdf");
+    const pdfBuffer = await exportResponse.arrayBuffer();
+    expect(pdfBuffer.byteLength).toBeGreaterThan(100);
   });
 
   it("deletes a contact inside the current tenant scope", async () => {

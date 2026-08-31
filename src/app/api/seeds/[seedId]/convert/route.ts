@@ -27,17 +27,21 @@ export async function POST(request: Request, context: RouteContext) {
       longitude?: number | null;
     };
 
-    const member = await convertSeedToMember(seedId, {
-      caregiverId: resolveCaregiverId(session, body.caregiverId ?? seed.caregiverId ?? null, {
-        allowUnassignedForCoordinator: true,
-      }),
-      address: body.address,
-      age: body.age ?? null,
-      birthDate: body.birthDate ?? null,
-      notes: body.notes,
-      latitude: body.latitude,
-      longitude: body.longitude,
-    });
+    const member = await convertSeedToMember(
+      seedId,
+      {
+        caregiverId: resolveCaregiverId(session, body.caregiverId ?? seed.caregiverId ?? null, {
+          allowUnassignedForCoordinator: true,
+        }),
+        address: body.address,
+        age: body.age ?? null,
+        birthDate: body.birthDate ?? null,
+        notes: body.notes,
+        latitude: body.latitude,
+        longitude: body.longitude,
+      },
+      { changedByTenantUserId: session.membership.tenantUserId },
+    );
 
     return Response.json(member, { status: 201 });
   } catch (error) {

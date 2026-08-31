@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { requireServerAuthSession } from "@/server/auth/session";
-import { getDataScopeFromSession } from "@/server/auth/access-scope";
+import { getDataScopeFromSession, listAccessibleTenantIds } from "@/server/auth/access-scope";
 import {
   listCaregivers,
   listFollowups,
@@ -17,6 +17,7 @@ import {
   listChurchMemberships,
   listChurchOccurrences,
 } from "@/server/repositories/church-repository";
+import { getPeopleDashboardSnapshot } from "@/server/domain/people-dashboard";
 import type {
   ChurchAttendanceRecord,
   ChurchMeetingOccurrence,
@@ -25,6 +26,7 @@ import type {
   DataScope,
   Followup,
   Member,
+  PeopleDashboardView,
 } from "@/server/domain/mvp";
 import { Avatar, Button, Card, StatusDot } from "@/ui/v2-components/ui";
 import { DashboardMap } from "@/ui/mvp/dashboard-map";
@@ -381,6 +383,13 @@ function formatDateLabel(value: string) {
 
 function formatShortDateLabel(value: string) {
   return parseDateOnly(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "UTC" });
+}
+
+function formatDateTimeLabel(value: string | null | undefined) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("pt-BR");
 }
 
 function resolvePeriodRange(period: ChurchPeriod, referenceDate: string): PeriodRange {
@@ -802,19 +811,46 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams;
   const session = await requireServerAuthSession("coordinator");
   const scope = getDataScopeFromSession(session);
+  const accessibleTenantIds = await listAccessibleTenantIds(session);
+  const accessibleScope: DataScope = { tenantIds: accessibleTenantIds };
   const churchPeriod = (firstValue(resolvedSearchParams.churchPeriod) === "day" || firstValue(resolvedSearchParams.churchPeriod) === "month"
     ? firstValue(resolvedSearchParams.churchPeriod)
     : "week") as ChurchPeriod;
   const churchDate = firstValue(resolvedSearchParams.churchDate) ?? todayDateOnly();
   const churchMeetingTypeId = firstValue(resolvedSearchParams.churchMeetingTypeId) || undefined;
+  const peopleView = (firstValue(resolvedSearchParams.peopleView) === "church" ? "church" : "contacts") as PeopleDashboardView;
+  const rawPeoplePeriod = firstValue(resolvedSearchParams.peoplePeriod);
+  const peoplePeriod = ((rawPeoplePeriod === "day" || rawPeoplePeriod === "month" || rawPeoplePeriod === "week")
+    ? rawPeoplePeriod
+    : "week");
+  const peopleDate = firstValue(resolvedSearchParams.peopleDate) ?? todayDateOnly();
 
-  const [members, caregivers, followups, seeds, tenants] = await Promise.all([
+  const [members, caregivers, followups, seeds, tenants, accessibleTenants] = await Promise.all([
     listMembers(scope),
     listCaregivers(scope),
     listFollowups(scope),
     listSeeds(scope),
     listTenants(scope),
+    listTenants(accessibleScope),
   ]);
+  const availableStates = Array.from(new Set(accessibleTenants.map((tenant) => tenant.state).filter(Boolean))).sort();
+  const selectedPeopleState = firstValue(resolvedSearchParams.peopleState) ?? availableStates[0] ?? session.membership.tenantState;
+  const stateCities = Array.from(new Set(accessibleTenants.filter((tenant) => tenant.state === selectedPeopleState).map((tenant) => tenant.city).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const selectedPeopleCity = firstValue(resolvedSearchParams.peopleCity) || "";
+  const cityTenants = accessibleTenants.filter((tenant) => tenant.state === selectedPeopleState && (!selectedPeopleCity || tenant.city === selectedPeopleCity));
+  const selectedPeopleTenantId = firstValue(resolvedSearchParams.peopleTenantId) || "";
+  const peopleSnapshot = await getPeopleDashboardSnapshot(
+    {
+      view: peopleView,
+      period: peoplePeriod,
+      referenceDate: peopleDate,
+      state: selectedPeopleState,
+      city: selectedPeopleCity || null,
+      tenantId: selectedPeopleTenantId || null,
+      meetingTypeId: firstValue(resolvedSearchParams.peopleMeetingTypeId) || null,
+    },
+    accessibleScope,
+  );
   const churchProfile = await buildChurchProfileDashboard({
     scope,
     period: churchPeriod,
@@ -827,6 +863,17 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
   const selectedChurchMeetingType = churchMeetingTypeId
     ? churchProfile.meetingTypes.find((item) => item.id === churchMeetingTypeId)
     : null;
+  const peopleReportParams = new URLSearchParams();
+  peopleReportParams.set("format", firstValue(resolvedSearchParams.peopleFormat) === "pdf" ? "pdf" : "csv");
+  peopleReportParams.set("period", peoplePeriod);
+  peopleReportParams.set("referenceDate", peopleDate);
+  peopleReportParams.set("state", selectedPeopleState);
+  if (selectedPeopleCity) peopleReportParams.set("city", selectedPeopleCity);
+  if (selectedPeopleTenantId) peopleReportParams.set("tenantId", selectedPeopleTenantId);
+  if (peopleView === "church" && firstValue(resolvedSearchParams.peopleMeetingTypeId)) {
+    peopleReportParams.set("meetingTypeId", firstValue(resolvedSearchParams.peopleMeetingTypeId)!);
+  }
+  const peopleReportHref = `/api/reports/people/${peopleView === "contacts" ? "contacts" : "church-attendance"}?${peopleReportParams.toString()}`;
 
   const operationalAlerts = countOperationalAlerts(members, seeds);
   const memberJourney = buildMemberJourneyDistribution(members);
@@ -947,6 +994,14 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
       if (churchPeriod !== "week") params.set("churchPeriod", churchPeriod);
       if (churchDate !== todayDateOnly()) params.set("churchDate", churchDate);
       if (churchMeetingTypeId) params.set("churchMeetingTypeId", churchMeetingTypeId);
+      if (peopleView !== "contacts") params.set("peopleView", peopleView);
+      if (peoplePeriod !== "week") params.set("peoplePeriod", peoplePeriod);
+      if (peopleDate !== todayDateOnly()) params.set("peopleDate", peopleDate);
+      if (selectedPeopleState) params.set("peopleState", selectedPeopleState);
+      if (selectedPeopleCity) params.set("peopleCity", selectedPeopleCity);
+      if (selectedPeopleTenantId) params.set("peopleTenantId", selectedPeopleTenantId);
+      if (firstValue(resolvedSearchParams.peopleMeetingTypeId)) params.set("peopleMeetingTypeId", firstValue(resolvedSearchParams.peopleMeetingTypeId)!);
+      if (firstValue(resolvedSearchParams.peopleFormat)) params.set("peopleFormat", firstValue(resolvedSearchParams.peopleFormat)!);
     }
     return `/coord?${params.toString()}`;
   }
@@ -1041,6 +1096,212 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
 
         {activeTab === "igreja" && (
           <>
+            <Card padding={20}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: 10, fontWeight: 800, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--accent)" }}>Dashboard de Pessoas</p>
+                  <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--text)" }}>
+                    {peopleView === "contacts" ? "Contatos e andamento" : "Frequencia da Igreja"}
+                  </h2>
+                  <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-3)" }}>
+                    Snapshot em {formatDateTimeLabel(peopleSnapshot.generatedAt)} · {peopleSnapshot.filters.state}{peopleSnapshot.filters.city ? ` · ${peopleSnapshot.filters.city}` : ""}
+                  </p>
+                </div>
+                <form action="/coord" style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+                  <input type="hidden" name="tab" value="igreja" />
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
+                    Lente
+                    <select name="peopleView" defaultValue={peopleView} style={{ height: 38, minWidth: 120, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}>
+                      <option value="contacts">Contatos</option>
+                      <option value="church">Igreja</option>
+                    </select>
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
+                    Periodo
+                    <select name="peoplePeriod" defaultValue={peoplePeriod} style={{ height: 38, minWidth: 112, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}>
+                      <option value="day">Dia</option>
+                      <option value="week">Semana</option>
+                      <option value="month">Mes</option>
+                    </select>
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
+                    Data
+                    <input type="date" name="peopleDate" defaultValue={peopleDate} style={{ height: 38, minWidth: 150, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }} />
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
+                    Estado
+                    <select name="peopleState" defaultValue={selectedPeopleState} style={{ height: 38, minWidth: 92, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}>
+                      {availableStates.map((state) => <option key={state} value={state}>{state}</option>)}
+                    </select>
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
+                    Cidade
+                    <select name="peopleCity" defaultValue={selectedPeopleCity} style={{ height: 38, minWidth: 160, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}>
+                      <option value="">Todas</option>
+                      {stateCities.map((city) => <option key={city} value={city}>{city}</option>)}
+                    </select>
+                  </label>
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
+                    Localidade
+                    <select name="peopleTenantId" defaultValue={selectedPeopleTenantId} style={{ height: 38, minWidth: 180, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}>
+                      <option value="">Todas</option>
+                      {cityTenants.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.name}</option>)}
+                    </select>
+                  </label>
+                  {peopleView === "church" && (
+                    <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
+                      Tipo
+                      <select name="peopleMeetingTypeId" defaultValue={firstValue(resolvedSearchParams.peopleMeetingTypeId) ?? ""} style={{ height: 38, minWidth: 180, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}>
+                        <option value="">Todos os tipos</option>
+                        {churchProfile.meetingTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
+                      </select>
+                    </label>
+                  )}
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
+                    Relatorio
+                    <select name="peopleFormat" defaultValue={firstValue(resolvedSearchParams.peopleFormat) ?? "csv"} style={{ height: 38, minWidth: 92, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}>
+                      <option value="csv">CSV</option>
+                      <option value="pdf">PDF</option>
+                    </select>
+                  </label>
+                  <Button type="submit" variant="primary" size="md" icon={<IconFilter />}>Aplicar</Button>
+                  <Link href={peopleReportHref} style={{ textDecoration: "none" }}>
+                    <Button type="button" variant="secondary" size="md" icon={<IconDoc />}>Gerar relatorio</Button>
+                  </Link>
+                </form>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginTop: 20 }}>
+                {peopleView === "contacts" ? (
+                  <>
+                    <KpiCard icon={<IconUsers />} label="Contatos gerados" value={peopleSnapshot.summary.generatedContacts ?? 0} sub="Cadastros no periodo" accent="#2563EB" bg="#DBEAFE" />
+                    <KpiCard icon={<IconHourglass />} label="Sem cuidador" value={peopleSnapshot.summary.contactsWithoutCaregiver ?? 0} sub="Fila operacional" accent="#EA580C" bg="#FFEDD5" />
+                    <KpiCard icon={<IconMessage />} label="Primeiro contato pendente" value={peopleSnapshot.summary.firstContactPending ?? 0} sub="Sem primeira abordagem" accent="#E11D48" bg="#FFE4E6" />
+                    <KpiCard icon={<IconHome />} label="Aguardando visita" value={peopleSnapshot.summary.waitingVisit ?? 0} sub="Status atual" accent="#0891B2" bg="#ECFEFF" />
+                    <KpiCard icon={<IconCalendar />} label="Atualizados no periodo" value={peopleSnapshot.summary.updatedInPeriod ?? 0} sub="Baseado em updated_at" accent="#16A34A" bg="#DCFCE7" />
+                    <KpiCard icon={<IconBell />} label="Urgentes" value={peopleSnapshot.summary.urgentContacts ?? 0} sub="Prioridade de resposta" accent="#E11D48" bg="#FFE4E6" />
+                  </>
+                ) : (
+                  <>
+                    <KpiCard icon={<IconChurch />} label="Membros ativos" value={peopleSnapshot.summary.activeMemberships ?? 0} sub="Vinculos ativos" accent="#2563EB" bg="#DBEAFE" />
+                    <KpiCard icon={<IconUsers />} label="Reuniram" value={peopleSnapshot.summary.gatheringPeople ?? 0} sub={`${peopleSnapshot.summary.eligibleOccurrences ?? 0} chamada(s) fechada(s)`} accent="#16A34A" bg="#DCFCE7" />
+                    <KpiCard icon={<IconHourglass />} label="Sem presenca" value={peopleSnapshot.summary.peopleWithoutPresence ?? 0} sub="Sem nenhuma presenca no periodo" accent="#EA580C" bg="#FFEDD5" />
+                    <KpiCard icon={<IconChart />} label="Frequencia media" value={peopleSnapshot.summary.averageFrequency !== null ? `${peopleSnapshot.summary.averageFrequency}%` : "—"} sub={peopleSnapshot.summary.attendanceBase ? `${peopleSnapshot.summary.attendanceBase} marcacoes elegiveis` : "Sem base"} accent="#7C3AED" bg="rgba(124,58,237,0.12)" />
+                    <KpiCard icon={<IconCheck />} label="Justificadas" value={peopleSnapshot.summary.justifiedAbsences ?? 0} sub="Mantidas no denominador" accent="#0891B2" bg="#ECFEFF" />
+                    <KpiCard icon={<IconCalendar />} label="Chamadas pendentes" value={peopleSnapshot.summary.pendingCalls ?? 0} sub="Nao entram na frequencia" accent="#E11D48" bg="#FFE4E6" />
+                  </>
+                )}
+              </div>
+
+              {peopleSnapshot.warnings.length > 0 && (
+                <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {peopleSnapshot.warnings.map((warning) => (
+                    <div key={warning} style={{ padding: "10px 12px", borderRadius: 10, background: "#FFF7ED", border: "1px solid #FED7AA", color: "#9A3412", fontSize: 12.5 }}>
+                      {warning}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
+              <Card padding={20}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline", marginBottom: 8 }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--text)" }}>
+                      {peopleView === "contacts" ? "Serie do periodo" : "Tendencia de presenca"}
+                    </h3>
+                    <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>
+                      {peopleView === "contacts" ? "Cadastros distribuidos no periodo selecionado." : "Presencas e base elegivel por ocorrencia fechada."}
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {peopleSnapshot.timeline.length > 0 ? peopleSnapshot.timeline.map((item) => (
+                    <div key={item.key} style={{ display: "grid", gridTemplateColumns: "minmax(90px, 1fr) repeat(4, minmax(0, 1fr))", gap: 8, fontSize: 12.5, alignItems: "center" }}>
+                      <strong style={{ color: "var(--text)" }}>{item.label}</strong>
+                      {Object.entries(item.values).map(([key, value]) => (
+                        <span key={key} style={{ color: "var(--text-2)" }}>{key}: <strong style={{ color: "var(--text)" }}>{value}</strong></span>
+                      ))}
+                    </div>
+                  )) : <p style={{ margin: 0, color: "var(--text-3)", fontSize: 13 }}>Nenhum dado no periodo.</p>}
+                </div>
+              </Card>
+
+              <Card padding={20}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline", marginBottom: 12 }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--text)" }}>Cidades do estado</h3>
+                    <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>Totais agrupados apenas para {peopleSnapshot.filters.state}.</p>
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {peopleSnapshot.cities.length > 0 ? peopleSnapshot.cities.map((city) => (
+                    <div key={`${city.state}-${city.city}`} style={{ padding: "12px 14px", borderRadius: 12, background: "var(--surface-2)", border: "1px solid var(--border)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>
+                        <strong style={{ color: "var(--text)" }}>{city.city}</strong>
+                        <span style={{ fontSize: 12, color: "var(--text-3)" }}>{city.state}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12.5, color: "var(--text-2)" }}>
+                        {Object.entries(city.values).map(([key, value]) => (
+                          <span key={key}>{key}: <strong style={{ color: "var(--text)" }}>{value}</strong></span>
+                        ))}
+                      </div>
+                    </div>
+                  )) : <p style={{ margin: 0, color: "var(--text-3)", fontSize: 13 }}>Nenhuma cidade com dados no recorte.</p>}
+                </div>
+              </Card>
+            </div>
+
+            <Card padding={0}>
+              <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--text)" }}>
+                    {peopleView === "contacts" ? "Lista nominal de contatos" : "Lista nominal de frequencia"}
+                  </h3>
+                  <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>
+                    {peopleView === "contacts" ? "Status atual, origem e andamento recente." : "Presencas, faltas, justificativas e ultima presenca."}
+                  </p>
+                </div>
+                <span style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 700 }}>{peopleSnapshot.people.length} registro(s)</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {peopleSnapshot.people.length > 0 ? peopleSnapshot.people.slice(0, 20).map((person) => (
+                  <div key={String(person.id)} style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+                      <div>
+                        <strong style={{ fontSize: 13.5, color: "var(--text)" }}>{String(person.name ?? "Sem nome")}</strong>
+                        <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-3)" }}>
+                          {String(person.city ?? "")}{person.state ? ` - ${String(person.state)}` : ""} · {String(person.tenantName ?? "Sem localidade")}
+                        </p>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: "var(--accent)", textTransform: "uppercase" }}>
+                        {String((peopleView === "contacts" ? person.currentStatus : person.status) ?? "—")}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12.5, color: "var(--text-2)" }}>
+                      {peopleView === "contacts" ? (
+                        <>
+                          <span>Origem: <strong style={{ color: "var(--text)" }}>{String(person.source ?? "—")}</strong></span>
+                          <span>Cuidador: <strong style={{ color: "var(--text)" }}>{String(person.caregiver ?? "Sem cuidador")}</strong></span>
+                          <span>Criado: <strong style={{ color: "var(--text)" }}>{formatDateTimeLabel(String(person.createdAt ?? ""))}</strong></span>
+                          <span>Atualizado: <strong style={{ color: "var(--text)" }}>{formatDateTimeLabel(String(person.updatedAt ?? ""))}</strong></span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Presencas: <strong style={{ color: "var(--text)" }}>{String(person.presences ?? 0)}</strong></span>
+                          <span>Faltas: <strong style={{ color: "var(--text)" }}>{String(person.absences ?? 0)}</strong></span>
+                          <span>Justificadas: <strong style={{ color: "var(--text)" }}>{String(person.justified ?? 0)}</strong></span>
+                          <span>Frequencia: <strong style={{ color: "var(--text)" }}>{person.frequency !== null && person.frequency !== undefined ? `${String(person.frequency)}%` : "—"}</strong></span>
+                          <span>Ultima presenca: <strong style={{ color: "var(--text)" }}>{String(person.lastPresence ?? "—")}</strong></span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )) : <p style={{ margin: 0, padding: 18, color: "var(--text-3)", fontSize: 13 }}>Nenhum registro encontrado com esses filtros.</p>}
+              </div>
+            </Card>
+
             <Card padding={20}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
                 <div>
