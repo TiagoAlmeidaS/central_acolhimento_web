@@ -12,14 +12,15 @@ Canvas publicado: https://claude.ai/code/artifact/fc3c3473-932e-4762-93fa-3297a5
 | `Main.dc.html` | Painel segmentado — nova IA em 5 segmentos + barra de recorte global (interativo) |
 | `Aquisicao.dc.html` | Segmento Aquisicao — funil por origem, origem por cidade, lista de pessoas (interativo) |
 | `Mobile.dc.html` | O mesmo painel em 390px (interativo) |
-| `MapaAtual.dc.html` | Diagnostico do estado atual: 5 abas, 33 KPIs, metricas duplicadas |
+| `MapaAtual.dc.html` | Diagnostico do estado atual: 5 abas, 31 KPIs, metricas duplicadas |
 | `Taxonomia.dc.html` | Modelo de 4 eixos + taxonomia de origem + mapeamento de dados |
 | `canvas.json` | Posicoes, titulos e notas do canvas |
 
 ## Diagnostico (levantado do codigo)
 
 O painel atual tem 5 abas via `?tab=` (`igreja`, `tci`, `cuidados`, `cuidadores`,
-`acoes`) e 33 KPIs. Pontos de atrito:
+`acoes`), 37 instancias de `KpiCard` no codigo e 31 KPIs renderizados somando as
+cinco abas. Pontos de atrito:
 
 1. `seeds.source` e `TEXT DEFAULT ''` — origem sem taxonomia, sem KPI, sem agrupamento.
 2. Nao ha registro de quem cadastrou a pessoa (so o cuidador designado depois).
