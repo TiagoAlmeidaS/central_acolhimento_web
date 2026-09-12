@@ -1,0 +1,300 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: "Plus Jakarta Sans", system-ui, sans-serif; background: #F5F5F7; color: #0F172A; }
+    * { box-sizing: border-box; }
+    a { color: #2D7FF9; text-decoration: none; }
+    a:hover { color: #1F6BE0; }
+    button { font-family: inherit; cursor: pointer; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; min-height: 1000px; background: #F5F5F7; display: flex; flex-direction: column;">
+
+  <header style="padding: 24px 32px 18px; background: #FFFFFF; border-bottom: 1px solid #E8EAEE; display: flex; align-items: flex-start; justify-content: space-between; gap: 24px;">
+    <div>
+      <p style="margin: 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; color: #2D7FF9;">Segmento · Aquisição</p>
+      <h1 style="margin: 4px 0 0; font-size: 26px; font-weight: 800; letter-spacing: -0.025em; color: #0F172A;">De onde as pessoas estão vindo</h1>
+      <p style="margin: 4px 0 0; font-size: 13.5px; color: #94A3B8;">Campinas · SP · semana de 07 a 13 de setembro · 48 pessoas cadastradas</p>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <button style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 18px; border: 1px solid #D5D9E0; background: #FFFFFF; color: #0F172A; border-radius: 12px; font-size: 14px; font-weight: 700;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"></path><path d="M9 12h6M9 16h6"></path></svg>
+        Exportar CSV
+      </button>
+      <button style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 18px; border: 1px solid transparent; background: #2D7FF9; color: #fff; border-radius: 12px; font-size: 14px; font-weight: 700;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v13H4z"></path><path d="M9 4h6v3H9zM9 13h6"></path></svg>
+        Novo canal de entrada
+      </button>
+    </div>
+  </header>
+
+  <main style="padding: 24px 32px 32px; display: flex; flex-direction: column; gap: 18px;">
+
+    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+      <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: #94A3B8; margin-right: 4px;">Origem</span>
+      <sc-for list="{{chips}}" as="c" hint-placeholder-count="7">
+        <button onClick="{{c.pick}}" style="display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px; border: 1px solid {{c.border}}; border-radius: 999px; background: {{c.bg}}; color: {{c.fg}}; font-size: 13px; font-weight: 700;">
+          <span style="width: 8px; height: 8px; border-radius: 50%; background: {{c.dot}};"></span>
+          {{c.label}}
+          <span style="font-size: 12px; font-weight: 800; color: {{c.countFg}}; font-variant-numeric: tabular-nums;">{{c.count}}</span>
+        </button>
+      </sc-for>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px;">
+      <sc-for list="{{kpis}}" as="k" hint-placeholder-count="4">
+        <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; padding: 16px; box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 1px 0 rgba(15,23,42,0.02); display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <span style="font-size: 13px; font-weight: 700; color: #94A3B8; letter-spacing: -0.01em;">{{k.label}}</span>
+            <div style="width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0; background: {{k.bg}}; color: {{k.accent}}; display: flex; align-items: center; justify-content: center;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{k.d1}}"></path><path d="{{k.d2}}"></path></svg>
+            </div>
+          </div>
+          <div style="font-size: 26px; font-weight: 800; color: #0F172A; letter-spacing: -0.025em; font-variant-numeric: tabular-nums;">{{k.value}}</div>
+          <span style="font-size: 11.5px; color: #94A3B8;">{{k.sub}}</span>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px;">
+
+      <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; padding: 20px; box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 1px 0 rgba(15,23,42,0.02); display: flex; flex-direction: column; gap: 18px;">
+        <div>
+          <h3 style="margin: 0; font-size: 15px; font-weight: 800; color: #0F172A;">Funil da origem até o cuidado</h3>
+          <p style="margin: 3px 0 0; font-size: 12.5px; color: #94A3B8;">{{funnelSub}}</p>
+        </div>
+        <div style="display: flex; align-items: flex-end; gap: 10px; height: 210px;">
+          <sc-for list="{{funnel}}" as="f" hint-placeholder-count="5">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; flex-grow: 1; height: 100%; justify-content: flex-end;">
+              <span style="font-size: 18px; font-weight: 800; color: #0F172A; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;">{{f.value}}</span>
+              <div style="width: 100%; border-radius: 10px 10px 0 0; height: {{f.height}}; background: {{f.color}};"></div>
+              <span style="font-size: 12px; font-weight: 700; color: #4B5563; text-align: center;">{{f.label}}</span>
+              <span style="font-size: 11.5px; color: #94A3B8; font-variant-numeric: tabular-nums;">{{f.rate}}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display: flex; gap: 10px; padding: 12px 14px; border-radius: 14px; background: #F8F9FB; border: 1px solid #E8EAEE;">
+          <span style="flex-shrink: 0; color: #2D7FF9; display: flex; padding-top: 1px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8h.01"></path><path d="M11 12h1v5h1M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z"></path></svg>
+          </span>
+          <p style="margin: 0; font-size: 12.5px; line-height: 1.5; color: #4B5563;">{{insight}}</p>
+        </div>
+      </div>
+
+      <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; padding: 20px; box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 1px 0 rgba(15,23,42,0.02); display: flex; flex-direction: column; gap: 16px;">
+        <div>
+          <h3 style="margin: 0; font-size: 15px; font-weight: 800; color: #0F172A;">Origem por cidade</h3>
+          <p style="margin: 3px 0 0; font-size: 12.5px; color: #94A3B8;">Onde cada canal está realmente produzindo.</p>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <sc-for list="{{cities}}" as="c" hint-placeholder-count="4">
+            <div style="display: flex; flex-direction: column; gap: 7px;">
+              <div style="display: flex; align-items: baseline; justify-content: space-between;">
+                <span style="font-size: 13px; font-weight: 700; color: #0F172A;">{{c.name}}</span>
+                <span style="font-size: 12.5px; color: #4B5563; font-variant-numeric: tabular-nums;">{{c.total}}</span>
+              </div>
+              <div style="display: flex; height: 12px; border-radius: 999px; overflow: hidden; background: #F1F3F7;">
+                <sc-for list="{{c.parts}}" as="p" hint-placeholder-count="4">
+                  <div style="height: 12px; width: {{p.width}}; background: {{p.color}};"></div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="height: 1px; background: #E8EAEE;"></div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: #94A3B8;">Canais públicos ativos</span>
+          <sc-for list="{{channels}}" as="ch" hint-placeholder-count="2">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid #E8EAEE; border-radius: 14px;">
+              <div style="width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0; background: #FFEDD5; color: #EA580C; display: flex; align-items: center; justify-content: center;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z"></path><path d="M14 14h2v2h-2zM18 18h2v2h-2z"></path></svg>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1; min-width: 0;">
+                <span style="font-size: 13.5px; font-weight: 700; color: #0F172A;">{{ch.name}}</span>
+                <span style="font-size: 12px; color: #94A3B8;">{{ch.meta}}</span>
+              </div>
+              <span style="display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px; background: {{ch.bg}}; color: {{ch.fg}}; font-size: 11.5px; font-weight: 700;">{{ch.tag}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 1px 0 rgba(15,23,42,0.02); display: flex; flex-direction: column; overflow: hidden;">
+      <div style="padding: 18px 20px 14px; border-bottom: 1px solid #E8EAEE; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;">
+        <div>
+          <h3 style="margin: 0; font-size: 15px; font-weight: 800; color: #0F172A;">Pessoas do período</h3>
+          <p style="margin: 3px 0 0; font-size: 12.5px; color: #94A3B8;">{{listSub}}</p>
+        </div>
+        <span style="font-size: 12.5px; font-weight: 800; color: #2D7FF9;">Abrir lista completa</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 2fr 1.3fr 1.6fr 1.2fr 1fr; gap: 0; padding: 10px 20px; background: #F8F9FB; border-bottom: 1px solid #E8EAEE;">
+        <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #94A3B8;">Pessoa</span>
+        <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #94A3B8;">Origem</span>
+        <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #94A3B8;">Detalhe da origem</span>
+        <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #94A3B8;">Cadastrado por</span>
+        <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #94A3B8;">Status</span>
+      </div>
+      <sc-for list="{{people}}" as="p" hint-placeholder-count="6">
+        <div style="display: grid; grid-template-columns: 2fr 1.3fr 1.6fr 1.2fr 1fr; gap: 0; align-items: center; padding: 13px 20px; border-bottom: 1px solid #F1F3F7;">
+          <div style="display: flex; align-items: center; gap: 11px; min-width: 0;">
+            <div style="width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; background: #E2E8F0; color: #64748B; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 11.6px;">{{p.initials}}</div>
+            <div style="display: flex; flex-direction: column; gap: 1px; min-width: 0;">
+              <span style="font-size: 13.5px; font-weight: 700; color: #0F172A;">{{p.name}}</span>
+              <span style="font-size: 11.5px; color: #94A3B8;">{{p.city}}</span>
+            </div>
+          </div>
+          <div>
+            <span style="display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 999px; background: {{p.originBg}}; color: {{p.originFg}}; font-size: 11.5px; font-weight: 700;">
+              <span style="width: 6px; height: 6px; border-radius: 50%; background: {{p.originDot}};"></span>
+              {{p.originLabel}}
+            </span>
+          </div>
+          <span style="font-size: 12.5px; color: #4B5563;">{{p.detail}}</span>
+          <span style="font-size: 12.5px; color: #4B5563;">{{p.actor}}</span>
+          <span style="display: inline-flex; align-items: center; justify-content: center; height: 24px; padding: 0 10px; border-radius: 999px; background: {{p.statusBg}}; color: {{p.statusFg}}; font-size: 11.5px; font-weight: 700; justify-self: start;">{{p.status}}</span>
+        </div>
+      </sc-for>
+    </div>
+
+  </main>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { origin: 'todas' };
+  }
+
+  originDefs() {
+    return [
+      { key: 'todas',  label: 'Todas',        dot: '#94A3B8', bg: '#E2E8F0', fg: '#475569', count: 48 },
+      { key: 'saida',  label: 'Saída',        dot: '#2D7FF9', bg: '#E8F1FE', fg: '#1D4ED8', count: 22 },
+      { key: 'indica', label: 'Indicação',    dot: '#16A34A', bg: '#DCFCE7', fg: '#15803D', count: 9 },
+      { key: 'culto',  label: 'Culto',        dot: '#7C3AED', bg: 'rgba(124,58,237,0.12)', fg: '#6D28D9', count: 7 },
+      { key: 'link',   label: 'Link público', dot: '#EA580C', bg: '#FFEDD5', fg: '#C2410C', count: 6 },
+      { key: 'whats',  label: 'WhatsApp',     dot: '#0891B2', bg: '#ECFEFF', fg: '#0E7490', count: 3 },
+      { key: 'outro',  label: 'Outro',        dot: '#94A3B8', bg: '#E2E8F0', fg: '#475569', count: 1 }
+    ];
+  }
+
+  peopleDefs() {
+    return [
+      { initials: 'JB', name: 'Joana Batista',   city: 'Campinas · Jd. Aurora',    origin: 'saida',  detail: 'Saída de 06/09 · equipe 2', actor: 'Marina Souza',  status: 'Novo',        statusBg: '#FFEDD5', statusFg: '#C2410C' },
+      { initials: 'ER', name: 'Elaine Rocha',    city: 'Campinas · Centro',        origin: 'link',   detail: '/acolher-campinas · QR culto', actor: 'Auto (canal)',  status: 'Novo',        statusBg: '#FFEDD5', statusFg: '#C2410C' },
+      { initials: 'SD', name: 'Sérgio Dias',     city: 'Valinhos',                 origin: 'indica', detail: 'Indicado por Vera Campos',  actor: 'Rafael Cunha',  status: 'Contatado',   statusBg: '#ECFEFF', statusFg: '#0E7490' },
+      { initials: 'PM', name: 'Pedro Martins',   city: 'Campinas · Jd. Aurora',    origin: 'saida',  detail: 'Saída de 06/09 · equipe 1', actor: 'João Prado',    status: 'Aguardando',  statusBg: '#FFEDD5', statusFg: '#C2410C' },
+      { initials: 'CF', name: 'Cláudia Freitas', city: 'Campinas · Taquaral',      origin: 'culto',  detail: 'Culto de domingo · 1ª visita', actor: 'Ana Lima',      status: 'Acompanhando', statusBg: '#DBEAFE', statusFg: '#1D4ED8' },
+      { initials: 'HN', name: 'Hélio Nunes',     city: 'Sumaré',                   origin: 'whats',  detail: 'WhatsApp da coordenação',   actor: 'Coordenação',   status: 'Contatado',   statusBg: '#ECFEFF', statusFg: '#0E7490' },
+      { initials: 'LB', name: 'Lúcia Barros',    city: 'Campinas · Centro',        origin: 'indica', detail: 'Indicada por Hélio Nunes',  actor: 'Rafael Cunha',  status: 'Novo',        statusBg: '#FFEDD5', statusFg: '#C2410C' },
+      { initials: 'MT', name: 'Marcos Teixeira', city: 'Valinhos',                 origin: 'saida',  detail: 'Saída de 30/08 · equipe 3', actor: 'Marina Souza',  status: 'Acompanhando', statusBg: '#DBEAFE', statusFg: '#1D4ED8' },
+      { initials: 'RA', name: 'Rita Alencar',    city: 'Campinas · Taquaral',      origin: 'link',   detail: '/acolher-campinas · Instagram', actor: 'Auto (canal)',  status: 'Aguardando',  statusBg: '#FFEDD5', statusFg: '#C2410C' },
+      { initials: 'VC', name: 'Vera Campos',     city: 'Sumaré',                   origin: 'outro',  detail: 'Sem origem registrada',     actor: 'Coordenação',   status: 'Contatado',   statusBg: '#ECFEFF', statusFg: '#0E7490' }
+    ];
+  }
+
+  renderVals() {
+    const origins = this.originDefs();
+    const current = origins.find((o) => o.key === this.state.origin) || origins[0];
+    const all = this.state.origin === 'todas';
+
+    const chips = origins.map((o) => ({
+      label: o.label,
+      dot: o.dot,
+      count: String(o.count),
+      pick: () => this.setState({ origin: o.key }),
+      bg: o.key === current.key ? '#E8F1FE' : '#FFFFFF',
+      fg: o.key === current.key ? '#1D4ED8' : '#4B5563',
+      border: o.key === current.key ? '#2D7FF9' : '#D5D9E0',
+      countFg: o.key === current.key ? '#2D7FF9' : '#94A3B8'
+    }));
+
+    const funnelAll = [
+      { label: 'Cadastrado',   value: 48, rate: '100%' },
+      { label: '1º contato',   value: 33, rate: '69%' },
+      { label: 'Com cuidador', value: 27, rate: '56%' },
+      { label: 'Visita feita', value: 19, rate: '40%' },
+      { label: 'Consolidado',  value: 8,  rate: '17%' }
+    ];
+    const share = current.count / 48;
+    const funnelRaw = all ? funnelAll : funnelAll.map((f, i) => {
+      const v = Math.max(0, Math.round(f.value * share));
+      return { label: f.label, value: v, rate: Math.round((v / Math.max(1, Math.round(48 * share))) * 100) + '%' };
+    });
+    const maxF = funnelRaw.reduce((acc, f) => (f.value > acc ? f.value : acc), 1);
+    const funnel = funnelRaw.map((f) => ({
+      label: f.label,
+      value: String(f.value),
+      rate: f.rate,
+      height: Math.max(8, Math.round((f.value / maxF) * 150)) + 'px',
+      color: all ? '#2D7FF9' : current.dot
+    }));
+
+    const kpis = [
+      { label: 'Pessoas novas', value: String(current.count), sub: all ? '48 no período · +12 vs. anterior' : current.label + ' no período', accent: '#2563EB', bg: '#DBEAFE', d1: 'M12 3v10', d2: 'M7 9l5 4 5-4M4 20h16' },
+      { label: 'Origem sem registro', value: '1', sub: '2% das entradas do período', accent: '#EA580C', bg: '#FFEDD5', d1: 'M12 7v6', d2: 'M12 17h.01M12 3l9 16H3z' },
+      { label: 'Tempo até 1º contato', value: all ? '2,4d' : '1,9d', sub: 'Mediana do cadastro à abordagem', accent: '#7C3AED', bg: 'rgba(124,58,237,0.12)', d1: 'M12 7v5l3 2', d2: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z' },
+      { label: 'Vira acompanhamento', value: all ? '40%' : '46%', sub: 'Do cadastro à visita feita', accent: '#16A34A', bg: '#DCFCE7', d1: 'M4 12l5 5L20 6', d2: '' }
+    ];
+
+    const cityData = [
+      { name: 'Campinas', total: 29, parts: [{ k: 'saida', v: 14 }, { k: 'link', v: 6 }, { k: 'culto', v: 5 }, { k: 'indica', v: 4 }] },
+      { name: 'Valinhos', total: 11, parts: [{ k: 'saida', v: 6 }, { k: 'indica', v: 3 }, { k: 'culto', v: 2 }] },
+      { name: 'Sumaré',   total: 6,  parts: [{ k: 'indica', v: 2 }, { k: 'whats', v: 3 }, { k: 'outro', v: 1 }] },
+      { name: 'Hortolândia', total: 2, parts: [{ k: 'saida', v: 2 }] }
+    ];
+    const colorOf = (k) => (origins.find((o) => o.key === k) || origins[0]).dot;
+    const cities = cityData.map((c) => ({
+      name: c.name,
+      total: c.total + ' pessoas',
+      parts: c.parts.map((p) => ({
+        width: Math.round((p.v / c.total) * 100) + '%',
+        color: all || p.k === current.key ? colorOf(p.k) : '#E8EAEE'
+      }))
+    }));
+
+    const channels = [
+      { name: '/acolher-campinas', meta: '6 cadastros · 2 aguardando aprovação', tag: 'Ativo', bg: '#DCFCE7', fg: '#15803D' },
+      { name: '/qr-culto-domingo', meta: '0 cadastros em 14 dias · revisar divulgação', tag: 'Sem uso', bg: '#FFEDD5', fg: '#C2410C' }
+    ];
+
+    const peopleAll = this.peopleDefs();
+    const filtered = all ? peopleAll : peopleAll.filter((p) => p.origin === this.state.origin);
+    const people = filtered.map((p) => {
+      const o = origins.find((x) => x.key === p.origin) || origins[0];
+      return {
+        initials: p.initials, name: p.name, city: p.city, detail: p.detail, actor: p.actor,
+        status: p.status, statusBg: p.statusBg, statusFg: p.statusFg,
+        originLabel: o.label, originBg: o.bg, originFg: o.fg, originDot: o.dot
+      };
+    });
+
+    return {
+      chips,
+      kpis,
+      funnel,
+      cities,
+      channels,
+      people,
+      funnelSub: all ? 'Todas as origens · 48 pessoas no recorte.' : 'Recorte: ' + current.label + ' · ' + current.count + ' pessoas.',
+      listSub: all ? 'Amostra das 48 pessoas cadastradas no período.' : 'Filtrado por origem: ' + current.label + '.',
+      insight: all
+        ? 'Saída responde por 46% das entradas, mas só 31% delas chegam à visita feita — é o canal que mais produz e o que mais perde no meio. Link público converte melhor e está subusado (um dos dois canais não recebe cadastro há 14 dias.)'
+        : 'Recorte por ' + current.label + ': compare a taxa "vira acompanhamento" com os 40% da média geral para decidir onde investir esforço de equipe.'
+    };
+  }
+}
+</script>
+</body>
+</html>

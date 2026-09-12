@@ -1,0 +1,252 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: "Plus Jakarta Sans", system-ui, sans-serif; background: #F5F5F7; color: #0F172A; }
+    * { box-sizing: border-box; }
+    a { color: #2D7FF9; text-decoration: none; }
+    a:hover { color: #1F6BE0; }
+    button { font-family: inherit; cursor: pointer; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #F5F5F7; display: flex; flex-direction: column; overflow: hidden;">
+
+  <header style="padding: 18px 18px 14px; background: #FFFFFF; border-bottom: 1px solid #E8EAEE; display: flex; flex-direction: column; gap: 12px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+      <div>
+        <p style="margin: 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; color: #2D7FF9;">Liderança</p>
+        <h1 style="margin: 3px 0 0; font-size: 19px; font-weight: 800; letter-spacing: -0.025em; color: #0F172A;">Painel</h1>
+      </div>
+      <button style="display: inline-flex; align-items: center; gap: 7px; height: 44px; padding: 0 14px; border: 1px solid #D5D9E0; border-radius: 12px; background: #FFFFFF; color: #0F172A; font-size: 13px; font-weight: 700;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 7v6l-4 2v-8z"></path></svg>
+        Recorte
+      </button>
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+      <span style="display: inline-flex; align-items: center; height: 26px; padding: 0 9px; border-radius: 999px; background: #F8F9FB; border: 1px solid #E8EAEE; font-size: 11.5px; font-weight: 700; color: #4B5563;">Semana</span>
+      <span style="display: inline-flex; align-items: center; height: 26px; padding: 0 9px; border-radius: 999px; background: #F8F9FB; border: 1px solid #E8EAEE; font-size: 11.5px; font-weight: 700; color: #4B5563;">Campinas · SP</span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px; border-radius: 999px; background: #E8F1FE; border: 1px solid #2D7FF9; font-size: 11.5px; font-weight: 700; color: #1D4ED8;">
+        <span style="width: 6px; height: 6px; border-radius: 50%; background: {{originDot}};"></span>
+        {{originLabel}}
+      </span>
+    </div>
+  </header>
+
+  <nav style="background: #FFFFFF; border-bottom: 1px solid #E8EAEE; padding: 0 12px; display: flex; gap: 2px; overflow: hidden;">
+    <sc-for list="{{segments}}" as="s" hint-placeholder-count="5">
+      <button onClick="{{s.pick}}" style="flex-grow: 1; height: 46px; padding: 0 4px; border: none; border-bottom: 2px solid {{s.border}}; background: transparent; color: {{s.fg}}; font-size: 11.5px; font-weight: 700; letter-spacing: -0.01em;">{{s.label}}</button>
+    </sc-for>
+  </nav>
+
+  <main style="flex: 1; padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; overflow: hidden;">
+
+    <div>
+      <h2 style="margin: 0; font-size: 16px; font-weight: 800; letter-spacing: -0.02em; color: #0F172A;">{{title}}</h2>
+      <p style="margin: 3px 0 0; font-size: 12.5px; line-height: 1.45; color: #4B5563;">{{question}}</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+      <sc-for list="{{kpis}}" as="k" hint-placeholder-count="4">
+        <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; padding: 14px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+            <span style="font-size: 11.5px; font-weight: 700; color: #94A3B8; letter-spacing: -0.01em;">{{k.label}}</span>
+            <div style="width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0; background: {{k.bg}}; color: {{k.accent}}; display: flex; align-items: center; justify-content: center;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{k.d1}}"></path><path d="{{k.d2}}"></path></svg>
+            </div>
+          </div>
+          <div style="font-size: 23px; font-weight: 800; color: #0F172A; letter-spacing: -0.025em; font-variant-numeric: tabular-nums;">{{k.value}}</div>
+          <span style="font-size: 11px; color: #94A3B8; line-height: 1.35;">{{k.sub}}</span>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; padding: 16px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 13px;">
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;">
+        <h3 style="margin: 0; font-size: 14px; font-weight: 800; color: #0F172A;">{{panelTitle}}</h3>
+        <span style="font-size: 12px; font-weight: 800; color: #2D7FF9; white-space: nowrap;">Ver tudo</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 11px;">
+        <sc-for list="{{bars}}" as="b" hint-placeholder-count="4">
+          <div style="display: flex; flex-direction: column; gap: 5px;">
+            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px;">
+              <span style="font-size: 12.5px; font-weight: 700; color: #0F172A;">{{b.label}}</span>
+              <span style="font-size: 12px; color: #4B5563; font-variant-numeric: tabular-nums;">{{b.meta}}</span>
+            </div>
+            <div style="height: 8px; border-radius: 999px; background: #F1F3F7; overflow: hidden;">
+              <div style="height: 8px; border-radius: 999px; width: {{b.width}}; background: {{b.color}};"></div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <button style="display: flex; align-items: center; justify-content: center; gap: 8px; height: 48px; width: 100%; border: 1px solid transparent; border-radius: 14px; background: #2D7FF9; color: #fff; font-size: 14.5px; font-weight: 700;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+      {{cta}}
+    </button>
+  </main>
+
+  <nav style="padding: 10px 0 24px; background: #FFFFFF; border-top: 1px solid #E8EAEE; display: flex; justify-content: space-around; box-shadow: 0 -4px 20px rgba(0,0,0,0.03);">
+    <sc-for list="{{tabbar}}" as="t" hint-placeholder-count="4">
+      <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; color: {{t.fg}}; font-size: 11.5px; font-weight: 600; letter-spacing: -0.005em;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{t.sw}}" stroke-linecap="round" stroke-linejoin="round"><path d="{{t.d1}}"></path><path d="{{t.d2}}"></path></svg>
+        <span>{{t.label}}</span>
+      </div>
+    </sc-for>
+  </nav>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { seg: 'aquisicao' };
+  }
+
+  defs() {
+    return [
+      {
+        key: 'aquisicao', label: 'Aquisição',
+        title: 'Aquisição', question: 'De onde vieram as 48 pessoas desta semana.',
+        cta: 'Registrar nova pessoa',
+        kpis: [
+          { label: 'Pessoas novas', value: '48', sub: '+12 vs. semana anterior', accent: '#2563EB', bg: '#DBEAFE', d1: 'M12 3v10', d2: 'M7 9l5 4 5-4M4 20h16' },
+          { label: 'Origem principal', value: 'Saída', sub: '22 · 46% do total', accent: '#2D7FF9', bg: '#E8F1FE', d1: 'M12 21s-7-4.5-9.5-9.2A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 5.8C19 16.5 12 21 12 21z', d2: '' },
+          { label: '1º contato', value: '68%', sub: '33 de 48 abordados', accent: '#16A34A', bg: '#DCFCE7', d1: 'M4 12l5 5L20 6', d2: '' },
+          { label: 'Sem cuidador', value: '14', sub: 'Fila de vínculo', accent: '#EA580C', bg: '#FFEDD5', d1: 'M12 7v6', d2: 'M12 17h.01M12 3l9 16H3z' }
+        ],
+        panelTitle: 'Funil por origem',
+        bars: [
+          { label: 'Saída', value: 22, meta: '22 · 46%', color: '#2D7FF9' },
+          { label: 'Indicação', value: 9, meta: '9 · 19%', color: '#16A34A' },
+          { label: 'Culto', value: 7, meta: '7 · 15%', color: '#7C3AED' },
+          { label: 'Link público', value: 6, meta: '6 · 12%', color: '#EA580C' }
+        ]
+      },
+      {
+        key: 'cuidado', label: 'Cuidado',
+        title: 'Cuidado', question: 'Quem está na fila e o que travou.',
+        cta: 'Designar cuidador',
+        kpis: [
+          { label: 'Sendo cuidados', value: '63', sub: '54% da base ativa', accent: '#16A34A', bg: '#DCFCE7', d1: 'M12 21s-7-4.5-9.5-9.2A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 5.8C19 16.5 12 21 12 21z', d2: '' },
+          { label: 'Aguardando visita', value: '18', sub: 'Casas abertas', accent: '#0891B2', bg: '#ECFEFF', d1: 'M3 11l9-8 9 8', d2: 'M5 10v10h14V10' },
+          { label: 'Sem cuidador', value: '26', sub: 'Contatos + membros', accent: '#EA580C', bg: '#FFEDD5', d1: 'M12 7v6', d2: 'M12 17h.01M12 3l9 16H3z' },
+          { label: 'Urgentes', value: '5', sub: 'Prioridade de resposta', accent: '#E11D48', bg: '#FFE4E6', d1: 'M6 8a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6z', d2: 'M10 20h4' }
+        ],
+        panelTitle: 'Jornada da pessoa',
+        bars: [
+          { label: 'Novo contato', value: 31, meta: '31', color: '#EA580C' },
+          { label: 'Aguardando visita', value: 18, meta: '18', color: '#2D7FF9' },
+          { label: 'Em acompanhamento', value: 63, meta: '63', color: '#2563EB' },
+          { label: 'Consolidado', value: 41, meta: '41', color: '#16A34A' }
+        ]
+      },
+      {
+        key: 'igreja', label: 'Igreja',
+        title: 'Igreja', question: 'Quem reuniu e quem parou de aparecer.',
+        cta: 'Abrir chamada',
+        kpis: [
+          { label: 'Membros ativos', value: '184', sub: 'Vínculos ativos', accent: '#2563EB', bg: '#DBEAFE', d1: 'M12 3v6', d2: 'M9 6h6M5 21V11l7-5 7 5v10z' },
+          { label: 'Reuniram', value: '131', sub: '4 chamadas fechadas', accent: '#16A34A', bg: '#DCFCE7', d1: 'M9 8a3.5 3.5 0 1 0 0-.001', d2: 'M3 21a6 6 0 0 1 12 0' },
+          { label: 'Frequência', value: '71%', sub: '131 de 184 elegíveis', accent: '#7C3AED', bg: 'rgba(124,58,237,0.12)', d1: 'M4 19V5', d2: 'M4 19h16M8 15v-4M13 15V9M18 15v-2' },
+          { label: 'Sem presença', value: '28', sub: 'Nenhuma no período', accent: '#EA580C', bg: '#FFEDD5', d1: 'M12 7v6', d2: 'M12 17h.01M12 3l9 16H3z' }
+        ],
+        panelTitle: 'Frequência por reunião',
+        bars: [
+          { label: 'Culto de domingo', value: 88, meta: '88%', color: '#7C3AED' },
+          { label: 'Célula', value: 64, meta: '64%', color: '#2D7FF9' },
+          { label: 'Reunião de oração', value: 47, meta: '47%', color: '#0891B2' },
+          { label: 'Discipulado', value: 28, meta: '28%', color: '#EA580C' }
+        ]
+      },
+      {
+        key: 'equipe', label: 'Equipe',
+        title: 'Equipe', question: 'Carga por cuidador e quem está parado.',
+        cta: 'Convidar cuidador',
+        kpis: [
+          { label: 'Cuidadores', value: '21', sub: '18 ativos · 3 inativos', accent: '#2563EB', bg: '#DBEAFE', d1: 'M9 8a3.5 3.5 0 1 0 0-.001', d2: 'M3 21a6 6 0 0 1 12 0' },
+          { label: 'Casos ativos', value: '63', sub: 'Membros acompanhados', accent: '#16A34A', bg: '#DCFCE7', d1: 'M12 21s-7-4.5-9.5-9.2A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 5.8C19 16.5 12 21 12 21z', d2: '' },
+          { label: 'Carga média', value: '3,0', sub: 'Casos por cuidador', accent: '#7C3AED', bg: 'rgba(124,58,237,0.12)', d1: 'M4 19V5', d2: 'M4 19h16M8 15v-4M13 15V9M18 15v-2' },
+          { label: 'Sem ação há 7d', value: '4', sub: 'Cuidadores parados', accent: '#E11D48', bg: '#FFE4E6', d1: 'M12 7v5l3 2', d2: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z' }
+        ],
+        panelTitle: 'Capacidade da equipe',
+        bars: [
+          { label: 'Marina Souza', value: 6, meta: '6 · alta', color: '#E11D48' },
+          { label: 'Rafael Cunha', value: 5, meta: '5 · alta', color: '#EA580C' },
+          { label: 'Ana Lima', value: 3, meta: '3 · normal', color: '#2D7FF9' },
+          { label: 'Bruna Siqueira', value: 1, meta: '1 · baixa', color: '#16A34A' }
+        ]
+      },
+      {
+        key: 'atividade', label: 'Atividade',
+        title: 'Atividade', question: 'O que a equipe fez nos últimos 7 dias.',
+        cta: 'Registrar acompanhamento',
+        kpis: [
+          { label: 'Ações', value: '87', sub: 'Registradas no período', accent: '#2D7FF9', bg: '#E8F1FE', d1: 'M3 5h18v16H3z', d2: 'M3 10h18M8 3v4M16 3v4' },
+          { label: 'Visitas', value: '34', sub: '39% das ações', accent: '#16A34A', bg: '#DCFCE7', d1: 'M3 11l9-8 9 8', d2: 'M5 10v10h14V10' },
+          { label: 'Vencidas', value: '11', sub: 'Próximas ações em atraso', accent: '#E11D48', bg: '#FFE4E6', d1: 'M12 7v5l3 2', d2: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z' },
+          { label: 'Saídas + TCI', value: '3+2', sub: '3 saídas · 2 sessões', accent: '#7C3AED', bg: 'rgba(124,58,237,0.12)', d1: 'M4 17h16', d2: 'M6 17l2-6h8l2 6M8 20h2M14 20h2' }
+        ],
+        panelTitle: 'Ações por dia',
+        bars: [
+          { label: 'Quinta', value: 18, meta: '18 ações', color: '#2D7FF9' },
+          { label: 'Sábado', value: 16, meta: '16 · saída', color: '#2D7FF9' },
+          { label: 'Terça', value: 14, meta: '14 ações', color: '#2D7FF9' },
+          { label: 'Sexta', value: 12, meta: '12 ações', color: '#2D7FF9' }
+        ]
+      }
+    ];
+  }
+
+  renderVals() {
+    const defs = this.defs();
+    const active = defs.find((d) => d.key === this.state.seg) || defs[0];
+    const maxBar = active.bars.reduce((acc, b) => (b.value > acc ? b.value : acc), 1);
+
+    return {
+      segments: defs.map((d) => ({
+        label: d.label,
+        pick: () => this.setState({ seg: d.key }),
+        fg: d.key === active.key ? '#2D7FF9' : '#94A3B8',
+        border: d.key === active.key ? '#2D7FF9' : 'transparent'
+      })),
+      title: active.title,
+      question: active.question,
+      cta: active.cta,
+      kpis: active.kpis,
+      panelTitle: active.panelTitle,
+      bars: active.bars.map((b) => ({
+        label: b.label,
+        meta: b.meta,
+        color: b.color,
+        width: Math.round((b.value / maxBar) * 100) + '%'
+      })),
+      originLabel: 'Todas as origens',
+      originDot: '#94A3B8',
+      tabbar: [
+        { label: 'Painel',   active: true,  d1: 'M3 11l9-8 9 8', d2: 'M5 10v10h14V10' },
+        { label: 'Pessoas',  active: false, d1: 'M9 8a3.5 3.5 0 1 0 0-.001', d2: 'M3 21a6 6 0 0 1 12 0' },
+        { label: 'Ações',    active: false, d1: 'M3 5h18v16H3z', d2: 'M3 10h18M8 3v4M16 3v4' },
+        { label: 'Perfil',   active: false, d1: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', d2: 'M4 21a8 8 0 0 1 16 0' }
+      ].map((t) => ({
+        label: t.label,
+        d1: t.d1,
+        d2: t.d2,
+        fg: t.active ? '#2D7FF9' : '#94A3B8',
+        sw: t.active ? '2.2' : '1.8'
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>

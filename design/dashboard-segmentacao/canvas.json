@@ -1,0 +1,40 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1440, "h": 900, "title": "Painel segmentado", "is_interactive": true },
+    { "file": "Aquisicao.dc.html", "x": 1560, "y": 0, "w": 1440, "h": 1000, "title": "Segmento: Aquisição", "is_interactive": true },
+    { "file": "Mobile.dc.html", "x": 3120, "y": 0, "w": 390, "h": 844, "title": "Painel no celular", "is_interactive": true },
+    { "file": "MapaAtual.dc.html", "x": 0, "y": 1180, "w": 1140, "h": 1180, "title": "Mapa do estado atual" },
+    { "file": "Taxonomia.dc.html", "x": 1260, "y": 1180, "w": 1180, "h": 1180, "title": "Modelo de segmentação" }
+  ],
+  "annotations": [
+    {
+      "id": "nota-recorte",
+      "x": 0,
+      "y": -150,
+      "w": 700,
+      "text": "Clique nas abas e nos chips de origem — o painel responde de verdade.\nA barra de recorte (período · estado · cidade · local · origem) passa a valer para a página inteira, não só para um bloco."
+    },
+    {
+      "id": "nota-aquisicao",
+      "x": 1560,
+      "y": -150,
+      "w": 620,
+      "text": "Aquisição é o segmento que hoje não existe: responde \"quem está vindo e por qual canal\".\nOs chips de origem filtram funil, cidades e a lista de pessoas."
+    },
+    {
+      "id": "nota-diagnostico",
+      "x": 0,
+      "y": 1090,
+      "w": 660,
+      "text": "Diagnóstico levantado do código, não de suposição: 5 abas, 33 KPIs, 6 métricas repetidas em abas diferentes."
+    },
+    {
+      "id": "nota-modelo",
+      "x": 1260,
+      "y": 1090,
+      "w": 660,
+      "text": "O que precisa mudar no dado para o eixo de origem existir — e como o histórico atual migra sem perda."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

@@ -1,0 +1,154 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: "Plus Jakarta Sans", system-ui, sans-serif; background: #F5F5F7; color: #0F172A; }
+    * { box-sizing: border-box; }
+    a { color: #2D7FF9; text-decoration: none; }
+    a:hover { color: #1F6BE0; }
+  </style>
+</helmet>
+
+<div style="width: 1140px; min-height: 1180px; background: #F5F5F7; padding: 32px; display: flex; flex-direction: column; gap: 20px;">
+
+  <div>
+    <p style="margin: 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; color: #2D7FF9;">Estado atual</p>
+    <h1 style="margin: 4px 0 0; font-size: 26px; font-weight: 800; letter-spacing: -0.025em; color: #0F172A;">O que o dashboard faz hoje</h1>
+    <p style="margin: 6px 0 0; font-size: 13.5px; color: #4B5563; max-width: 760px; text-wrap: pretty;">Levantado de <span style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 6px; padding: 1px 5px;">src/app/(app)/coord/page.tsx</span> — 1.550 linhas, 5 abas controladas por <span style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 6px; padding: 1px 5px;">?tab=</span>, 33 KPIs no total.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px;">
+    <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; padding: 16px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #E11D48;"></span>
+        <span style="font-size: 13.5px; font-weight: 800; color: #0F172A;">Igreja</span>
+        <span style="font-size: 11px; font-weight: 700; color: #E11D48; background: #FFE4E6; border-radius: 999px; padding: 2px 7px; margin-left: auto;">13 KPIs</span>
+      </div>
+      <p style="margin: 0; font-size: 12px; line-height: 1.55; color: #4B5563;">Dois dashboards empilhados na mesma aba: <strong style="color:#0F172A;">Dashboard de Pessoas</strong> (filtro próprio: visão, período, estado, cidade, local, tipo de reunião, exportação) e <strong style="color:#0F172A;">Perfil da Igreja</strong> (outro filtro: período, tipo). Mais cidades do estado, lista de pessoas, tendência e fila de revisão.</p>
+    </div>
+    <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; padding: 16px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #EA580C;"></span>
+        <span style="font-size: 13.5px; font-weight: 800; color: #0F172A;">TCI</span>
+        <span style="font-size: 11px; font-weight: 700; color: #C2410C; background: #FFEDD5; border-radius: 999px; padding: 2px 7px; margin-left: auto;">4 KPIs</span>
+      </div>
+      <p style="margin: 0; font-size: 12px; line-height: 1.55; color: #4B5563;">Nenhum dos 4 KPIs é de TCI: são os totais gerais da base (acolhidos, sendo cuidados, concluídos, novos contatos) + jornada + ações de 7 dias. De TCI mesmo, só um card com um link para <span style="font-family: ui-monospace, monospace; font-size: 11.5px;">/coord/tci</span>.</p>
+    </div>
+    <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; padding: 16px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #EA580C;"></span>
+        <span style="font-size: 13.5px; font-weight: 800; color: #0F172A;">Cuidados</span>
+        <span style="font-size: 11px; font-weight: 700; color: #C2410C; background: #FFEDD5; border-radius: 999px; padding: 2px 7px; margin-left: auto;">8 KPIs</span>
+      </div>
+      <p style="margin: 0; font-size: 12px; line-height: 1.55; color: #4B5563;">Fila operacional: triagem, esperando visita, membros sem cuidador, contatos sem cuidador, urgentes, vencidos, sendo cuidados e sem cuidador (total). Três recortes diferentes de "sem cuidador" lado a lado. Só KPIs — nenhuma lista para agir.</p>
+    </div>
+    <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; padding: 16px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #16A34A;"></span>
+        <span style="font-size: 13.5px; font-weight: 800; color: #0F172A;">Cuidadores</span>
+        <span style="font-size: 11px; font-weight: 700; color: #15803D; background: #DCFCE7; border-radius: 999px; padding: 2px 7px; margin-left: auto;">3 KPIs</span>
+      </div>
+      <p style="margin: 0; font-size: 12px; line-height: 1.55; color: #4B5563;">A aba mais coerente do painel: total de cuidadores, casos ativos, sem cuidador, e a lista da equipe com casos, capacidade (alta/normal/baixa) e última ação. É o modelo a seguir nas outras.</p>
+    </div>
+    <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; padding: 16px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #16A34A;"></span>
+        <span style="font-size: 13.5px; font-weight: 800; color: #0F172A;">Últimas Ações</span>
+        <span style="font-size: 11px; font-weight: 700; color: #15803D; background: #DCFCE7; border-radius: 999px; padding: 2px 7px; margin-left: auto;">3 KPIs</span>
+      </div>
+      <p style="margin: 0; font-size: 12px; line-height: 1.55; color: #4B5563;">Total de ações, ações da semana, ações vencidas + gráfico de 7 dias e as últimas interações pastorais. Coerente, mas o gráfico de 7 dias também aparece na aba TCI.</p>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 16px;">
+
+    <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; padding: 20px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 14px;">
+      <div>
+        <h3 style="margin: 0; font-size: 15px; font-weight: 800; color: #0F172A;">Os mesmos números, em abas diferentes</h3>
+        <p style="margin: 3px 0 0; font-size: 12.5px; color: #94A3B8;">Cada linha é uma métrica que se repete — às vezes com regra de cálculo diferente.</p>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 0;">
+        <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid #E8EAEE;">
+          <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #94A3B8;">Métrica</span>
+          <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #94A3B8;">Aparece em</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 10px; padding: 11px 0; border-bottom: 1px solid #F1F3F7; align-items: center;">
+          <span style="font-size: 13px; font-weight: 700; color: #0F172A;">Sem cuidador</span>
+          <span style="font-size: 12.5px; color: #E11D48; font-weight: 700;">Igreja · Cuidados ×3 · Cuidadores</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 10px; padding: 11px 0; border-bottom: 1px solid #F1F3F7; align-items: center;">
+          <span style="font-size: 13px; font-weight: 700; color: #0F172A;">Sendo cuidados</span>
+          <span style="font-size: 12.5px; color: #EA580C; font-weight: 700;">TCI · Cuidados ×2 · Cuidadores</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 10px; padding: 11px 0; border-bottom: 1px solid #F1F3F7; align-items: center;">
+          <span style="font-size: 13px; font-weight: 700; color: #0F172A;">Contatos vencidos</span>
+          <span style="font-size: 12.5px; color: #EA580C; font-weight: 700;">Igreja · Cuidados · Ações</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 10px; padding: 11px 0; border-bottom: 1px solid #F1F3F7; align-items: center;">
+          <span style="font-size: 13px; font-weight: 700; color: #0F172A;">Frequência média</span>
+          <span style="font-size: 12.5px; color: #EA580C; font-weight: 700;">Igreja (Pessoas) · Igreja (Perfil)</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 10px; padding: 11px 0; border-bottom: 1px solid #F1F3F7; align-items: center;">
+          <span style="font-size: 13px; font-weight: 700; color: #0F172A;">Chamadas pendentes</span>
+          <span style="font-size: 12.5px; color: #EA580C; font-weight: 700;">Igreja (Pessoas) · Igreja (Perfil)</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 10px; padding: 11px 0; align-items: center;">
+          <span style="font-size: 13px; font-weight: 700; color: #0F172A;">Ações dos últimos 7 dias</span>
+          <span style="font-size: 12.5px; color: #EA580C; font-weight: 700;">TCI · Últimas Ações</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; padding: 20px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 14px;">
+      <div>
+        <h3 style="margin: 0; font-size: 15px; font-weight: 800; color: #0F172A;">Onde a segmentação quebra</h3>
+        <p style="margin: 3px 0 0; font-size: 12.5px; color: #94A3B8;">O que impede hoje responder "quem está vindo, de onde e por quem".</p>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; gap: 12px;">
+          <span style="flex-shrink: 0; width: 24px; height: 24px; border-radius: 8px; background: #FFE4E6; color: #E11D48; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800;">1</span>
+          <p style="margin: 0; font-size: 12.5px; line-height: 1.55; color: #4B5563;"><strong style="color:#0F172A;">Origem é texto livre.</strong> <span style="font-family: ui-monospace, monospace; font-size: 11.5px;">seeds.source TEXT DEFAULT ''</span> — sem taxonomia, sem KPI, sem agrupamento. Aparece só como uma string solta na linha da pessoa.</p>
+        </div>
+        <div style="display: flex; gap: 12px;">
+          <span style="flex-shrink: 0; width: 24px; height: 24px; border-radius: 8px; background: #FFE4E6; color: #E11D48; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800;">2</span>
+          <p style="margin: 0; font-size: 12.5px; line-height: 1.55; color: #4B5563;"><strong style="color:#0F172A;">Não se sabe quem cadastrou.</strong> Não há ator registrado na entrada da pessoa — só o cuidador designado depois, que pode ser outra pessoa.</p>
+        </div>
+        <div style="display: flex; gap: 12px;">
+          <span style="flex-shrink: 0; width: 24px; height: 24px; border-radius: 8px; background: #FFEDD5; color: #C2410C; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800;">3</span>
+          <p style="margin: 0; font-size: 12.5px; line-height: 1.55; color: #4B5563;"><strong style="color:#0F172A;">Canal público só serve cuidador.</strong> <span style="font-family: ui-monospace, monospace; font-size: 11.5px;">caregiver_signup_channels</span> já tem token, limite de uso e aprovação — mas não existe canal equivalente para captar pessoas.</p>
+        </div>
+        <div style="display: flex; gap: 12px;">
+          <span style="flex-shrink: 0; width: 24px; height: 24px; border-radius: 8px; background: #FFEDD5; color: #C2410C; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800;">4</span>
+          <p style="margin: 0; font-size: 12.5px; line-height: 1.55; color: #4B5563;"><strong style="color:#0F172A;">O recorte não é global.</strong> Estado, cidade, local e período só valem dentro do bloco de Pessoas; o resto da página usa o escopo da sessão e ignora o filtro.</p>
+        </div>
+        <div style="display: flex; gap: 12px;">
+          <span style="flex-shrink: 0; width: 24px; height: 24px; border-radius: 8px; background: #FFEDD5; color: #C2410C; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800;">5</span>
+          <p style="margin: 0; font-size: 12.5px; line-height: 1.55; color: #4B5563;"><strong style="color:#0F172A;">Trocar de aba perde o filtro.</strong> <span style="font-family: ui-monospace, monospace; font-size: 11.5px;">tabHref()</span> só preserva os parâmetros quando o destino é a aba Igreja.</p>
+        </div>
+        <div style="display: flex; gap: 12px;">
+          <span style="flex-shrink: 0; width: 24px; height: 24px; border-radius: 8px; background: #E8F1FE; color: #1D4ED8; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800;">6</span>
+          <p style="margin: 0; font-size: 12.5px; line-height: 1.55; color: #4B5563;"><strong style="color:#0F172A;">As abas não são segmentos.</strong> São lugares onde métricas foram sendo depositadas: "TCI" carrega os totais gerais, "Igreja" carrega dois dashboards, "Cuidados" carrega só KPIs sem ação.</p>
+        </div>
+        <div style="display: flex; gap: 12px;">
+          <span style="flex-shrink: 0; width: 24px; height: 24px; border-radius: 8px; background: #E8F1FE; color: #1D4ED8; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800;">7</span>
+          <p style="margin: 0; font-size: 12.5px; line-height: 1.55; color: #4B5563;"><strong style="color:#0F172A;">Saída já é uma origem — e ninguém vê.</strong> <span style="font-family: ui-monospace, monospace; font-size: 11.5px;">seeds.outing_event_id</span> já liga a pessoa ao evento de saída que a gerou. É o único dado de origem confiável que existe e não vira métrica em lugar nenhum.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview":{"width":1140,"height":1180}}'>
+class Component extends DCLogic {}
+</script>
+</body>
+</html>
