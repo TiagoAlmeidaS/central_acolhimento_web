@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterContacts, filterMembers, paginateItems } from "@/lib/listing-filters";
+import { filterContacts, filterMembers, filterTenantIdsByRecorte, paginateItems } from "@/lib/listing-filters";
 import type { Member, Seed } from "@/server/domain/mvp";
 
 const contacts: Seed[] = [
@@ -136,5 +136,31 @@ describe("listing filters", () => {
     expect(result.items).toEqual([3, 4]);
     expect(result.totalPages).toBe(3);
     expect(result.totalItems).toBe(5);
+  });
+});
+
+describe("filterTenantIdsByRecorte", () => {
+  const tenants = [
+    { id: "t-sessao", city: "Sape", state: "PB" },
+    { id: "t-vizinha", city: "Mamanguape", state: "PB" },
+    { id: "t-outro-estado", city: "Recife", state: "PE" },
+  ];
+
+  it("mantem todas as localidades do estado quando nao ha cidade nem localidade", () => {
+    expect(filterTenantIdsByRecorte(tenants, { state: "PB" })).toEqual(["t-sessao", "t-vizinha"]);
+  });
+
+  it("restringe a cidade escolhida", () => {
+    expect(filterTenantIdsByRecorte(tenants, { state: "PB", city: "Mamanguape" })).toEqual(["t-vizinha"]);
+  });
+
+  it("resolve uma localidade acessivel fora da localidade da sessao", () => {
+    expect(filterTenantIdsByRecorte(tenants, { state: "PB", city: "Sape", tenantId: "t-vizinha" })).toEqual([
+      "t-vizinha",
+    ]);
+  });
+
+  it("devolve vazio quando a localidade nao esta na lista acessivel", () => {
+    expect(filterTenantIdsByRecorte(tenants, { state: "PB", tenantId: "t-fora" })).toEqual([]);
   });
 });

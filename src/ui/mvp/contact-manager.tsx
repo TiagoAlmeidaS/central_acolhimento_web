@@ -2,13 +2,19 @@
 
 import { startTransition, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import type { OutingEvent, Seed, Tenant } from "@/server/domain/mvp";
+import type { OutingEvent, Seed, SeedOriginChannel, Tenant } from "@/server/domain/mvp";
 import {
   estimateBase64Bytes,
   HOUSE_FRONT_IMAGE_MAX_DIMENSION,
   HOUSE_FRONT_IMAGE_TARGET_BYTES,
 } from "@/lib/house-front-image";
 import { composeAddress, formatPhone, formatPostalCode, normalizePhone, normalizePostalCode } from "@/ui/mvp/contact-form-utils";
+import {
+  SEED_ORIGIN_CHANNELS,
+  SEED_ORIGIN_CHANNEL_DETAIL_PLACEHOLDERS,
+  SEED_ORIGIN_CHANNEL_LABELS,
+  seedOriginChannelLabel,
+} from "@/lib/seed-origin";
 import { Avatar, Button, Card, Input, SectionTitle, Select, Textarea, SearchableSelect } from "@/ui/v2-components/ui";
 import { IconCheck, IconHeart, IconMapPin, IconPhone, IconPlus, IconUser, IconX } from "@/ui/v2-components/icons";
 import { LocationPicker, type LocationAddressFill } from "@/ui/mvp/location-picker";
@@ -132,6 +138,8 @@ const emptyForm = {
   city: "",
   postalCode: "",
   source: "",
+  originChannel: "" as SeedOriginChannel | "",
+  originDetail: "",
   status: "new" as Seed["status"],
   notes: "",
   firstContactAt: getTodayString(),
@@ -173,6 +181,8 @@ export function ContactManager({
           city: initialEditing.city,
           postalCode: initialEditing.postalCode,
           source: initialEditing.source,
+          originChannel: (initialEditing.originChannel ?? "other") as SeedOriginChannel | "",
+          originDetail: initialEditing.originDetail ?? "",
           status: initialEditing.status,
           notes: initialEditing.notes,
           firstContactAt: initialEditing.firstContactAt ? initialEditing.firstContactAt.slice(0, 10) : "",
@@ -213,6 +223,8 @@ export function ContactManager({
         city: initialEditing.city,
         postalCode: initialEditing.postalCode,
         source: initialEditing.source,
+        originChannel: (initialEditing.originChannel ?? "other") as SeedOriginChannel | "",
+        originDetail: initialEditing.originDetail ?? "",
         status: initialEditing.status,
         notes: initialEditing.notes,
         firstContactAt: initialEditing.firstContactAt ? initialEditing.firstContactAt.slice(0, 10) : "",
@@ -264,6 +276,8 @@ export function ContactManager({
       city: contact.city,
       postalCode: contact.postalCode,
       source: contact.source,
+      originChannel: (contact.originChannel ?? "other") as SeedOriginChannel | "",
+      originDetail: contact.originDetail ?? "",
       status: contact.status,
       notes: contact.notes,
       firstContactAt: contact.firstContactAt ? contact.firstContactAt.slice(0, 10) : "",
@@ -393,7 +407,9 @@ export function ContactManager({
         phone: normalizePhone(form.phone),
         city: form.city,
         postalCode: normalizePostalCode(form.postalCode),
-        source: form.source,
+        source: form.source || form.originDetail.trim(),
+        originChannel: form.originChannel || "other",
+        originDetail: form.originDetail.trim(),
         status: form.status,
         notes: form.notes,
         firstContactAt: form.firstContactAt || null,
@@ -549,11 +565,29 @@ export function ContactManager({
             placeholder="Selecione a cidade"
           />
 
-          <Input
+          <Select
             label="Origem do contato"
-            value={form.source}
-            onChange={(value) => setForm((current) => ({ ...current, source: value }))}
-            placeholder="Culto, visita, indicação, ligação..."
+            value={form.originChannel}
+            onChange={(value) =>
+              setForm((current) => ({ ...current, originChannel: value as SeedOriginChannel }))
+            }
+            options={SEED_ORIGIN_CHANNELS.map((channel) => ({
+              value: channel,
+              label: SEED_ORIGIN_CHANNEL_LABELS[channel],
+            }))}
+            placeholder="Selecione a origem"
+            required
+          />
+
+          <Input
+            label="Detalhe da origem"
+            value={form.originDetail}
+            onChange={(value) => setForm((current) => ({ ...current, originDetail: value }))}
+            placeholder={
+              form.originChannel
+                ? SEED_ORIGIN_CHANNEL_DETAIL_PLACEHOLDERS[form.originChannel]
+                : "Qual saída, quem indicou, qual link..."
+            }
             icon={<IconHeart />}
           />
 
@@ -917,7 +951,10 @@ export function ContactManager({
 
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, fontSize: 12, color: "var(--text-3)" }}>
                         {contact.age !== null ? <span>Idade: {contact.age}</span> : null}
-                        {contact.source ? <span>Origem: {contact.source}</span> : null}
+                        <span>Origem: {seedOriginChannelLabel(contact.originChannel)}</span>
+                        {contact.originDetail || contact.source ? (
+                          <span>Detalhe: {contact.originDetail || contact.source}</span>
+                        ) : null}
                         {contact.openHouse ? <span>Casa aberta</span> : null}
                       </div>
 

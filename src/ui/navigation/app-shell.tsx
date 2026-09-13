@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/auth/auth-context";
+import { CoordMobileNav } from "@/ui/navigation/coord-mobile-nav";
 import { Avatar } from "@/ui/v2-components/ui";
 import {
   IconHome,
@@ -252,8 +253,13 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
+      {/* Main Content Area - respiro inferior abaixo de xl por causa da barra de navegacao */}
+      <div style={{ flex: 1, minWidth: 0 }} className="pb-[100px] xl:pb-0">
+        {children}
+      </div>
+
+      {/* Navegacao mobile (abaixo de xl): barra inferior + folha "Mais" */}
+      <CoordMobileNav onLogout={handleLogout} />
     </div>
   );
 }

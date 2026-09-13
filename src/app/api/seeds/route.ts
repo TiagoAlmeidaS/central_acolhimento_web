@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { getDataScopeFromSession, listAccessibleTenantIds, resolveCaregiverId, resolveTenantIdForUserAccess } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
 import { validateHouseFrontImageDataUrl } from "@/lib/house-front-image";
+import { parseSeedOriginChannelForCreate, SEED_ORIGIN_CHANNEL_INVALID_MESSAGE } from "@/lib/seed-origin";
 import { createSeed, listSeedsPage } from "@/server/repositories/mvp-repository";
 import { normalizePage, normalizePageSize, type ContactListingFilters } from "@/lib/listing-filters";
 import { getOutingDetail } from "@/server/repositories/outing-repository";
@@ -65,6 +66,8 @@ export async function POST(request: Request) {
       state?: string;
       houseFrontImageUrl?: string | null;
       source?: string;
+      originChannel?: string;
+      originDetail?: string;
       status?: "new" | "contacted" | "waiting_visit" | "in_progress" | "consolidated" | "inactive";
       notes?: string;
       firstContactAt?: string | null;
@@ -83,6 +86,11 @@ export async function POST(request: Request) {
     const imageValidationError = validateHouseFrontImageDataUrl(body.houseFrontImageUrl ?? null);
     if (imageValidationError) {
       return Response.json({ error: imageValidationError }, { status: 400 });
+    }
+
+    const originChannel = parseSeedOriginChannelForCreate(body.originChannel);
+    if (!originChannel) {
+      return Response.json({ error: SEED_ORIGIN_CHANNEL_INVALID_MESSAGE }, { status: 400 });
     }
 
     const tenantId = await resolveTenantIdForUserAccess(session, body.tenantId);
@@ -109,6 +117,9 @@ export async function POST(request: Request) {
         state: body.state,
         houseFrontImageUrl: body.houseFrontImageUrl ?? null,
         source: body.source,
+        originChannel,
+        originDetail: body.originDetail ?? "",
+        registeredByTenantUserId: session.membership.tenantUserId,
         status: body.status,
         notes: body.notes,
         firstContactAt: body.firstContactAt ?? null,

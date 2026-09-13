@@ -2,7 +2,12 @@
 
 import React, { startTransition, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { AuthSession, Caregiver, Followup, Member, Seed, SpiritualTemperature, Tenant } from "@/server/domain/mvp";
+import type { AuthSession, Caregiver, Followup, Member, Seed, SeedOriginChannel, SpiritualTemperature, Tenant } from "@/server/domain/mvp";
+import {
+  SEED_ORIGIN_CHANNELS,
+  SEED_ORIGIN_CHANNEL_DETAIL_PLACEHOLDERS,
+  SEED_ORIGIN_CHANNEL_LABELS,
+} from "@/lib/seed-origin";
 import { mapSpiritualTemperatureToVisualStatus } from "@/ui/mvp/dashboard-status-utils";
 import {
   Avatar,
@@ -124,6 +129,8 @@ export function CaregiverDashboardClient({
     age: "",
     phone: "",
     city: session.membership.tenantCity ?? "",
+    originChannel: "" as SeedOriginChannel | "",
+    originDetail: "",
     status: "new",
     notes: "",
     openHouse: false,
@@ -500,7 +507,7 @@ export function CaregiverDashboardClient({
   // Create new contact (seed)
   async function handleCreateNew(e: React.FormEvent) {
     e.preventDefault();
-    if (!newForm.name) return;
+    if (!newForm.name || !newForm.originChannel) return;
     setSubmitting(true);
     setError(null);
 
@@ -521,6 +528,8 @@ export function CaregiverDashboardClient({
         status: "new",
         notes: newForm.notes,
         source: "Cuidador",
+        originChannel: newForm.originChannel,
+        originDetail: newForm.originDetail.trim(),
         openHouse: newForm.openHouse,
         address: addressComposed,
         street: newForm.openHouse ? newForm.street : "",
@@ -545,6 +554,8 @@ export function CaregiverDashboardClient({
       age: "",
       phone: "",
       city: session.membership.tenantCity ?? "",
+      originChannel: "",
+      originDetail: "",
       status: "new",
       notes: "",
       openHouse: false,
@@ -1326,6 +1337,31 @@ export function CaregiverDashboardClient({
               placeholder="Selecione a cidade"
             />
 
+            <Select
+              label="Origem do contato"
+              value={newForm.originChannel}
+              onChange={(v) => setNewForm((f) => ({ ...f, originChannel: v as SeedOriginChannel }))}
+              options={SEED_ORIGIN_CHANNELS.map((channel) => ({
+                value: channel,
+                label: SEED_ORIGIN_CHANNEL_LABELS[channel],
+              }))}
+              placeholder="Selecione a origem"
+              required
+            />
+
+            <Input
+              label="Detalhe da origem"
+              value={newForm.originDetail}
+              onChange={(v) => setNewForm((f) => ({ ...f, originDetail: v }))}
+              placeholder={
+                newForm.originChannel
+                  ? SEED_ORIGIN_CHANNEL_DETAIL_PLACEHOLDERS[newForm.originChannel]
+                  : "Qual saída, quem indicou, qual link..."
+              }
+              icon={<IconHeart />}
+              hint="Ajuda a saber de onde a pessoa veio. Opcional."
+            />
+
             <label
               style={{
                 display: "flex",
@@ -1441,7 +1477,7 @@ export function CaregiverDashboardClient({
               variant="primary"
               size="md"
               full
-              disabled={submitting || !newForm.name}
+              disabled={submitting || !newForm.name || !newForm.originChannel}
             >
               {submitting ? "Cadastrando..." : "Cadastrar novo contato"}
             </Button>

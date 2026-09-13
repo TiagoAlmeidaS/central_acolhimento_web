@@ -1,0 +1,138 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: "Plus Jakarta Sans", system-ui, sans-serif; background: #F5F5F7; color: #0F172A; }
+    * { box-sizing: border-box; }
+    a { color: #2D7FF9; text-decoration: none; }
+    a:hover { color: #1F6BE0; }
+    button { font-family: inherit; cursor: pointer; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #F5F5F7; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+
+  <header style="padding: 18px 18px 14px; background: #FFFFFF; border-bottom: 1px solid #E8EAEE;">
+    <p style="margin: 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; color: #2D7FF9;">Liderança</p>
+    <h1 style="margin: 3px 0 0; font-size: 19px; font-weight: 800; letter-spacing: -0.025em; color: #0F172A;">Painel</h1>
+  </header>
+
+  <main style="flex: 1; padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; overflow: hidden;">
+    <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; padding: 18px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 10px;">
+      <h2 style="margin: 0; font-size: 15px; font-weight: 800; color: #0F172A;">O problema da barra de cinco</h2>
+      <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #4B5563;">O menu lateral da coordenação tem dez destinos. Uma barra inferior comporta cinco com alvo de toque decente. A proposta junta o que é a mesma coisa e empurra o resto para uma folha.</p>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 4px;">
+        <div style="display: flex; align-items: baseline; gap: 9px;">
+          <span style="width: 7px; height: 7px; border-radius: 50%; background: #16A34A; flex-shrink: 0; transform: translateY(-1px);"></span>
+          <p style="margin: 0; font-size: 12.5px; line-height: 1.5; color: #4B5563;"><strong style="color: #0F172A;">Pessoas</strong> reúne Novos contatos e Membros em duas abas — no telefone, dois destinos raiz para a mesma pessoa é desperdício de slot.</p>
+        </div>
+        <div style="display: flex; align-items: baseline; gap: 9px;">
+          <span style="width: 7px; height: 7px; border-radius: 50%; background: #2D7FF9; flex-shrink: 0; transform: translateY(-1px);"></span>
+          <p style="margin: 0; font-size: 12.5px; line-height: 1.5; color: #4B5563;"><strong style="color: #0F172A;">Painel, Igreja e Ações</strong> ficam fixos: são as três coisas que se abre todo dia.</p>
+        </div>
+        <div style="display: flex; align-items: baseline; gap: 9px;">
+          <span style="width: 7px; height: 7px; border-radius: 50%; background: #EA580C; flex-shrink: 0; transform: translateY(-1px);"></span>
+          <p style="margin: 0; font-size: 12.5px; line-height: 1.5; color: #4B5563;"><strong style="color: #0F172A;">Mais</strong> guarda o que se abre por semana ou por mês: cidades, cuidadores, saídas, TCI, relatórios, perfil.</p>
+        </div>
+      </div>
+    </div>
+
+    <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; padding: 18px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 10px;">
+      <h2 style="margin: 0; font-size: 15px; font-weight: 800; color: #0F172A;">Reaproveita o que já existe</h2>
+      <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #4B5563;">O cuidador já tem barra inferior fixa, largura máxima de 440 e conteúdo com respiro de 100px embaixo. A barra da coordenação é o mesmo componente com outra lista de destinos e um slot de folha.</p>
+      <span style="align-self: flex-start; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; color: #94A3B8; border: 1px solid #E8EAEE; border-radius: 6px; padding: 4px 8px;">src/ui/navigation/mobile-shell.tsx</span>
+    </div>
+
+    <button onClick="{{toggle}}" style="display: flex; align-items: center; justify-content: center; gap: 8px; height: 48px; width: 100%; border: 1px solid #D5D9E0; border-radius: 14px; background: #FFFFFF; color: #0F172A; font-size: 14px; font-weight: 700;">
+      {{toggleLabel}}
+    </button>
+  </main>
+
+  <nav style="padding: 10px 0 24px; background: #FFFFFF; border-top: 1px solid #E8EAEE; display: flex; justify-content: space-around; box-shadow: 0 -4px 20px rgba(0,0,0,0.03); position: relative; z-index: 3;">
+    <sc-for list="{{tabs}}" as="t" hint-placeholder-count="5">
+      <button onClick="{{t.pick}}" style="flex-grow: 1; min-height: 48px; border: none; background: transparent; display: flex; flex-direction: column; align-items: center; gap: 4px; color: {{t.fg}}; font-size: 11.5px; font-weight: 600; letter-spacing: -0.005em; padding: 0;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{t.sw}}" stroke-linecap="round" stroke-linejoin="round"><path d="{{t.d1}}"></path><path d="{{t.d2}}"></path></svg>
+        <span>{{t.label}}</span>
+      </button>
+    </sc-for>
+  </nav>
+
+  <sc-if value="{{sheetOpen}}" hint-placeholder-val="{{true}}">
+    <div style="position: absolute; inset: 0; background: rgba(15,23,42,0.42); z-index: 4;"></div>
+    <div style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; background: #FFFFFF; border-radius: 22px 22px 0 0; padding: 10px 0 26px; box-shadow: 0 -12px 40px rgba(15,23,42,0.18); display: flex; flex-direction: column; gap: 4px;">
+      <div style="width: 40px; height: 4px; border-radius: 999px; background: #E2E8F0; align-self: center; margin-bottom: 8px;"></div>
+      <div style="padding: 0 20px 10px;">
+        <h2 style="margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -0.02em; color: #0F172A;">Mais</h2>
+        <p style="margin: 3px 0 0; font-size: 12.5px; color: #94A3B8;">O que não cabe na barra de cinco.</p>
+      </div>
+      <sc-for list="{{more}}" as="m" hint-placeholder-count="6">
+        <div style="display: flex; align-items: center; gap: 14px; min-height: 52px; padding: 0 20px; border-top: 1px solid #F1F3F7;">
+          <span style="width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0; background: {{m.bg}}; color: {{m.fg}}; display: flex; align-items: center; justify-content: center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{m.d1}}"></path><path d="{{m.d2}}"></path></svg>
+          </span>
+          <span style="flex-grow: 1; font-size: 14.5px; font-weight: 600; color: #0F172A;">{{m.label}}</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
+        </div>
+      </sc-for>
+      <button onClick="{{toggle}}" style="margin: 14px 20px 0; height: 48px; border: 1px solid #D5D9E0; border-radius: 14px; background: #FFFFFF; color: #0F172A; font-size: 14.5px; font-weight: 700;">Fechar</button>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'painel', sheet: false };
+  }
+
+  renderVals() {
+    const tabs = [
+      { key: 'painel',  label: 'Painel',  d1: 'M3 11l9-8 9 8', d2: 'M5 10v10h14V10' },
+      { key: 'pessoas', label: 'Pessoas', d1: 'M9 8a3.5 3.5 0 1 0 0-.001', d2: 'M3 21a6 6 0 0 1 12 0M17 10a2.5 2.5 0 1 0 0-.001M15 21a5 5 0 0 1 6.5-4.8' },
+      { key: 'igreja',  label: 'Igreja',  d1: 'M12 3v6', d2: 'M9 6h6M5 21V11l7-5 7 5v10z' },
+      { key: 'acoes',   label: 'Ações',   d1: 'M3 5h18v16H3z', d2: 'M3 10h18M8 3v4M16 3v4' },
+      { key: 'mais',    label: 'Mais',    d1: 'M5 12h.01M12 12h.01M19 12h.01', d2: 'M5 12h.01M12 12h.01M19 12h.01' }
+    ];
+
+    const active = this.state.sheet ? 'mais' : this.state.tab;
+
+    return {
+      tabs: tabs.map((t) => ({
+        label: t.label,
+        d1: t.d1,
+        d2: t.d2,
+        pick: () => {
+          if (t.key === 'mais') this.setState({ sheet: !this.state.sheet });
+          else this.setState({ tab: t.key, sheet: false });
+        },
+        fg: t.key === active ? '#2D7FF9' : '#94A3B8',
+        sw: t.key === active ? '2.2' : '1.8'
+      })),
+      sheetOpen: this.state.sheet,
+      toggle: () => this.setState({ sheet: !this.state.sheet }),
+      toggleLabel: this.state.sheet ? 'Fechar a folha "Mais"' : 'Abrir a folha "Mais"',
+      more: [
+        { label: 'Cidades',            bg: '#DBEAFE', fg: '#2563EB', d1: 'M4 21V8l6-4v17', d2: 'M10 21V9l8 4v8H4M14 14h.01' },
+        { label: 'Cuidadores',         bg: '#DCFCE7', fg: '#16A34A', d1: 'M12 21s-7-4.5-9.5-9.2A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 5.8C19 16.5 12 21 12 21z', d2: '' },
+        { label: 'Saídas',             bg: '#FFEDD5', fg: '#EA580C', d1: 'M4 17h16', d2: 'M6 17l2-6h8l2 6M8 20h2M14 20h2' },
+        { label: 'TCI',                bg: 'rgba(124,58,237,0.12)', fg: '#7C3AED', d1: 'M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z', d2: '' },
+        { label: 'Relatório de saídas',bg: '#ECFEFF', fg: '#0891B2', d1: 'M6 3h8l4 4v14H6z', d2: 'M9 12h6M9 16h6' },
+        { label: 'Perfil',             bg: '#E2E8F0', fg: '#475569', d1: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', d2: 'M4 21a8 8 0 0 1 16 0' },
+        { label: 'Sair',               bg: '#FFE4E6', fg: '#E11D48', d1: 'M15 12H3', d2: 'M6 9l-3 3 3 3M10 4h8v16h-8' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

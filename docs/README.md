@@ -12,6 +12,7 @@ Este repositório contém a aplicacao **central_acolhimento_web** no formato de 
 - [Igreja: membros e presenca em reunioes](architecture/church-members-attendance-spec.md) — modulo Igreja, recorrencia, chamadas e base para metricas pastorais.
 - [Dashboard da Igreja: frequencia e acoes de cuidado](architecture/church-dashboard-care-analysis-spec.md) — analises por dia, semana e mes, sinais de atencao e fluxo de cuidado.
 - [Relatorio diario de saidas e novos contatos](architecture/daily-outing-report-spec.md) — tipos de saida, conclusao operacional, vinculo de contatos, casas abertas, mapa e PDF diario.
+- [Inventario de dados do painel](database/inventario-dados-painel.html) — auditoria do modelo: o que o painel consegue medir hoje, onde a medicao sai errada e as consultas SQL que produzem os numeros.
 - [Postgres Setup on Vercel](database/vercel-postgres-setup.md) — variaveis e fluxo recomendado para conectar o banco na Vercel.
 - [Mapeamento das Telas Stitch](telas-stitch-mapping.md) — referencia visual usada para portar as telas.
 

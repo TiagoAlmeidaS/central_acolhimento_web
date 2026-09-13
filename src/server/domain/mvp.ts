@@ -3,6 +3,15 @@ export type AppRole = "coordinator" | "caregiver";
 export type MemberStatus = "new" | "in_progress" | "consolidated" | "inactive";
 export type SpiritualTemperature = "cold" | "warm" | "hot";
 export type SeedStatus = "new" | "contacted" | "waiting_visit" | "in_progress" | "consolidated" | "inactive";
+export type SeedOriginChannel =
+  | "outing"
+  | "referral"
+  | "church_service"
+  | "public_link"
+  | "whatsapp"
+  | "manual"
+  | "import"
+  | "other";
 export type FollowupType = "visit" | "call" | "message" | "prayer" | "other";
 export type InvitationStatus = "pending" | "accepted" | "revoked" | "expired";
 export type SignupChannelUseStatus = "submitted" | "approved" | "rejected";
@@ -79,6 +88,9 @@ export type Seed = {
   state: string;
   houseFrontImageUrl: string | null;
   source: string;
+  originChannel?: SeedOriginChannel;
+  originDetail?: string;
+  registeredByTenantUserId?: string | null;
   status: SeedStatus;
   notes: string;
   firstContactAt: string | null;
@@ -531,6 +543,9 @@ export type CreateSeedInput = {
   state?: string;
   houseFrontImageUrl?: string | null;
   source?: string;
+  originChannel?: SeedOriginChannel;
+  originDetail?: string;
+  registeredByTenantUserId?: string | null;
   status?: SeedStatus;
   notes?: string;
   firstContactAt?: string | null;

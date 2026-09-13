@@ -1,0 +1,611 @@
+<title>Inventário de Dados do Acolhimento</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+  :root {
+    --bg: #F4F6F9;
+    --surface: #FFFFFF;
+    --surface-2: #FAFBFC;
+    --rule: #E3E7EE;
+    --rule-soft: #EEF1F5;
+    --ink: #0F1622;
+    --ink-2: #495468;
+    --ink-3: #8A94A6;
+    --accent: #2D7FF9;
+    --accent-soft: #E8F1FE;
+    --ok: #15803D;      --ok-bg: #DCFCE7;
+    --warn: #B45309;    --warn-bg: #FEF0DC;
+    --crit: #BE123C;    --crit-bg: #FFE4E9;
+    --code-bg: #F3F5F9;
+    --code-ink: #1E2A3D;
+    --shadow: 0 1px 2px rgba(15,22,34,.05), 0 1px 0 rgba(15,22,34,.02);
+    --sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0A0F17;
+      --surface: #131A25;
+      --surface-2: #18202D;
+      --rule: #26303F;
+      --rule-soft: #1E2734;
+      --ink: #E9EDF4;
+      --ink-2: #A3AEC0;
+      --ink-3: #6E7A8C;
+      --accent: #63A2FF;
+      --accent-soft: rgba(99,162,255,.14);
+      --ok: #4ADE80;      --ok-bg: rgba(74,222,128,.14);
+      --warn: #FBBF24;    --warn-bg: rgba(251,191,36,.14);
+      --crit: #FB7185;    --crit-bg: rgba(251,113,133,.14);
+      --code-bg: #0E141D;
+      --code-ink: #D5DEEC;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.22);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0A0F17;
+    --surface: #131A25;
+    --surface-2: #18202D;
+    --rule: #26303F;
+    --rule-soft: #1E2734;
+    --ink: #E9EDF4;
+    --ink-2: #A3AEC0;
+    --ink-3: #6E7A8C;
+    --accent: #63A2FF;
+    --accent-soft: rgba(99,162,255,.14);
+    --ok: #4ADE80;      --ok-bg: rgba(74,222,128,.14);
+    --warn: #FBBF24;    --warn-bg: rgba(251,191,36,.14);
+    --crit: #FB7185;    --crit-bg: rgba(251,113,133,.14);
+    --code-bg: #0E141D;
+    --code-ink: #D5DEEC;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.22);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 72px; }
+  h1, h2, h3 { text-wrap: balance; margin: 0; letter-spacing: -0.022em; }
+  p { margin: 0; }
+  code, pre, .mono { font-family: var(--mono); font-variant-ligatures: none; }
+
+  .eyebrow {
+    font-size: 10.5px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .18em; color: var(--accent); margin: 0;
+  }
+  .lede { font-size: 16px; line-height: 1.65; color: var(--ink-2); max-width: 66ch; }
+
+  header.page { display: flex; flex-direction: column; gap: 10px; padding-bottom: 26px; border-bottom: 2px solid var(--ink); }
+  header.page h1 { font-size: clamp(28px, 4.4vw, 40px); font-weight: 800; line-height: 1.1; }
+
+  .meta { display: flex; flex-wrap: wrap; gap: 8px 22px; padding-top: 4px; }
+  .meta div { display: flex; flex-direction: column; gap: 1px; }
+  .meta dt { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-3); }
+  .meta dd { margin: 0; font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--ink); }
+
+  .caveat {
+    display: flex; gap: 13px; margin-top: 26px; padding: 16px 18px;
+    background: var(--warn-bg); border-radius: 4px; border-left: 3px solid var(--warn);
+  }
+  .caveat svg { flex-shrink: 0; color: var(--warn); margin-top: 2px; }
+  .caveat p { font-size: 14px; line-height: 1.6; color: var(--ink-2); }
+  .caveat strong { color: var(--ink); font-weight: 700; }
+
+  section { margin-top: 56px; }
+  .sec-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+  .sec-head h2 { font-size: 22px; font-weight: 800; }
+  .sec-head p { font-size: 14px; color: var(--ink-2); max-width: 68ch; }
+  .sec-num {
+    font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--ink-3);
+    letter-spacing: .08em;
+  }
+
+  /* verdict table */
+  .verdicts { display: flex; flex-direction: column; border-top: 1px solid var(--rule); }
+  .vrow {
+    display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.15fr) 132px;
+    gap: 18px; align-items: start;
+    padding: 15px 0; border-bottom: 1px solid var(--rule-soft);
+  }
+  .vrow .q { font-size: 14.5px; font-weight: 700; color: var(--ink); }
+  .vrow .src { font-size: 13px; color: var(--ink-2); line-height: 1.55; }
+  .vrow .src code { font-size: 12px; background: var(--code-bg); color: var(--code-ink); padding: 1px 5px; border-radius: 3px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 11px;
+    border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap;
+  }
+  .chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .chip.ok { background: var(--ok-bg); color: var(--ok); }
+  .chip.partial { background: var(--warn-bg); color: var(--warn); }
+  .chip.no { background: var(--crit-bg); color: var(--crit); }
+
+  /* table inventory */
+  .modules { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+  .mod {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 10px;
+    padding: 17px 18px; box-shadow: var(--shadow);
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .mod.legacy { background: var(--surface-2); border-style: dashed; box-shadow: none; }
+  .mod-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .mod-head h3 { font-size: 14.5px; font-weight: 800; }
+  .mod-head span { font-family: var(--mono); font-size: 11.5px; font-weight: 500; color: var(--ink-3); }
+  .mod ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+  .mod li { display: flex; flex-direction: column; gap: 2px; }
+  .mod li b { font-family: var(--mono); font-size: 12.5px; font-weight: 700; color: var(--ink); }
+  .mod li span { font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
+
+  /* traps */
+  .traps { display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--rule); }
+  .trap { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 16px; padding: 20px 0; border-bottom: 1px solid var(--rule-soft); }
+  .trap-n { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--crit); padding-top: 2px; }
+  .trap-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .trap-body h3 { font-size: 15.5px; font-weight: 700; }
+  .trap-body p { font-size: 14px; color: var(--ink-2); line-height: 1.6; max-width: 72ch; }
+  .trap-body code { font-size: 12.5px; background: var(--code-bg); color: var(--code-ink); padding: 1px 5px; border-radius: 3px; }
+  .evidence {
+    align-self: flex-start; font-family: var(--mono); font-size: 11.5px; color: var(--ink-3);
+    border: 1px solid var(--rule); border-radius: 4px; padding: 3px 8px; max-width: 100%;
+    overflow-x: auto; white-space: nowrap;
+  }
+
+  /* sql */
+  .queries { display: flex; flex-direction: column; gap: 16px; }
+  .query { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
+  .query-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    padding: 13px 16px; border-bottom: 1px solid var(--rule);
+  }
+  .query-head div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .query-head h3 { font-size: 14px; font-weight: 700; }
+  .query-head p { font-size: 12.5px; color: var(--ink-3); }
+  .copy {
+    flex-shrink: 0; height: 30px; padding: 0 12px; border: 1px solid var(--rule);
+    background: var(--surface-2); color: var(--ink-2); border-radius: 6px;
+    font-family: var(--sans); font-size: 12px; font-weight: 700; cursor: pointer;
+    transition: border-color .12s, color .12s;
+  }
+  .copy:hover { border-color: var(--accent); color: var(--accent); }
+  .copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .query pre {
+    margin: 0; padding: 15px 16px; background: var(--code-bg); color: var(--code-ink);
+    font-size: 12.5px; line-height: 1.65; overflow-x: auto;
+  }
+  .query pre .kw { color: var(--accent); font-weight: 500; }
+  .query pre .cm { color: var(--ink-3); font-style: italic; }
+
+  footer { margin-top: 56px; padding-top: 22px; border-top: 1px solid var(--rule); }
+  footer p { font-size: 13px; color: var(--ink-3); max-width: 70ch; }
+
+  @media (max-width: 720px) {
+    .vrow { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+    .vrow .chip { margin-top: 2px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="page">
+    <p class="eyebrow">Central de Acolhimento · auditoria do modelo</p>
+    <h1>Inventário de dados do painel</h1>
+    <p class="lede">O que o banco guarda hoje, o que o painel da coordenação consegue medir a partir disso, e onde a medição sai errada. Levantado do schema e do código — não de suposição.</p>
+    <div class="meta">
+      <div><dt>Tabelas</dt><dd>30 (26 em uso · 4 legadas)</dd></div>
+      <div><dt>Migrações</dt><dd>19</dd></div>
+      <div><dt>Enums</dt><dd>20</dd></div>
+      <div><dt>Fonte</dt><dd>supabase/migrations + src/server</dd></div>
+    </div>
+  </header>
+
+  <div class="caveat">
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8h.01"/><path d="M11 12h1v5h1"/><circle cx="12" cy="12" r="9"/></svg>
+    <p><strong>Nenhum número desta página veio do banco.</strong> Esta sessão não tem credencial de acesso, então o que está aqui é a estrutura: quais colunas existem, o que cada KPI lê e o que é impossível responder com o modelo atual. Os números de verdade — quantos contatos têm origem, qual o preenchimento de cada campo, quanto tempo até o primeiro contato — saem das consultas da seção 4, prontas para rodar.</p>
+  </div>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2>O que dá para medir hoje</h2>
+      <p>Cada pergunta que o painel deveria responder, a coluna de onde a resposta sairia, e o veredito.</p>
+    </div>
+    <div class="verdicts">
+
+      <div class="vrow">
+        <span class="q">Quantas pessoas entraram no período?</span>
+        <span class="src"><code>seeds.created_at</code> — timestamp confiável, preenchido por default em toda linha.</span>
+        <span class="chip ok">Mede</span>
+      </div>
+
+      <div class="vrow">
+        <span class="q">Em que etapa cada pessoa está?</span>
+        <span class="src"><code>seeds.status</code> (6 valores) e <code>members.status</code> (4 valores). Duas escalas paralelas para a mesma jornada — somar as duas exige uma regra de tradução que hoje só existe na UI.</span>
+        <span class="chip ok">Mede</span>
+      </div>
+
+      <div class="vrow">
+        <span class="q">Quem está sem cuidador?</span>
+        <span class="src"><code>seeds.caregiver_id</code> e <code>members.caregiver_id</code>, ambos nulos quando não há vínculo.</span>
+        <span class="chip ok">Mede</span>
+      </div>
+
+      <div class="vrow">
+        <span class="q">Quanto tempo até o primeiro contato?</span>
+        <span class="src"><code>first_contact_at − created_at</code>. Só para quem tem o campo preenchido; a cobertura é desconhecida até rodar a consulta 3.</span>
+        <span class="chip ok">Mede</span>
+      </div>
+
+      <div class="vrow">
+        <span class="q">Quantas pessoas reuniram, com que frequência?</span>
+        <span class="src"><code>church_attendance_records.status</code> sobre ocorrências com <code>attendance_closed_at</code> preenchido. É a parte mais bem modelada do sistema: base elegível explícita e falta justificada separada da falta.</span>
+        <span class="chip ok">Mede</span>
+      </div>
+
+      <div class="vrow">
+        <span class="q">Qual a carga de cada cuidador?</span>
+        <span class="src">Contagem de <code>members</code> e <code>seeds</code> por <code>caregiver_id</code>, mais o último <code>followups.occurred_at</code>.</span>
+        <span class="chip ok">Mede</span>
+      </div>
+
+      <div class="vrow">
+        <span class="q">Onde a pessoa está?</span>
+        <span class="src"><code>city</code>, <code>state</code>, <code>latitude</code>, <code>longitude</code> — todos opcionais na prática. O texto é <code>NOT NULL DEFAULT ''</code>, as coordenadas são nulas quando ninguém usou o seletor de mapa.</span>
+        <span class="chip partial">Parcial</span>
+      </div>
+
+      <div class="vrow">
+        <span class="q">De onde a pessoa veio?</span>
+        <span class="src"><code>seeds.outing_event_id</code> é confiável e responde por saídas. <code>seeds.source</code> é texto livre sem taxonomia: agrupar por ele devolve a lista do que cada pessoa digitou.</span>
+        <span class="chip partial">Parcial</span>
+      </div>
+
+      <div class="vrow">
+        <span class="q">Quem mudou o status, e quando?</span>
+        <span class="src"><code>seed_status_history</code> com <code>changed_by_tenant_user_id</code> — mas só desde a migração de 30/08/2026, e só para mudanças de status.</span>
+        <span class="chip partial">Parcial</span>
+      </div>
+
+      <div class="vrow">
+        <span class="q">Quem cadastrou a pessoa?</span>
+        <span class="src">Nenhuma coluna guarda isso. <code>created_by_tenant_user_id</code> existe em 7 tabelas — saídas, tipos de saída, tipos de reunião, vínculos de igreja, sessões de TCI, convites e canais de cadastro — e não existe em <code>seeds</code>, <code>members</code> nem <code>followups</code>.</span>
+        <span class="chip no">Não mede</span>
+      </div>
+
+      <div class="vrow">
+        <span class="q">Por qual canal público a pessoa chegou?</span>
+        <span class="src"><code>caregiver_signup_channels</code> tem token, limite de uso e aprovação — mas só cadastra cuidador. Não existe canal equivalente para pessoas.</span>
+        <span class="chip no">Não mede</span>
+      </div>
+
+      <div class="vrow">
+        <span class="q">Quantas ações estão de fato em aberto?</span>
+        <span class="src"><code>followups.next_action_at</code> nunca recebe baixa — não há coluna de conclusão. Uma ação cumprida continua vencida para sempre.</span>
+        <span class="chip no">Não mede</span>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2>As 30 tabelas</h2>
+      <p>Agrupadas pelo módulo que as escreve. As quatro legadas vieram da primeira migração e nenhuma linha de <code>src/</code> as consulta.</p>
+    </div>
+    <div class="modules">
+
+      <div class="mod">
+        <div class="mod-head"><h3>Pessoas</h3><span>4 tabelas</span></div>
+        <ul>
+          <li><b>seeds</b><span>O contato desde a captação. 25 colunas, 9 originais e 16 acrescentadas depois; <code>source</code>, <code>city</code>, <code>state</code> e <code>phone</code> são <code>DEFAULT ''</code>.</span></li>
+          <li><b>members</b><span>A pessoa acompanhada. Liga ao contato por <code>seed_id</code>, que é nullable.</span></li>
+          <li><b>followups</b><span>Cada ação pastoral: tipo, <code>occurred_at</code>, <code>next_action_at</code>. Sem coluna de conclusão.</span></li>
+          <li><b>seed_status_history</b><span>Trilha de mudança de status com autor. Criada em 30/08/2026.</span></li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><h3>Igreja</h3><span>4 tabelas</span></div>
+        <ul>
+          <li><b>church_memberships</b><span>Vínculo ativo/inativo por membro, um por pessoa.</span></li>
+          <li><b>church_meeting_types</b><span>Tipo de reunião com recorrência semanal opcional.</span></li>
+          <li><b>church_meeting_occurrences</b><span>A chamada de um dia. <code>attendance_closed_at</code> é o que torna a frequência confiável.</span></li>
+          <li><b>church_attendance_records</b><span>Presente, ausente, justificada ou não marcada — com autor e horário da marcação.</span></li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><h3>Saídas</h3><span>7 tabelas</span></div>
+        <ul>
+          <li><b>outing_events</b><span>A saída em si, com <code>completed_at</code> e autor. É a única origem de pessoa modelada de verdade.</span></li>
+          <li><b>outing_types</b><span>Tipos configuráveis por localidade.</span></li>
+          <li><b>outing_participants</b><span>Quem foi: cuidador, membro ou convidado, com carro e vagas.</span></li>
+          <li><b>outing_groups · outing_group_assignments</b><span>Montagem dos grupos, com <code>assigned_by</code> system ou manual.</span></li>
+          <li><b>outing_constraint_groups · …_members</b><span>Restrições de quem precisa ficar junto.</span></li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><h3>Identidade e acesso</h3><span>5 tabelas</span></div>
+        <ul>
+          <li><b>tenants</b><span>A localidade: nome, cidade, estado. É o eixo de recorte geográfico inteiro.</span></li>
+          <li><b>tenant_users · app_users</b><span>Quem opera o sistema, com papel coordenador ou cuidador.</span></li>
+          <li><b>caregivers</b><span>O cuidador como recurso de cuidado, com flag de ativo.</span></li>
+          <li><b>password_reset_tokens</b><span>Recuperação de senha.</span></li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><h3>Entrada de cuidadores</h3><span>3 tabelas</span></div>
+        <ul>
+          <li><b>caregiver_invitations</b><span>Convite nominal com status e expiração.</span></li>
+          <li><b>caregiver_signup_channels</b><span>Link público com token, limite de uso, domínio permitido e aprovação.</span></li>
+          <li><b>caregiver_signup_channel_uses</b><span>Cada uso do link, com status submetido/aprovado/rejeitado.</span></li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-head"><h3>TCI</h3><span>3 tabelas</span></div>
+        <ul>
+          <li><b>tci_chambers</b><span>As câmaras.</span></li>
+          <li><b>tci_sessions</b><span>Sessões com status de rascunho a concluída.</span></li>
+          <li><b>tci_session_caregivers</b><span>Cuidadores alocados por sessão.</span></li>
+        </ul>
+      </div>
+
+      <div class="mod legacy">
+        <div class="mod-head"><h3>Legado, sem uso</h3><span>4 tabelas</span></div>
+        <ul>
+          <li><b>membros · contatos_tci</b><span>Modelo anterior de pessoa, substituído por <code>seeds</code> e <code>members</code>.</span></li>
+          <li><b>interacoes_cuidado</b><span>Antecessora de <code>followups</code>.</span></li>
+          <li><b>profiles</b><span>Perfil anterior ao par <code>app_users</code>/<code>tenant_users</code>.</span></li>
+          <li><span>Junto vêm 3 enums órfãos: <code>perfil_servico</code>, <code>status_vida</code>, <code>tipo_interacao</code>.</span></li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2>Onde a medição sai errada hoje</h2>
+      <p>Seis pontos em que o painel mostra um número que não significa o que o rótulo promete.</p>
+    </div>
+    <div class="traps">
+
+      <div class="trap">
+        <span class="trap-n">01</span>
+        <div class="trap-body">
+          <h3>"Contatos Vencidos" conta linhas, não pessoas — e só cresce</h3>
+          <p>O KPI conta todo <code>followup</code> cujo <code>next_action_at</code> já passou. Como nada marca uma próxima ação como cumprida, a ação de março continua vencida em setembro, e quem foi acompanhado dez vezes entra dez vezes na conta. O número não mede pendência: mede idade do histórico.</p>
+          <span class="evidence">coord/page.tsx:737 · followups.filter(f =&gt; f.nextActionAt &amp;&amp; new Date(f.nextActionAt) &lt; new Date())</span>
+        </div>
+      </div>
+
+      <div class="trap">
+        <span class="trap-n">02</span>
+        <div class="trap-body">
+          <h3>Os KPIs de fila ignoram o período selecionado</h3>
+          <p>Triagem, esperando visita, sem cuidador e urgentes são contados sobre a lista inteira carregada em memória, sem recorte de data. A aba tem seletor de período do lado, e ele não afeta nenhum deles — dois números na mesma tela respondem a recortes de tempo diferentes sem avisar.</p>
+          <span class="evidence">dashboard-status-utils.ts:5 · countOperationalAlerts(members, seeds)</span>
+        </div>
+      </div>
+
+      <div class="trap">
+        <span class="trap-n">03</span>
+        <div class="trap-body">
+          <h3>Dois fusos horários na mesma página</h3>
+          <p>O bloco de Pessoas fixa <code>America/Sao_Paulo</code> e calcula os limites do período em UTC-3 explícito. O resto do painel — gráfico de 7 dias, contatos da semana, ações vencidas — usa <code>new Date()</code> no fuso do servidor. Perto da virada do dia, as duas metades da tela discordam sobre que dia é hoje.</p>
+          <span class="evidence">people-dashboard.ts:19 · PEOPLE_DASHBOARD_TIMEZONE = "America/Sao_Paulo"</span>
+        </div>
+      </div>
+
+      <div class="trap">
+        <span class="trap-n">04</span>
+        <div class="trap-body">
+          <h3>"Vazio" e "não informado" são a mesma coisa</h3>
+          <p><code>source</code>, <code>city</code>, <code>state</code>, <code>phone</code>, <code>address</code> e <code>notes</code> são <code>NOT NULL DEFAULT ''</code>. String vazia é um valor legítimo, então o banco não distingue o campo que ninguém preencheu do campo que alguém decidiu deixar em branco. Nenhuma métrica de completude é confiável sem tratar <code>''</code> como ausência — é o que a consulta 3 faz.</p>
+          <span class="evidence">create_mvp_monolith_schema.sql:76 · source TEXT NOT NULL DEFAULT ''</span>
+        </div>
+      </div>
+
+      <div class="trap">
+        <span class="trap-n">05</span>
+        <div class="trap-body">
+          <h3>A origem some quando o contato vira membro</h3>
+          <p><code>members</code> não tem coluna de origem. A única ponte é <code>members.seed_id</code>, que é nullable: membro cadastrado direto, sem passar por contato, não tem de onde veio e nunca terá. Qualquer análise de origem sobre a base consolidada precisa desse join e vai perder essas pessoas.</p>
+          <span class="evidence">members.seed_id UUID REFERENCES seeds(id) ON DELETE SET NULL</span>
+        </div>
+      </div>
+
+      <div class="trap">
+        <span class="trap-n">06</span>
+        <div class="trap-body">
+          <h3>A criação não é auditada, nem retroativamente</h3>
+          <p><code>seed_status_history</code> só recebe linha quando o status muda — a inserção do contato não gera evento. Não existe nenhuma linha com <code>previous_status is null</code>, então não dá para reconstruir quem cadastrou nem olhando para trás. A consulta 4 confirma isso em um número.</p>
+          <span class="evidence">mvp-repository.ts:1034 · if (currentSeed.status !== nextStatus) { insert into seed_status_history … }</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2>Kit de medição</h2>
+      <p>Oito consultas prontas para rodar contra a base e transformar esta estrutura em números. Todas varrem todos os tenants — acrescente <code>where tenant_id = '…'</code> para recortar por localidade.</p>
+    </div>
+    <div class="queries">
+
+      <div class="query">
+        <div class="query-head">
+          <div><h3>1 · Cobertura de origem</h3><p>Quantos contatos têm alguma origem registrada, e quantos não têm nenhuma.</p></div>
+          <button class="copy" type="button" id="copy-1">Copiar</button>
+        </div>
+        <pre><span class="kw">select</span>
+  count(*)                                            <span class="kw">as</span> contatos,
+  count(*) <span class="kw">filter</span> (<span class="kw">where</span> btrim(source) &lt;&gt; <span class="cm">''</span>)         <span class="kw">as</span> com_source_livre,
+  count(*) <span class="kw">filter</span> (<span class="kw">where</span> outing_event_id <span class="kw">is not null</span>) <span class="kw">as</span> de_saida,
+  count(*) <span class="kw">filter</span> (<span class="kw">where</span> btrim(source) = <span class="cm">''</span>
+                    <span class="kw">and</span> outing_event_id <span class="kw">is null</span>)     <span class="kw">as</span> sem_origem,
+  round(100.0 * count(*) <span class="kw">filter</span> (<span class="kw">where</span> btrim(source) = <span class="cm">''</span>
+                    <span class="kw">and</span> outing_event_id <span class="kw">is null</span>)
+        / nullif(count(*), 0), 1)                     <span class="kw">as</span> pct_sem_origem
+<span class="kw">from</span> seeds;</pre>
+      </div>
+
+      <div class="query">
+        <div class="query-head">
+          <div><h3>2 · A taxonomia que já existe de fato</h3><p>O que as pessoas digitaram em <code>source</code> — a lista real, antes de fechar qualquer enum.</p></div>
+          <button class="copy" type="button" id="copy-2">Copiar</button>
+        </div>
+        <pre><span class="kw">select</span>
+  coalesce(nullif(btrim(source), <span class="cm">''</span>), <span class="cm">'(vazio)'</span>) <span class="kw">as</span> origem,
+  count(*)                                       <span class="kw">as</span> pessoas
+<span class="kw">from</span> seeds
+<span class="kw">group by</span> 1
+<span class="kw">order by</span> pessoas <span class="kw">desc</span>, origem;</pre>
+      </div>
+
+      <div class="query">
+        <div class="query-head">
+          <div><h3>3 · Preenchimento dos campos que o painel exibe</h3><p>Tratando string vazia como ausência — é isso que a armadilha 04 exige.</p></div>
+          <button class="copy" type="button" id="copy-3">Copiar</button>
+        </div>
+        <pre><span class="kw">select</span>
+  count(*)                                                  <span class="kw">as</span> contatos,
+  count(*) <span class="kw">filter</span> (<span class="kw">where</span> btrim(phone) &lt;&gt; <span class="cm">''</span>)          <span class="kw">as</span> com_telefone,
+  count(*) <span class="kw">filter</span> (<span class="kw">where</span> btrim(city)  &lt;&gt; <span class="cm">''</span>)          <span class="kw">as</span> com_cidade,
+  count(*) <span class="kw">filter</span> (<span class="kw">where</span> btrim(state) &lt;&gt; <span class="cm">''</span>)          <span class="kw">as</span> com_estado,
+  count(*) <span class="kw">filter</span> (<span class="kw">where</span> latitude <span class="kw">is not null</span>)         <span class="kw">as</span> com_coordenada,
+  count(*) <span class="kw">filter</span> (<span class="kw">where</span> age <span class="kw">is not null</span>)              <span class="kw">as</span> com_idade,
+  count(*) <span class="kw">filter</span> (<span class="kw">where</span> caregiver_id <span class="kw">is not null</span>)     <span class="kw">as</span> com_cuidador,
+  count(*) <span class="kw">filter</span> (<span class="kw">where</span> first_contact_at <span class="kw">is not null</span>) <span class="kw">as</span> com_1o_contato
+<span class="kw">from</span> seeds;</pre>
+      </div>
+
+      <div class="query">
+        <div class="query-head">
+          <div><h3>4 · A prova do buraco de autoria</h3><p><code>eventos_de_criacao</code> deve voltar zero. É a confirmação de que quem cadastrou não é recuperável.</p></div>
+          <button class="copy" type="button" id="copy-4">Copiar</button>
+        </div>
+        <pre><span class="kw">select</span>
+  (<span class="kw">select</span> count(*) <span class="kw">from</span> seeds)                     <span class="kw">as</span> contatos,
+  (<span class="kw">select</span> count(*) <span class="kw">from</span> seed_status_history)       <span class="kw">as</span> eventos_de_status,
+  (<span class="kw">select</span> count(*) <span class="kw">from</span> seed_status_history
+     <span class="kw">where</span> previous_status <span class="kw">is null</span>)                <span class="kw">as</span> eventos_de_criacao,
+  (<span class="kw">select</span> count(*) <span class="kw">from</span> seed_status_history
+     <span class="kw">where</span> changed_by_tenant_user_id <span class="kw">is null</span>)      <span class="kw">as</span> eventos_sem_autor;</pre>
+      </div>
+
+      <div class="query">
+        <div class="query-head">
+          <div><h3>5 · Funil real por status</h3><p>A distribuição da base, sem depender da tradução que a UI faz entre as duas escalas.</p></div>
+          <button class="copy" type="button" id="copy-5">Copiar</button>
+        </div>
+        <pre><span class="kw">select</span> <span class="cm">'contato'</span> <span class="kw">as</span> tipo, status::text, count(*) <span class="kw">as</span> pessoas
+<span class="kw">from</span> seeds <span class="kw">group by</span> 1, 2
+<span class="kw">union all</span>
+<span class="kw">select</span> <span class="cm">'membro'</span>, status::text, count(*)
+<span class="kw">from</span> members <span class="kw">group by</span> 1, 2
+<span class="kw">order by</span> tipo, pessoas <span class="kw">desc</span>;</pre>
+      </div>
+
+      <div class="query">
+        <div class="query-head">
+          <div><h3>6 · Tempo até o primeiro contato</h3><p>Média e mediana em dias, sobre quem tem <code>first_contact_at</code>.</p></div>
+          <button class="copy" type="button" id="copy-6">Copiar</button>
+        </div>
+        <pre><span class="kw">select</span>
+  count(*)                                                    <span class="kw">as</span> abordados,
+  round(avg(extract(epoch <span class="kw">from</span> (first_contact_at - created_at))
+            / 86400)::numeric, 1)                             <span class="kw">as</span> media_dias,
+  round((percentile_cont(0.5) <span class="kw">within group</span> (
+     <span class="kw">order by</span> extract(epoch <span class="kw">from</span> (first_contact_at - created_at))
+              / 86400))::numeric, 1)                          <span class="kw">as</span> mediana_dias
+<span class="kw">from</span> seeds
+<span class="kw">where</span> first_contact_at <span class="kw">is not null</span>
+  <span class="kw">and</span> first_contact_at &gt;= created_at;</pre>
+      </div>
+
+      <div class="query">
+        <div class="query-head">
+          <div><h3>7 · Frequência da igreja sobre base fechada</h3><p>Só chamadas com <code>attendance_closed_at</code> entram — é a mesma regra que o painel aplica.</p></div>
+          <button class="copy" type="button" id="copy-7">Copiar</button>
+        </div>
+        <pre><span class="kw">select</span>
+  count(<span class="kw">distinct</span> o.id) <span class="kw">filter</span> (
+    <span class="kw">where</span> o.attendance_closed_at <span class="kw">is not null</span>)        <span class="kw">as</span> chamadas_fechadas,
+  count(<span class="kw">distinct</span> o.id) <span class="kw">filter</span> (
+    <span class="kw">where</span> o.attendance_closed_at <span class="kw">is null</span>
+      <span class="kw">and</span> o.status &lt;&gt; <span class="cm">'cancelled'</span>)                  <span class="kw">as</span> chamadas_pendentes,
+  count(a.id) <span class="kw">filter</span> (<span class="kw">where</span> a.status = <span class="cm">'present'</span>)   <span class="kw">as</span> presencas,
+  count(a.id) <span class="kw">filter</span> (<span class="kw">where</span> a.status = <span class="cm">'absent'</span>)    <span class="kw">as</span> faltas,
+  count(a.id) <span class="kw">filter</span> (<span class="kw">where</span> a.status = <span class="cm">'justified'</span>) <span class="kw">as</span> justificadas,
+  count(a.id) <span class="kw">filter</span> (<span class="kw">where</span> a.status = <span class="cm">'unmarked'</span>)  <span class="kw">as</span> nao_marcadas
+<span class="kw">from</span> church_meeting_occurrences o
+<span class="kw">left join</span> church_attendance_records a
+       <span class="kw">on</span> a.occurrence_id = o.id
+      <span class="kw">and</span> o.attendance_closed_at <span class="kw">is not null</span>
+<span class="kw">where</span> o.occurs_on &gt;= current_date - <span class="kw">interval</span> <span class="cm">'90 days'</span>;</pre>
+      </div>
+
+      <div class="query">
+        <div class="query-head">
+          <div><h3>8 · Ações vencidas: linhas contra pessoas</h3><p>A diferença entre as duas colunas é exatamente o tamanho da armadilha 01.</p></div>
+          <button class="copy" type="button" id="copy-8">Copiar</button>
+        </div>
+        <pre><span class="kw">select</span>
+  count(*)                    <span class="kw">as</span> linhas_vencidas,
+  count(<span class="kw">distinct</span> member_id) <span class="kw">as</span> pessoas_envolvidas,
+  min(next_action_at)::date   <span class="kw">as</span> mais_antiga
+<span class="kw">from</span> followups
+<span class="kw">where</span> next_action_at <span class="kw">is not null</span>
+  <span class="kw">and</span> next_action_at &lt; now();</pre>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <p>Levantado de <span class="mono">supabase/migrations/</span> (19 arquivos, de 18/02/2026 a 30/08/2026), <span class="mono">src/server/domain/</span>, <span class="mono">src/server/repositories/</span> e <span class="mono">src/app/(app)/coord/page.tsx</span>. As referências de linha apontam para o estado do branch no momento do levantamento.</p>
+  </footer>
+
+</div>
+
+<script>
+  document.querySelectorAll(".copy").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var pre = btn.closest(".query").querySelector("pre");
+      var text = pre.innerText;
+      var done = function (label) {
+        btn.textContent = label;
+        setTimeout(function () { btn.textContent = "Copiar"; }, 1800);
+      };
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () { done("Copiado"); }, function () { select(pre); done("Selecionado"); });
+          return;
+        }
+      } catch (e) { /* cai no fallback */ }
+      select(pre);
+      done("Selecionado");
+    });
+  });
+
+  function select(pre) {
+    try {
+      var range = document.createRange();
+      range.selectNodeContents(pre);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch (e) { /* sem seleção disponível */ }
+  }
+</script>
