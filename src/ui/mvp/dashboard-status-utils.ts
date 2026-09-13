@@ -1,6 +1,35 @@
-import type { Member, Seed, SpiritualTemperature } from "@/server/domain/mvp";
+import type { Followup, Member, Seed, SpiritualTemperature } from "@/server/domain/mvp";
 
 export type JourneyStatusKey = "novo" | "acompanhamento" | "concluido" | "inativo";
+
+/**
+ * Conta PESSOAS (member_id) cuja proxima acao mais recente esta vencida.
+ * Para cada pessoa vale apenas o followup de maior occurredAt: se ele tem
+ * nextActionAt no passado, a pessoa conta uma vez; se o followup mais novo nao
+ * tem nextActionAt, a pendencia anterior esta encerrada.
+ */
+export function countPeopleWithOverdueNextAction(followups: Followup[], now: Date = new Date()) {
+  const latestByMember = new Map<string, Followup>();
+
+  for (const followup of followups) {
+    if (!followup.memberId) continue;
+    const current = latestByMember.get(followup.memberId);
+    if (!current || (followup.occurredAt ?? "") > (current.occurredAt ?? "")) {
+      latestByMember.set(followup.memberId, followup);
+    }
+  }
+
+  const reference = now.getTime();
+  let overdue = 0;
+  for (const followup of latestByMember.values()) {
+    if (!followup.nextActionAt) continue;
+    const nextAction = new Date(followup.nextActionAt).getTime();
+    if (Number.isNaN(nextAction)) continue;
+    if (nextAction < reference) overdue += 1;
+  }
+
+  return overdue;
+}
 
 export function countOperationalAlerts(members: Member[], seeds: Seed[]) {
   return {

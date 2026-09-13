@@ -18,6 +18,14 @@ import {
   listChurchOccurrences,
 } from "@/server/repositories/church-repository";
 import { getPeopleDashboardSnapshot } from "@/server/domain/people-dashboard";
+import {
+  addDays,
+  buildRecentDayRange,
+  dateOnlyInDashboardTimezone,
+  parseDateOnly,
+  toDateOnly,
+  todayDateOnly,
+} from "@/server/domain/dashboard-date";
 import type {
   ChurchAttendanceRecord,
   ChurchMeetingOccurrence,
@@ -34,6 +42,7 @@ import { WeeklySchedulePanel } from "@/ui/mvp/weekly-schedule-panel";
 import {
   buildMemberJourneyDistribution,
   countOperationalAlerts,
+  countPeopleWithOverdueNextAction,
   mapMemberStatusToVisualStatus,
 } from "@/ui/mvp/dashboard-status-utils";
 import {
@@ -113,9 +122,11 @@ interface KpiCardProps {
   sub?: string;
   accent: string;
   bg: string;
+  /** Marca o cartao como retrato do momento (fila em aberto), nao do periodo filtrado. */
+  snapshot?: boolean;
 }
 
-function KpiCard({ icon, label, value, sub, accent, bg }: KpiCardProps) {
+function KpiCard({ icon, label, value, sub, accent, bg, snapshot }: KpiCardProps) {
   return (
     <Card padding={16} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -149,6 +160,9 @@ function KpiCard({ icon, label, value, sub, accent, bg }: KpiCardProps) {
         {value}
       </div>
       {sub ? <span style={{ fontSize: 11.5, color: "var(--text-3)" }}>{sub}</span> : null}
+      {snapshot ? (
+        <span style={{ fontSize: 11, color: "var(--text-3)", opacity: 0.85 }}>Retrato de agora · nao segue o periodo</span>
+      ) : null}
     </Card>
   );
 }
@@ -356,25 +370,6 @@ function CapacityRow({ caregiver }: { caregiver: CaregiverPerformance }) {
 
 function firstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
-}
-
-function todayDateOnly() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function parseDateOnly(value: string) {
-  const parsed = new Date(`${value}T00:00:00`);
-  return Number.isNaN(parsed.getTime()) ? new Date(`${todayDateOnly()}T00:00:00`) : parsed;
-}
-
-function toDateOnly(value: Date) {
-  return value.toISOString().slice(0, 10);
-}
-
-function addDays(value: string, amount: number) {
-  const date = parseDateOnly(value);
-  date.setDate(date.getDate() + amount);
-  return toDateOnly(date);
 }
 
 function formatDateLabel(value: string) {
@@ -734,7 +729,7 @@ async function buildChurchProfileDashboard(input: {
     followups: input.followups,
     meetingTypeId: input.meetingTypeId,
   });
-  const overdueContacts = input.followups.filter((followup) => followup.nextActionAt && new Date(followup.nextActionAt) < new Date()).length;
+  const overdueContacts = countPeopleWithOverdueNextAction(input.followups);
   const inCareCases = input.members.filter((member) => member.status === "in_progress").length;
 
   return {
@@ -884,23 +879,17 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
     (member) => member.status === "consolidated" || member.status === "inactive"
   ).length;
 
+  const recentDays = buildRecentDayRange(7);
+
   const newContactsThisWeek = seeds.filter((seed) => {
-    if (!seed.createdAt) return false;
-    const createdAt = new Date(seed.createdAt);
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    return createdAt >= oneWeekAgo;
+    const createdOn = dateOnlyInDashboardTimezone(seed.createdAt);
+    return !!createdOn && createdOn >= recentDays[0];
   }).length;
 
   const weekdayLabels = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
-  const visitsData = Array.from({ length: 7 }).map((_, index) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (6 - index));
-    const label = weekdayLabels[date.getDay()];
-    const count = followups.filter((followup) => {
-      const followupDate = new Date(followup.occurredAt);
-      return followupDate.toDateString() === date.toDateString();
-    }).length;
+  const visitsData = recentDays.map((day) => {
+    const label = weekdayLabels[parseDateOnly(day).getUTCDay()];
+    const count = followups.filter((followup) => dateOnlyInDashboardTimezone(followup.occurredAt) === day).length;
     return { dia: label, n: count };
   });
 
@@ -1339,7 +1328,7 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
                 <KpiCard icon={<IconChart />} label="Frequencia media" value={churchProfile.attendanceBase.eligible > 0 ? `${churchProfile.averageFrequency.value}%` : "-"} sub={churchProfile.attendanceBase.eligible > 0 ? `${churchProfile.attendanceBase.present} de ${churchProfile.attendanceBase.eligible}` : "Sem chamada fechada"} accent="#7C3AED" bg="rgba(124,58,237,0.12)" />
                 <KpiCard icon={<IconBell />} label="Para revisao" value={churchProfile.attention.length} sub="Sinais de frequencia/cuidado" accent="#EA580C" bg="#FFEDD5" />
                 <KpiCard icon={<IconHeart />} label="Casos em andamento" value={churchProfile.inCareCases} sub="Em acompanhamento" accent="#2563EB" bg="#DBEAFE" />
-                <KpiCard icon={<IconCalendar />} label="Contatos vencidos" value={churchProfile.overdueContacts} sub="Proximas acoes vencidas" accent="#E11D48" bg="#FFE4E6" />
+                <KpiCard icon={<IconCalendar />} label="Pessoas com acao vencida" value={churchProfile.overdueContacts} sub="1 por pessoa, pela proxima acao mais recente" snapshot accent="#E11D48" bg="#FFE4E6" />
                 <KpiCard icon={<IconHourglass />} label="Chamadas pendentes" value={churchProfile.pendingOccurrences.length} sub="Sem fechamento" accent="#E11D48" bg="#FFE4E6" />
               </div>
             </Card>
@@ -1395,7 +1384,7 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
               <KpiCard icon={<IconUsers />} label="Total Acolhidos" value={total} sub={`+${newContactsThisWeek} esta semana`} accent="#2D7FF9" bg="#E8F1FE" />
               <KpiCard icon={<IconHeart />} label="Sendo Cuidados" value={activeMembers} sub={`${total > 0 ? Math.round((activeMembers / total) * 100) : 0}% da base`} accent="#16A34A" bg="#DCFCE7" />
               <KpiCard icon={<IconCheck />} label="Concluidos" value={completedMembers} sub="Ciclos consolidados" accent="#7C3AED" bg="rgba(124,58,237,0.12)" />
-              <KpiCard icon={<IconDoc />} label="Novos Contatos" value={operationalAlerts.totalOpenContacts} sub="Em fase de triagem" accent="#EA580C" bg="#FFEDD5" />
+              <KpiCard icon={<IconDoc />} label="Novos Contatos" value={operationalAlerts.totalOpenContacts} sub="Em fase de triagem" snapshot accent="#EA580C" bg="#FFEDD5" />
             </section>
             <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
               <Card padding={20}>
@@ -1442,17 +1431,17 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
         {activeTab === "cuidados" && (
           <>
             <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
-              <KpiCard icon={<IconDoc />} label="Contatos na Triagem" value={operationalAlerts.totalOpenContacts} sub="Novos, contatados ou em espera" accent="#7C3AED" bg="rgba(124,58,237,0.12)" />
-              <KpiCard icon={<IconHome />} label="Esperando Visita" value={operationalAlerts.waitingVisits} sub="Casas abertas aguardando visita" accent="#0891B2" bg="#ECFEFF" />
-              <KpiCard icon={<IconHourglass />} label="Membros Sem Cuidador" value={operationalAlerts.membersWithoutCaregiver} sub="Precisam de designacao" accent="#EA580C" bg="#FFEDD5" />
-              <KpiCard icon={<IconUsers />} label="Contatos Sem Cuidador" value={operationalAlerts.contactsWithoutCaregiver} sub="Fila operacional" accent="#2D7FF9" bg="#E8F1FE" />
-              <KpiCard icon={<IconBell />} label="Casos Urgentes" value={operationalAlerts.urgentMembers} sub="Prioridade de resposta" accent="#E11D48" bg="#FFE4E6" />
-              <KpiCard icon={<IconCalendar />} label="Contatos Vencidos" value={churchProfile.overdueContacts} sub="Proximas acoes vencidas" accent="#E11D48" bg="#FFE4E6" />
+              <KpiCard icon={<IconDoc />} label="Contatos na Triagem" value={operationalAlerts.totalOpenContacts} sub="Novos, contatados ou em espera" snapshot accent="#7C3AED" bg="rgba(124,58,237,0.12)" />
+              <KpiCard icon={<IconHome />} label="Esperando Visita" value={operationalAlerts.waitingVisits} sub="Casas abertas aguardando visita" snapshot accent="#0891B2" bg="#ECFEFF" />
+              <KpiCard icon={<IconHourglass />} label="Membros Sem Cuidador" value={operationalAlerts.membersWithoutCaregiver} sub="Precisam de designacao" snapshot accent="#EA580C" bg="#FFEDD5" />
+              <KpiCard icon={<IconUsers />} label="Contatos Sem Cuidador" value={operationalAlerts.contactsWithoutCaregiver} sub="Fila operacional" snapshot accent="#2D7FF9" bg="#E8F1FE" />
+              <KpiCard icon={<IconBell />} label="Casos Urgentes" value={operationalAlerts.urgentMembers} sub="Prioridade de resposta" snapshot accent="#E11D48" bg="#FFE4E6" />
+              <KpiCard icon={<IconCalendar />} label="Pessoas com acao vencida" value={churchProfile.overdueContacts} sub="1 por pessoa, pela proxima acao mais recente" snapshot accent="#E11D48" bg="#FFE4E6" />
             </section>
             <DashboardMap items={mapItems} />
             <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
               <KpiCard icon={<IconHeart />} label="Sendo Cuidados" value={activeMembers} sub={`${total > 0 ? Math.round((activeMembers / total) * 100) : 0}% da base`} accent="#16A34A" bg="#DCFCE7" />
-              <KpiCard icon={<IconHourglass />} label="Sem Cuidador (Total)" value={operationalAlerts.unassignedPeople} sub="Aguardando vinculacao" accent="#EA580C" bg="#FFEDD5" />
+              <KpiCard icon={<IconHourglass />} label="Sem Cuidador (Total)" value={operationalAlerts.unassignedPeople} sub="Aguardando vinculacao" snapshot accent="#EA580C" bg="#FFEDD5" />
             </section>
           </>
         )}
@@ -1462,7 +1451,7 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
             <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
               <KpiCard icon={<IconUsers />} label="Total de Cuidadores" value={caregiversTotal} sub={`${caregiversActive} ativos`} accent="#2563EB" bg="#DBEAFE" />
               <KpiCard icon={<IconHeart />} label="Casos Ativos" value={activeMembers} sub="Membros sendo acompanhados" accent="#16A34A" bg="#DCFCE7" />
-              <KpiCard icon={<IconHourglass />} label="Sem Cuidador" value={operationalAlerts.unassignedPeople} sub="Aguardando vinculacao" accent="#EA580C" bg="#FFEDD5" />
+              <KpiCard icon={<IconHourglass />} label="Sem Cuidador" value={operationalAlerts.unassignedPeople} sub="Aguardando vinculacao" snapshot accent="#EA580C" bg="#FFEDD5" />
             </section>
             <Card padding={0}>
               <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
@@ -1505,7 +1494,7 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
             <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
               <KpiCard icon={<IconCalendar />} label="Total de Acoes" value={followups.length} sub="Acompanhamentos registrados" accent="#2D7FF9" bg="#E8F1FE" />
               <KpiCard icon={<IconCalendar />} label="Acoes esta semana" value={visitsData.reduce((sum, d) => sum + d.n, 0)} sub="Ultimos 7 dias" accent="#16A34A" bg="#DCFCE7" />
-              <KpiCard icon={<IconBell />} label="Acoes Vencidas" value={churchProfile.overdueContacts} sub="Proximas acoes em atraso" accent="#E11D48" bg="#FFE4E6" />
+              <KpiCard icon={<IconBell />} label="Pessoas com acao vencida" value={churchProfile.overdueContacts} sub="1 por pessoa, pela proxima acao mais recente" snapshot accent="#E11D48" bg="#FFE4E6" />
             </section>
             <Card padding={20}>
               <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700, color: "var(--text)" }}>Grafico de atividade semanal</h3>

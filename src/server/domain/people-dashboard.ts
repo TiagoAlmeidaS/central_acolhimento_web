@@ -16,7 +16,9 @@ import type {
 import { listChurchAttendance, listChurchMeetingTypes, listChurchMemberships, listChurchOccurrences } from "@/server/repositories/church-repository";
 import { listFollowups, listMembers, listSeeds, listSeedStatusHistory, listTenants } from "@/server/repositories/mvp-repository";
 
-export const PEOPLE_DASHBOARD_TIMEZONE = "America/Sao_Paulo" as const;
+import { PEOPLE_DASHBOARD_TIMEZONE, todayDateOnly } from "./dashboard-date";
+
+export { PEOPLE_DASHBOARD_TIMEZONE };
 
 type PeopleDashboardScope = {
   tenants: Tenant[];
@@ -105,7 +107,7 @@ function buildScope(tenants: Tenant[], raw: {
   const availableStates = Array.from(new Set(tenants.map((tenant) => tenant.state).filter(Boolean))).sort();
   const period = raw.period === "day" || raw.period === "month" ? raw.period : "week";
   const view = raw.view === "church" ? "church" : "contacts";
-  const referenceDate = raw.referenceDate && isValidDateOnly(raw.referenceDate) ? raw.referenceDate : new Date().toISOString().slice(0, 10);
+  const referenceDate = raw.referenceDate && isValidDateOnly(raw.referenceDate) ? raw.referenceDate : todayDateOnly();
   const state = raw.state?.trim() || (availableStates.length === 1 ? availableStates[0] : "");
 
   if (!state) throw new Error("Selecione um estado valido.");
