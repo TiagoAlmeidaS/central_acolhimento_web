@@ -35,12 +35,18 @@ import type {
   Followup,
   Member,
   PeopleDashboardView,
+  SeedOriginChannel,
 } from "@/server/domain/mvp";
+import { summarizeAcquisition } from "@/server/domain/acquisition";
+import { SEED_ORIGIN_CHANNELS, SEED_ORIGIN_CHANNEL_LABELS, isSeedOriginChannel } from "@/lib/seed-origin";
 import { Avatar, Button, Card, StatusDot } from "@/ui/v2-components/ui";
 import { DashboardMap } from "@/ui/mvp/dashboard-map";
 import { WeeklySchedulePanel } from "@/ui/mvp/weekly-schedule-panel";
+import { KpiCard } from "@/ui/mvp/kpi-card";
+import { CoordAcquisitionSection } from "@/ui/mvp/coord-acquisition-section";
 import {
   buildMemberJourneyDistribution,
+  buildOverdueNextActionByMember,
   countOperationalAlerts,
   countPeopleWithOverdueNextAction,
   mapMemberStatusToVisualStatus,
@@ -48,6 +54,7 @@ import {
 import {
   IconBell,
   IconCalendar,
+  IconCar,
   IconCheck,
   IconChart,
   IconChurch,
@@ -59,6 +66,10 @@ import {
   IconMessage,
   IconUsers,
 } from "@/ui/v2-components/icons";
+
+// Id impossivel: usado para montar um DataScope que nao casa com nenhuma
+// localidade, ja que tenantIds vazio e interpretado como "sem filtro".
+const SCOPE_SEM_LOCALIDADE = "00000000-0000-0000-0000-000000000000";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -114,58 +125,6 @@ type ChurchProfileDashboard = {
   inCareCases: number;
   overdueContacts: number;
 };
-
-interface KpiCardProps {
-  icon: React.ReactElement;
-  label: string;
-  value: string | number;
-  sub?: string;
-  accent: string;
-  bg: string;
-  /** Marca o cartao como retrato do momento (fila em aberto), nao do periodo filtrado. */
-  snapshot?: boolean;
-}
-
-function KpiCard({ icon, label, value, sub, accent, bg, snapshot }: KpiCardProps) {
-  return (
-    <Card padding={16} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-3)", letterSpacing: "-0.01em" }}>
-          {label}
-        </span>
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 8,
-            background: bg,
-            color: accent,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {icon}
-        </div>
-      </div>
-      <div
-        style={{
-          fontSize: 26,
-          fontWeight: 800,
-          color: "var(--text)",
-          letterSpacing: "-0.025em",
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        {value}
-      </div>
-      {sub ? <span style={{ fontSize: 11.5, color: "var(--text-3)" }}>{sub}</span> : null}
-      {snapshot ? (
-        <span style={{ fontSize: 11, color: "var(--text-3)", opacity: 0.85 }}>Retrato de agora · nao segue o periodo</span>
-      ) : null}
-    </Card>
-  );
-}
 
 function VisitChart({ data }: { data: Array<{ dia: string; n: number }> }) {
   const max = Math.max(...data.map((item) => item.n), 1);
@@ -571,6 +530,9 @@ function buildAttentionList(input: {
   }
 
   const activeMemberIds = new Set(input.memberships.filter((membership) => membership.status === "active").map((membership) => membership.memberId));
+  // Mesma regra do KPI "Pessoas com acao vencida": vale so a proxima acao mais
+  // recente da pessoa, nao qualquer followup antigo com nextActionAt no passado.
+  const overdueByMember = buildOverdueNextActionByMember(input.followups);
 
   const items: Array<ChurchAttentionItem | null> = Array.from(activeMemberIds)
     .map((memberId) => {
@@ -601,10 +563,7 @@ function buildAttentionList(input: {
 
       const latestFollowup: Followup | null =
         (followupsByMember.get(memberId) ?? []).sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))[0] ?? null;
-      const overdueAction: Followup | null =
-        (followupsByMember.get(memberId) ?? [])
-          .filter((followup) => followup.nextActionAt && new Date(followup.nextActionAt) < new Date())
-          .sort((a, b) => (a.nextActionAt ?? "").localeCompare(b.nextActionAt ?? ""))[0] ?? null;
+      const overdueAction: Followup | null = overdueByMember.get(memberId) ?? null;
 
       const daysWithoutPresence = lastPresence
         ? Math.floor((parseDateOnly(todayDateOnly()).getTime() - parseDateOnly(lastPresence).getTime()) / 86_400_000)
@@ -802,23 +761,89 @@ function priorityColor(priority: ChurchAttentionItem["priority"]) {
   return "#2563EB";
 }
 
+type DashSegment = "aquisicao" | "cuidado" | "igreja" | "equipe" | "atividade";
+
+/** Cada segmento responde a UMA pergunta; nenhuma metrica aparece em dois. */
+const DASH_SEGMENTS: Array<{ key: DashSegment; label: string; question: string }> = [
+  { key: "aquisicao", label: "Aquisicao", question: "De onde as pessoas estao vindo, por qual canal e quem as cadastrou." },
+  { key: "cuidado", label: "Cuidado", question: "Quem esta sendo cuidado, em que etapa da jornada e o que esta parado." },
+  { key: "igreja", label: "Igreja", question: "Quem esta reunindo, com que frequencia e quem parou de aparecer." },
+  { key: "equipe", label: "Equipe", question: "Quem cuida de quem, com que carga e quem esta sem movimento." },
+  { key: "atividade", label: "Atividade", question: "O que foi feito no periodo: acoes, visitas, saidas e TCI." },
+];
+
+/** As abas antigas continuam valendo como atalho para o segmento equivalente. */
+const LEGACY_TAB_TO_SEGMENT: Record<string, DashSegment> = {
+  igreja: "igreja",
+  tci: "atividade",
+  cuidados: "cuidado",
+  cuidadores: "equipe",
+  acoes: "atividade",
+};
+
+function resolveSegment(value: string | undefined): DashSegment {
+  if (value && DASH_SEGMENTS.some((segment) => segment.key === value)) return value as DashSegment;
+  if (value && LEGACY_TAB_TO_SEGMENT[value]) return LEGACY_TAB_TO_SEGMENT[value];
+  return "aquisicao";
+}
+
+/** Respiro lateral unico: 16px no celular, ate 32px no desktop. */
+const PAGE_GUTTER = "clamp(16px, 4vw, 32px)";
+
+const fieldLabelStyle: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 6,
+  fontSize: 11,
+  fontWeight: 700,
+  color: "var(--text-3)",
+  minWidth: 0,
+};
+
+const fieldControlStyle: React.CSSProperties = {
+  height: 38,
+  width: "100%",
+  minWidth: 0,
+  borderRadius: 10,
+  border: "1px solid var(--border)",
+  background: "var(--surface)",
+  color: "var(--text)",
+  padding: "0 10px",
+  fontWeight: 700,
+  fontFamily: "inherit",
+  fontSize: 13,
+};
+
 export default async function CoordDashboardPage({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams;
   const session = await requireServerAuthSession("coordinator");
   const scope = getDataScopeFromSession(session);
   const accessibleTenantIds = await listAccessibleTenantIds(session);
   const accessibleScope: DataScope = { tenantIds: accessibleTenantIds };
-  const churchPeriod = (firstValue(resolvedSearchParams.churchPeriod) === "day" || firstValue(resolvedSearchParams.churchPeriod) === "month"
-    ? firstValue(resolvedSearchParams.churchPeriod)
-    : "week") as ChurchPeriod;
-  const churchDate = firstValue(resolvedSearchParams.churchDate) ?? todayDateOnly();
-  const churchMeetingTypeId = firstValue(resolvedSearchParams.churchMeetingTypeId) || undefined;
-  const peopleView = (firstValue(resolvedSearchParams.peopleView) === "church" ? "church" : "contacts") as PeopleDashboardView;
-  const rawPeoplePeriod = firstValue(resolvedSearchParams.peoplePeriod);
-  const peoplePeriod = ((rawPeoplePeriod === "day" || rawPeoplePeriod === "month" || rawPeoplePeriod === "week")
-    ? rawPeoplePeriod
-    : "week");
-  const peopleDate = firstValue(resolvedSearchParams.peopleDate) ?? todayDateOnly();
+  // --- Recorte global ------------------------------------------------------
+  // Um unico conjunto de parametros vale para a pagina inteira. Os nomes antigos
+  // (churchPeriod/peoplePeriod, churchDate/peopleDate, churchMeetingTypeId/
+  // peopleMeetingTypeId, peopleState/peopleCity/peopleTenantId) seguem sendo
+  // lidos como fallback para que URLs salvas antes da unificacao continuem
+  // funcionando.
+  const readParam = (...names: string[]) => {
+    for (const name of names) {
+      const value = firstValue(resolvedSearchParams[name]);
+      if (value) return value;
+    }
+    return undefined;
+  };
+
+  const activeSegment = resolveSegment(readParam("seg", "tab"));
+  const rawPeriod = readParam("period", "peoplePeriod", "churchPeriod");
+  const period: ChurchPeriod = rawPeriod === "day" || rawPeriod === "month" ? rawPeriod : "week";
+  const referenceDate = readParam("date", "peopleDate", "churchDate") ?? todayDateOnly();
+  const selectedMeetingTypeId = readParam("meetingTypeId", "peopleMeetingTypeId", "churchMeetingTypeId") ?? "";
+  const rawOrigin = readParam("origin");
+  const selectedOrigin: SeedOriginChannel | null = isSeedOriginChannel(rawOrigin) ? rawOrigin : null;
+  const reportFormat = readParam("format", "peopleFormat") === "pdf" ? "pdf" : "csv";
+  // A lente do bloco de pessoas deixou de ser um filtro proprio: o segmento decide.
+  const peopleView: PeopleDashboardView = activeSegment === "igreja" ? "church" : "contacts";
 
   const [members, caregivers, followups, seeds, tenants, accessibleTenants] = await Promise.all([
     listMembers(scope),
@@ -829,59 +854,90 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
     listTenants(accessibleScope),
   ]);
   const availableStates = Array.from(new Set(accessibleTenants.map((tenant) => tenant.state).filter(Boolean))).sort();
-  const selectedPeopleState = firstValue(resolvedSearchParams.peopleState) ?? availableStates[0] ?? session.membership.tenantState;
-  const stateCities = Array.from(new Set(accessibleTenants.filter((tenant) => tenant.state === selectedPeopleState).map((tenant) => tenant.city).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  const selectedPeopleCity = firstValue(resolvedSearchParams.peopleCity) || "";
-  const cityTenants = accessibleTenants.filter((tenant) => tenant.state === selectedPeopleState && (!selectedPeopleCity || tenant.city === selectedPeopleCity));
-  const selectedPeopleTenantId = firstValue(resolvedSearchParams.peopleTenantId) || "";
+  const defaultState = availableStates.includes(session.membership.tenantState)
+    ? session.membership.tenantState
+    : availableStates[0] ?? session.membership.tenantState;
+  const selectedState = readParam("state", "peopleState") ?? defaultState;
+  const stateCities = Array.from(new Set(accessibleTenants.filter((tenant) => tenant.state === selectedState).map((tenant) => tenant.city).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const selectedCity = readParam("city", "peopleCity") ?? "";
+  const cityTenants = accessibleTenants.filter((tenant) => tenant.state === selectedState && (!selectedCity || tenant.city === selectedCity));
+  const selectedTenantId = readParam("tenantId", "peopleTenantId") ?? "";
+
+  // Localidades do escopo da sessao que sobrevivem ao recorte: e por elas que o
+  // recorte passa a valer tambem fora do bloco de Pessoas.
+  const recorteTenantIds = tenants
+    .filter((tenant) => {
+      if (selectedTenantId) return tenant.id === selectedTenantId;
+      if (selectedState && tenant.state !== selectedState) return false;
+      if (selectedCity && tenant.city !== selectedCity) return false;
+      return true;
+    })
+    .map((tenant) => tenant.id);
+  const recorteTenantIdSet = new Set(recorteTenantIds);
+  const inRecorte = (tenantId: string) => recorteTenantIdSet.has(tenantId);
+  // tenantIds vazio significa "sem filtro" nos repositorios, entao um recorte que
+  // nao casa com nenhuma localidade da sessao precisa de um escopo que nao casa
+  // com nada -- caso contrario a Igreja mostraria a base inteira enquanto o
+  // restante da pagina, filtrado em memoria por inRecorte, mostra zero.
+  const recorteScope: DataScope =
+    recorteTenantIds.length > 0 ? { tenantIds: recorteTenantIds } : { tenantIds: [SCOPE_SEM_LOCALIDADE] };
+
+  const scopedMembers = members.filter((member) => inRecorte(member.tenantId));
+  const originSeeds = selectedOrigin
+    ? seeds.filter((seed) => (seed.originChannel ?? "other") === selectedOrigin)
+    : seeds;
+  const scopedSeeds = originSeeds.filter((seed) => inRecorte(seed.tenantId));
+  const scopedMemberIds = new Set(scopedMembers.map((member) => member.id));
+  const scopedFollowups = followups.filter((followup) => !followup.memberId || scopedMemberIds.has(followup.memberId));
+
   const peopleSnapshot = await getPeopleDashboardSnapshot(
     {
       view: peopleView,
-      period: peoplePeriod,
-      referenceDate: peopleDate,
-      state: selectedPeopleState,
-      city: selectedPeopleCity || null,
-      tenantId: selectedPeopleTenantId || null,
-      meetingTypeId: firstValue(resolvedSearchParams.peopleMeetingTypeId) || null,
+      period,
+      referenceDate,
+      state: selectedState,
+      city: selectedCity || null,
+      tenantId: selectedTenantId || null,
+      meetingTypeId: selectedMeetingTypeId || null,
     },
     accessibleScope,
   );
   const churchProfile = await buildChurchProfileDashboard({
-    scope,
-    period: churchPeriod,
-    referenceDate: churchDate,
-    meetingTypeId: churchMeetingTypeId,
-    members,
+    scope: recorteScope,
+    period,
+    referenceDate,
+    meetingTypeId: selectedMeetingTypeId || undefined,
+    members: scopedMembers,
     caregivers,
-    followups,
+    followups: scopedFollowups,
   });
-  const selectedChurchMeetingType = churchMeetingTypeId
-    ? churchProfile.meetingTypes.find((item) => item.id === churchMeetingTypeId)
+  const selectedChurchMeetingType = selectedMeetingTypeId
+    ? churchProfile.meetingTypes.find((item) => item.id === selectedMeetingTypeId)
     : null;
   const peopleReportParams = new URLSearchParams();
-  peopleReportParams.set("format", firstValue(resolvedSearchParams.peopleFormat) === "pdf" ? "pdf" : "csv");
-  peopleReportParams.set("period", peoplePeriod);
-  peopleReportParams.set("referenceDate", peopleDate);
-  peopleReportParams.set("state", selectedPeopleState);
-  if (selectedPeopleCity) peopleReportParams.set("city", selectedPeopleCity);
-  if (selectedPeopleTenantId) peopleReportParams.set("tenantId", selectedPeopleTenantId);
-  if (peopleView === "church" && firstValue(resolvedSearchParams.peopleMeetingTypeId)) {
-    peopleReportParams.set("meetingTypeId", firstValue(resolvedSearchParams.peopleMeetingTypeId)!);
+  peopleReportParams.set("format", reportFormat);
+  peopleReportParams.set("period", period);
+  peopleReportParams.set("referenceDate", referenceDate);
+  peopleReportParams.set("state", selectedState);
+  if (selectedCity) peopleReportParams.set("city", selectedCity);
+  if (selectedTenantId) peopleReportParams.set("tenantId", selectedTenantId);
+  if (peopleView === "church" && selectedMeetingTypeId) {
+    peopleReportParams.set("meetingTypeId", selectedMeetingTypeId);
   }
   const peopleReportHref = `/api/reports/people/${peopleView === "contacts" ? "contacts" : "church-attendance"}?${peopleReportParams.toString()}`;
 
-  const operationalAlerts = countOperationalAlerts(members, seeds);
-  const memberJourney = buildMemberJourneyDistribution(members);
+  const operationalAlerts = countOperationalAlerts(scopedMembers, scopedSeeds);
+  const memberJourney = buildMemberJourneyDistribution(scopedMembers);
 
-  const total = members.length + operationalAlerts.totalOpenContacts;
-  const activeMembers = members.filter((member) => member.status === "in_progress").length;
-  const completedMembers = members.filter(
+  const total = scopedMembers.length + operationalAlerts.totalOpenContacts;
+  const activeMembers = scopedMembers.filter((member) => member.status === "in_progress").length;
+  const completedMembers = scopedMembers.filter(
     (member) => member.status === "consolidated" || member.status === "inactive"
   ).length;
 
   const recentDays = buildRecentDayRange(7);
 
-  const newContactsThisWeek = seeds.filter((seed) => {
+  const newContactsThisWeek = scopedSeeds.filter((seed) => {
     const createdOn = dateOnlyInDashboardTimezone(seed.createdAt);
     return !!createdOn && createdOn >= recentDays[0];
   }).length;
@@ -889,17 +945,33 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
   const weekdayLabels = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
   const visitsData = recentDays.map((day) => {
     const label = weekdayLabels[parseDateOnly(day).getUTCDay()];
-    const count = followups.filter((followup) => dateOnlyInDashboardTimezone(followup.occurredAt) === day).length;
+    const count = scopedFollowups.filter((followup) => dateOnlyInDashboardTimezone(followup.occurredAt) === day).length;
     return { dia: label, n: count };
   });
 
-  const caregiversTotal = caregivers.length;
-  const caregiversActive = caregivers.filter((caregiver) => caregiver.active).length;
-  const caregiverPerformance = caregivers.map((caregiver) => {
-    const casesCount = members.filter((member) => member.caregiverId === caregiver.id).length;
-    const lastAction = followups
+  // --- Aquisicao: contatos criados dentro do recorte global.
+  const globalRange = resolvePeriodRange(period, referenceDate);
+  const acquisitionSeeds = scopedSeeds.filter((seed) => {
+    const createdOn = dateOnlyInDashboardTimezone(seed.createdAt);
+    return !!createdOn && isDateBetween(createdOn, globalRange.start, globalRange.end);
+  });
+  const acquisition = summarizeAcquisition(acquisitionSeeds);
+  // Quem cadastrou so tem nome quando o usuario da localidade tambem e cuidador;
+  // o resto cai no rotulo honesto do proprio modulo de aquisicao.
+  const registrarNames = Object.fromEntries(
+    caregivers
+      .filter((caregiver) => caregiver.tenantUserId)
+      .map((caregiver) => [caregiver.tenantUserId as string, caregiver.name]),
+  );
+
+  const scopedCaregivers = caregivers.filter((caregiver) => inRecorte(caregiver.tenantId));
+  const caregiversTotal = scopedCaregivers.length;
+  const caregiversActive = scopedCaregivers.filter((caregiver) => caregiver.active).length;
+  const caregiverPerformance = scopedCaregivers.map((caregiver) => {
+    const casesCount = scopedMembers.filter((member) => member.caregiverId === caregiver.id).length;
+    const lastAction = scopedFollowups
       .filter((f) => {
-        const member = members.find((m) => m.id === f.memberId);
+        const member = scopedMembers.find((m) => m.id === f.memberId);
         return member?.caregiverId === caregiver.id;
       })
       .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))[0];
@@ -918,9 +990,19 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
     if (b.lastActionAt) return 1;
     return a.name.localeCompare(b.name);
   });
+  const overloadedCaregivers = caregiverPerformance.filter((caregiver) => caregiver.casos >= 4).length;
+  const stalledThreshold = addDays(todayDateOnly(), -14);
+  const stalledCaregivers = caregiverPerformance.filter((caregiver) => {
+    if (!caregiver.active) return false;
+    if (!caregiver.lastActionAt) return true;
+    return (dateOnlyInDashboardTimezone(caregiver.lastActionAt) ?? "") < stalledThreshold;
+  }).length;
+  const averageCaseload = caregiversActive > 0
+    ? Math.round((caregiverPerformance.filter((caregiver) => caregiver.active).reduce((sum, caregiver) => sum + caregiver.casos, 0) / caregiversActive) * 10) / 10
+    : 0;
 
   const mapItems = [
-    ...members.map((member) => {
+    ...scopedMembers.map((member) => {
       const caregiver = member.caregiverId
         ? caregivers.find((item) => item.id === member.caregiverId)?.name ?? null
         : null;
@@ -939,7 +1021,7 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
         birthDate: member.birthDate,
       };
     }),
-    ...seeds.map((seed) => {
+    ...scopedSeeds.map((seed) => {
       const caregiver = seed.caregiverId
         ? caregivers.find((item) => item.id === seed.caregiverId)?.name ?? null
         : null;
@@ -960,38 +1042,27 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
     }),
   ];
 
-  // Resolve active tab from search params
-  type DashTab = "igreja" | "tci" | "cuidados" | "cuidadores" | "acoes";
-  const rawTab = firstValue(resolvedSearchParams.tab);
-  const activeTab: DashTab =
-    rawTab === "tci" || rawTab === "cuidados" || rawTab === "cuidadores" || rawTab === "acoes"
-      ? rawTab
-      : "igreja";
+  const activeSegmentDef = DASH_SEGMENTS.find((segment) => segment.key === activeSegment) ?? DASH_SEGMENTS[0];
+  const scopeLabel = [
+    globalRange.label,
+    selectedState,
+    selectedCity || null,
+    selectedTenantId ? tenants.find((tenant) => tenant.id === selectedTenantId)?.name ?? null : null,
+    selectedOrigin ? SEED_ORIGIN_CHANNEL_LABELS[selectedOrigin] : null,
+  ].filter(Boolean).join(" \u00b7 ");
 
-  const tabs: Array<{ key: DashTab; label: string }> = [
-    { key: "igreja", label: "Igreja" },
-    { key: "tci", label: "TCI" },
-    { key: "cuidados", label: "Cuidados" },
-    { key: "cuidadores", label: "Cuidadores" },
-    { key: "acoes", label: "Ultimas Acoes" },
-  ];
-
-  function tabHref(tab: DashTab) {
+  /** Recorte preservado na troca de segmento — vale para TODOS os segmentos. */
+  function segmentHref(segment: DashSegment) {
     const params = new URLSearchParams();
-    params.set("tab", tab);
-    if (tab === "igreja") {
-      if (churchPeriod !== "week") params.set("churchPeriod", churchPeriod);
-      if (churchDate !== todayDateOnly()) params.set("churchDate", churchDate);
-      if (churchMeetingTypeId) params.set("churchMeetingTypeId", churchMeetingTypeId);
-      if (peopleView !== "contacts") params.set("peopleView", peopleView);
-      if (peoplePeriod !== "week") params.set("peoplePeriod", peoplePeriod);
-      if (peopleDate !== todayDateOnly()) params.set("peopleDate", peopleDate);
-      if (selectedPeopleState) params.set("peopleState", selectedPeopleState);
-      if (selectedPeopleCity) params.set("peopleCity", selectedPeopleCity);
-      if (selectedPeopleTenantId) params.set("peopleTenantId", selectedPeopleTenantId);
-      if (firstValue(resolvedSearchParams.peopleMeetingTypeId)) params.set("peopleMeetingTypeId", firstValue(resolvedSearchParams.peopleMeetingTypeId)!);
-      if (firstValue(resolvedSearchParams.peopleFormat)) params.set("peopleFormat", firstValue(resolvedSearchParams.peopleFormat)!);
-    }
+    params.set("seg", segment);
+    if (period !== "week") params.set("period", period);
+    if (referenceDate !== todayDateOnly()) params.set("date", referenceDate);
+    if (selectedState) params.set("state", selectedState);
+    if (selectedCity) params.set("city", selectedCity);
+    if (selectedTenantId) params.set("tenantId", selectedTenantId);
+    if (selectedMeetingTypeId) params.set("meetingTypeId", selectedMeetingTypeId);
+    if (selectedOrigin) params.set("origin", selectedOrigin);
+    if (reportFormat !== "csv") params.set("format", reportFormat);
     return `/coord?${params.toString()}`;
   }
 
@@ -999,15 +1070,17 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: "var(--bg)" }}>
       <header
         style={{
-          padding: "24px 32px 16px",
+          padding: `24px ${PAGE_GUTTER} 16px`,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          gap: 16,
+          flexWrap: "wrap",
           borderBottom: "1px solid var(--border)",
           background: "var(--surface)",
         }}
       >
-        <div>
+        <div style={{ minWidth: 0 }}>
           <p style={{ margin: 0, fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em", color: "var(--accent)" }}>
             Lideranca
           </p>
@@ -1031,12 +1104,12 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
       </header>
 
       {operationalAlerts.urgentMembers > 0 && (
-        <div style={{ margin: "20px 32px 0", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderRadius: 14, background: "var(--status-urgente-bg)", border: "1px solid #FECACA" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: "#FEE2E2", color: "#E11D48", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ margin: `20px ${PAGE_GUTTER} 0`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", padding: "14px 20px", borderRadius: 14, background: "var(--status-urgente-bg)", border: "1px solid #FECACA" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: "#FEE2E2", color: "#E11D48", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <IconBell size={17} />
             </div>
-            <div>
+            <div style={{ minWidth: 0 }}>
               <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#991B1B" }}>
                 {operationalAlerts.urgentMembers} caso{operationalAlerts.urgentMembers > 1 ? "s" : ""} urgente{operationalAlerts.urgentMembers > 1 ? "s" : ""} pendente{operationalAlerts.urgentMembers > 1 ? "s" : ""} de resposta
               </p>
@@ -1049,13 +1122,94 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
         </div>
       )}
 
-      <nav style={{ padding: "16px 32px 0", background: "var(--surface)", borderBottom: "1px solid var(--border)", display: "flex", gap: 4, overflowX: "auto" }}>
-        {tabs.map((t) => {
-          const isActive = activeTab === t.key;
+      {/* Barra de recorte global: um filtro so, valido para a pagina inteira. */}
+      <section style={{ padding: `20px ${PAGE_GUTTER} 0` }}>
+        <Card padding={16}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: 10, fontWeight: 800, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--accent)" }}>
+              Recorte aplicado a pagina inteira
+            </p>
+            <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-3)" }}>{scopeLabel}</p>
+          </div>
+          <form action="/coord" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, alignItems: "end" }}>
+            <input type="hidden" name="seg" value={activeSegment} />
+            <label style={fieldLabelStyle}>
+              Periodo
+              <select name="period" defaultValue={period} style={fieldControlStyle}>
+                <option value="day">Dia</option>
+                <option value="week">Semana</option>
+                <option value="month">Mes</option>
+              </select>
+            </label>
+            <label style={fieldLabelStyle}>
+              Data
+              <input type="date" name="date" defaultValue={referenceDate} style={fieldControlStyle} />
+            </label>
+            <label style={fieldLabelStyle}>
+              Estado
+              <select name="state" defaultValue={selectedState} style={fieldControlStyle}>
+                {availableStates.map((state) => <option key={state} value={state}>{state}</option>)}
+              </select>
+            </label>
+            <label style={fieldLabelStyle}>
+              Cidade
+              <select name="city" defaultValue={selectedCity} style={fieldControlStyle}>
+                <option value="">Todas</option>
+                {stateCities.map((city) => <option key={city} value={city}>{city}</option>)}
+              </select>
+            </label>
+            <label style={fieldLabelStyle}>
+              Localidade
+              <select name="tenantId" defaultValue={selectedTenantId} style={fieldControlStyle}>
+                <option value="">Todas</option>
+                {cityTenants.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.name}</option>)}
+              </select>
+            </label>
+            <label style={fieldLabelStyle}>
+              Origem
+              <select name="origin" defaultValue={selectedOrigin ?? ""} style={fieldControlStyle}>
+                <option value="">Todas</option>
+                {SEED_ORIGIN_CHANNELS.map((channel) => (
+                  <option key={channel} value={channel}>{SEED_ORIGIN_CHANNEL_LABELS[channel]}</option>
+                ))}
+              </select>
+            </label>
+            {activeSegment === "igreja" && (
+              <label style={fieldLabelStyle}>
+                Tipo de reuniao
+                <select name="meetingTypeId" defaultValue={selectedMeetingTypeId} style={fieldControlStyle}>
+                  <option value="">Todos os tipos</option>
+                  {churchProfile.meetingTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
+                </select>
+              </label>
+            )}
+            <label style={fieldLabelStyle}>
+              Relatorio
+              <select name="format" defaultValue={reportFormat} style={fieldControlStyle}>
+                <option value="csv">CSV</option>
+                <option value="pdf">PDF</option>
+              </select>
+            </label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <Button type="submit" variant="primary" size="md" icon={<IconFilter />}>Aplicar</Button>
+              <Link href={peopleReportHref} style={{ textDecoration: "none" }}>
+                <Button type="button" variant="secondary" size="md" icon={<IconDoc />}>Exportar</Button>
+              </Link>
+            </div>
+          </form>
+          <p style={{ margin: "10px 0 0", fontSize: 11.5, color: "var(--text-3)" }}>
+            A origem filtra contatos (Aquisicao, Cuidado e o mapa). Cartoes marcados como retrato de agora nao seguem o periodo.
+          </p>
+        </Card>
+      </section>
+
+      <nav style={{ padding: `16px ${PAGE_GUTTER} 0`, marginTop: 16, background: "var(--surface)", borderBottom: "1px solid var(--border)", display: "flex", gap: 4, overflowX: "auto" }}>
+        {DASH_SEGMENTS.map((segment) => {
+          const isActive = activeSegment === segment.key;
           return (
             <Link
-              key={t.key}
-              href={tabHref(t.key)}
+              key={segment.key}
+              href={segmentHref(segment.key)}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -1075,139 +1229,75 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
                 whiteSpace: "nowrap",
               }}
             >
-              {t.label}
+              {segment.label}
             </Link>
           );
         })}
       </nav>
 
-      <main style={{ flex: 1, padding: "28px 32px", display: "flex", flexDirection: "column", gap: 24, maxWidth: 1280, width: "100%", margin: "0 auto" }}>
+      <main style={{ flex: 1, padding: `28px ${PAGE_GUTTER} 96px`, display: "flex", flexDirection: "column", gap: 24, maxWidth: 1280, width: "100%", margin: "0 auto" }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--text)" }}>{activeSegmentDef.label}</h2>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-3)" }}>{activeSegmentDef.question}</p>
+        </div>
 
-        {activeTab === "igreja" && (
+        {activeSegment === "aquisicao" && (
+          <CoordAcquisitionSection summary={acquisition} periodLabel={globalRange.label} registrarNames={registrarNames} />
+        )}
+
+        {activeSegment === "cuidado" && (
           <>
+            <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16 }}>
+              <KpiCard icon={<IconUsers />} label="Total Acolhidos" value={total} sub={`+${newContactsThisWeek} nos ultimos 7 dias`} accent="#2D7FF9" bg="#E8F1FE" />
+              <KpiCard icon={<IconHeart />} label="Sendo Cuidados" value={activeMembers} sub={`${total > 0 ? Math.round((activeMembers / total) * 100) : 0}% da base`} accent="#16A34A" bg="#DCFCE7" />
+              <KpiCard icon={<IconCheck />} label="Concluidos" value={completedMembers} sub="Ciclos consolidados" accent="#7C3AED" bg="rgba(124,58,237,0.12)" />
+              <KpiCard icon={<IconDoc />} label="Contatos na Triagem" value={operationalAlerts.totalOpenContacts} sub="Novos, contatados ou em espera" snapshot accent="#EA580C" bg="#FFEDD5" />
+              <KpiCard icon={<IconHome />} label="Esperando Visita" value={operationalAlerts.waitingVisits} sub="Casas abertas aguardando visita" snapshot accent="#0891B2" bg="#ECFEFF" />
+              <KpiCard icon={<IconHourglass />} label="Sem Cuidador" value={operationalAlerts.unassignedPeople} sub={`${operationalAlerts.membersWithoutCaregiver} membro(s) + ${operationalAlerts.contactsWithoutCaregiver} contato(s)`} snapshot accent="#EA580C" bg="#FFEDD5" />
+              <KpiCard icon={<IconBell />} label="Casos Urgentes" value={operationalAlerts.urgentMembers} sub="Prioridade de resposta" snapshot accent="#E11D48" bg="#FFE4E6" />
+              <KpiCard icon={<IconCalendar />} label="Pessoas com acao vencida" value={churchProfile.overdueContacts} sub="1 por pessoa, pela proxima acao mais recente" snapshot accent="#E11D48" bg="#FFE4E6" />
+              <KpiCard icon={<IconChart />} label="Atualizados no periodo" value={peopleSnapshot.summary.updatedInPeriod ?? 0} sub="Baseado em updated_at" accent="#2563EB" bg="#DBEAFE" />
+            </section>
+
+            {peopleSnapshot.warnings.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {peopleSnapshot.warnings.map((warning) => (
+                  <div key={warning} style={{ padding: "10px 12px", borderRadius: 10, background: "#FFF7ED", border: "1px solid #FED7AA", color: "#9A3412", fontSize: 12.5 }}>
+                    {warning}
+                  </div>
+                ))}
+              </div>
+            )}
+
             <Card padding={20}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: 10, fontWeight: 800, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--accent)" }}>Dashboard de Pessoas</p>
-                  <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--text)" }}>
-                    {peopleView === "contacts" ? "Contatos e andamento" : "Frequencia da Igreja"}
-                  </h2>
-                  <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-3)" }}>
-                    Snapshot em {formatDateTimeLabel(peopleSnapshot.generatedAt)} · {peopleSnapshot.filters.state}{peopleSnapshot.filters.city ? ` · ${peopleSnapshot.filters.city}` : ""}
-                  </p>
+              <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 700, color: "var(--text)" }}>Distribuicao por jornada do membro</h3>
+              <div style={{ display: "flex", alignItems: "center", gap: 24, justifyContent: "center", flexWrap: "wrap" }}>
+                <StatusDonut data={memberJourney} total={scopedMembers.length} />
+                <div style={{ flex: 1, minWidth: 220, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {memberJourney.map((item) => {
+                    const pct = scopedMembers.length > 0 ? Math.round((item.count / scopedMembers.length) * 100) : 0;
+                    return (
+                      <div key={item.key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <StatusDot status={item.key} size={8} />
+                        <span style={{ flex: 1, fontSize: 12.5, color: "var(--text)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>{item.count}</span>
+                        <span style={{ fontSize: 11, color: "var(--text-3)", minWidth: 32, textAlign: "right" }}>{pct}%</span>
+                      </div>
+                    );
+                  })}
                 </div>
-                <form action="/coord" style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-                  <input type="hidden" name="tab" value="igreja" />
-                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
-                    Lente
-                    <select name="peopleView" defaultValue={peopleView} style={{ height: 38, minWidth: 120, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}>
-                      <option value="contacts">Contatos</option>
-                      <option value="church">Igreja</option>
-                    </select>
-                  </label>
-                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
-                    Periodo
-                    <select name="peoplePeriod" defaultValue={peoplePeriod} style={{ height: 38, minWidth: 112, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}>
-                      <option value="day">Dia</option>
-                      <option value="week">Semana</option>
-                      <option value="month">Mes</option>
-                    </select>
-                  </label>
-                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
-                    Data
-                    <input type="date" name="peopleDate" defaultValue={peopleDate} style={{ height: 38, minWidth: 150, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }} />
-                  </label>
-                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
-                    Estado
-                    <select name="peopleState" defaultValue={selectedPeopleState} style={{ height: 38, minWidth: 92, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}>
-                      {availableStates.map((state) => <option key={state} value={state}>{state}</option>)}
-                    </select>
-                  </label>
-                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
-                    Cidade
-                    <select name="peopleCity" defaultValue={selectedPeopleCity} style={{ height: 38, minWidth: 160, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}>
-                      <option value="">Todas</option>
-                      {stateCities.map((city) => <option key={city} value={city}>{city}</option>)}
-                    </select>
-                  </label>
-                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
-                    Localidade
-                    <select name="peopleTenantId" defaultValue={selectedPeopleTenantId} style={{ height: 38, minWidth: 180, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}>
-                      <option value="">Todas</option>
-                      {cityTenants.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.name}</option>)}
-                    </select>
-                  </label>
-                  {peopleView === "church" && (
-                    <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
-                      Tipo
-                      <select name="peopleMeetingTypeId" defaultValue={firstValue(resolvedSearchParams.peopleMeetingTypeId) ?? ""} style={{ height: 38, minWidth: 180, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}>
-                        <option value="">Todos os tipos</option>
-                        {churchProfile.meetingTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
-                      </select>
-                    </label>
-                  )}
-                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
-                    Relatorio
-                    <select name="peopleFormat" defaultValue={firstValue(resolvedSearchParams.peopleFormat) ?? "csv"} style={{ height: 38, minWidth: 92, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}>
-                      <option value="csv">CSV</option>
-                      <option value="pdf">PDF</option>
-                    </select>
-                  </label>
-                  <Button type="submit" variant="primary" size="md" icon={<IconFilter />}>Aplicar</Button>
-                  <Link href={peopleReportHref} style={{ textDecoration: "none" }}>
-                    <Button type="button" variant="secondary" size="md" icon={<IconDoc />}>Gerar relatorio</Button>
-                  </Link>
-                </form>
               </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginTop: 20 }}>
-                {peopleView === "contacts" ? (
-                  <>
-                    <KpiCard icon={<IconUsers />} label="Contatos gerados" value={peopleSnapshot.summary.generatedContacts ?? 0} sub="Cadastros no periodo" accent="#2563EB" bg="#DBEAFE" />
-                    <KpiCard icon={<IconHourglass />} label="Sem cuidador" value={peopleSnapshot.summary.contactsWithoutCaregiver ?? 0} sub="Fila operacional" accent="#EA580C" bg="#FFEDD5" />
-                    <KpiCard icon={<IconMessage />} label="Primeiro contato pendente" value={peopleSnapshot.summary.firstContactPending ?? 0} sub="Sem primeira abordagem" accent="#E11D48" bg="#FFE4E6" />
-                    <KpiCard icon={<IconHome />} label="Aguardando visita" value={peopleSnapshot.summary.waitingVisit ?? 0} sub="Status atual" accent="#0891B2" bg="#ECFEFF" />
-                    <KpiCard icon={<IconCalendar />} label="Atualizados no periodo" value={peopleSnapshot.summary.updatedInPeriod ?? 0} sub="Baseado em updated_at" accent="#16A34A" bg="#DCFCE7" />
-                    <KpiCard icon={<IconBell />} label="Urgentes" value={peopleSnapshot.summary.urgentContacts ?? 0} sub="Prioridade de resposta" accent="#E11D48" bg="#FFE4E6" />
-                  </>
-                ) : (
-                  <>
-                    <KpiCard icon={<IconChurch />} label="Membros ativos" value={peopleSnapshot.summary.activeMemberships ?? 0} sub="Vinculos ativos" accent="#2563EB" bg="#DBEAFE" />
-                    <KpiCard icon={<IconUsers />} label="Reuniram" value={peopleSnapshot.summary.gatheringPeople ?? 0} sub={`${peopleSnapshot.summary.eligibleOccurrences ?? 0} chamada(s) fechada(s)`} accent="#16A34A" bg="#DCFCE7" />
-                    <KpiCard icon={<IconHourglass />} label="Sem presenca" value={peopleSnapshot.summary.peopleWithoutPresence ?? 0} sub="Sem nenhuma presenca no periodo" accent="#EA580C" bg="#FFEDD5" />
-                    <KpiCard icon={<IconChart />} label="Frequencia media" value={peopleSnapshot.summary.averageFrequency !== null ? `${peopleSnapshot.summary.averageFrequency}%` : "—"} sub={peopleSnapshot.summary.attendanceBase ? `${peopleSnapshot.summary.attendanceBase} marcacoes elegiveis` : "Sem base"} accent="#7C3AED" bg="rgba(124,58,237,0.12)" />
-                    <KpiCard icon={<IconCheck />} label="Justificadas" value={peopleSnapshot.summary.justifiedAbsences ?? 0} sub="Mantidas no denominador" accent="#0891B2" bg="#ECFEFF" />
-                    <KpiCard icon={<IconCalendar />} label="Chamadas pendentes" value={peopleSnapshot.summary.pendingCalls ?? 0} sub="Nao entram na frequencia" accent="#E11D48" bg="#FFE4E6" />
-                  </>
-                )}
-              </div>
-
-              {peopleSnapshot.warnings.length > 0 && (
-                <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-                  {peopleSnapshot.warnings.map((warning) => (
-                    <div key={warning} style={{ padding: "10px 12px", borderRadius: 10, background: "#FFF7ED", border: "1px solid #FED7AA", color: "#9A3412", fontSize: 12.5 }}>
-                      {warning}
-                    </div>
-                  ))}
-                </div>
-              )}
             </Card>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
               <Card padding={20}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline", marginBottom: 8 }}>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--text)" }}>
-                      {peopleView === "contacts" ? "Serie do periodo" : "Tendencia de presenca"}
-                    </h3>
-                    <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>
-                      {peopleView === "contacts" ? "Cadastros distribuidos no periodo selecionado." : "Presencas e base elegivel por ocorrencia fechada."}
-                    </p>
-                  </div>
+                <div style={{ marginBottom: 8 }}>
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--text)" }}>Serie do periodo</h3>
+                  <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>Cadastros distribuidos no periodo selecionado.</p>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {peopleSnapshot.timeline.length > 0 ? peopleSnapshot.timeline.map((item) => (
-                    <div key={item.key} style={{ display: "grid", gridTemplateColumns: "minmax(90px, 1fr) repeat(4, minmax(0, 1fr))", gap: 8, fontSize: 12.5, alignItems: "center" }}>
+                    <div key={item.key} style={{ display: "grid", gridTemplateColumns: "minmax(90px, 1fr) repeat(auto-fit, minmax(90px, 1fr))", gap: 8, fontSize: 12.5, alignItems: "center" }}>
                       <strong style={{ color: "var(--text)" }}>{item.label}</strong>
                       {Object.entries(item.values).map(([key, value]) => (
                         <span key={key} style={{ color: "var(--text-2)" }}>{key}: <strong style={{ color: "var(--text)" }}>{value}</strong></span>
@@ -1218,11 +1308,9 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
               </Card>
 
               <Card padding={20}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline", marginBottom: 12 }}>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--text)" }}>Cidades do estado</h3>
-                    <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>Totais agrupados apenas para {peopleSnapshot.filters.state}.</p>
-                  </div>
+                <div style={{ marginBottom: 12 }}>
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--text)" }}>Cidades do estado</h3>
+                  <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>Totais agrupados apenas para {peopleSnapshot.filters.state}.</p>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {peopleSnapshot.cities.length > 0 ? peopleSnapshot.cities.map((city) => (
@@ -1243,14 +1331,10 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
             </div>
 
             <Card padding={0}>
-              <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+              <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--text)" }}>
-                    {peopleView === "contacts" ? "Lista nominal de contatos" : "Lista nominal de frequencia"}
-                  </h3>
-                  <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>
-                    {peopleView === "contacts" ? "Status atual, origem e andamento recente." : "Presencas, faltas, justificativas e ultima presenca."}
-                  </p>
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--text)" }}>Lista nominal de contatos</h3>
+                  <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>Status atual, origem e andamento recente.</p>
                 </div>
                 <span style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 700 }}>{peopleSnapshot.people.length} registro(s)</span>
               </div>
@@ -1258,94 +1342,68 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
                 {peopleSnapshot.people.length > 0 ? peopleSnapshot.people.slice(0, 20).map((person) => (
                   <div key={String(person.id)} style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 8 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-                      <div>
+                      <div style={{ minWidth: 0 }}>
                         <strong style={{ fontSize: 13.5, color: "var(--text)" }}>{String(person.name ?? "Sem nome")}</strong>
                         <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-3)" }}>
                           {String(person.city ?? "")}{person.state ? ` - ${String(person.state)}` : ""} · {String(person.tenantName ?? "Sem localidade")}
                         </p>
                       </div>
-                      <span style={{ fontSize: 11, fontWeight: 800, color: "var(--accent)", textTransform: "uppercase" }}>
-                        {String((peopleView === "contacts" ? person.currentStatus : person.status) ?? "—")}
+                      <span style={{ fontSize: 11, fontWeight: 800, color: "var(--accent)", textTransform: "uppercase", flexShrink: 0 }}>
+                        {String(person.currentStatus ?? "—")}
                       </span>
                     </div>
                     <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12.5, color: "var(--text-2)" }}>
-                      {peopleView === "contacts" ? (
-                        <>
-                          <span>Origem: <strong style={{ color: "var(--text)" }}>{String(person.source ?? "—")}</strong></span>
-                          <span>Cuidador: <strong style={{ color: "var(--text)" }}>{String(person.caregiver ?? "Sem cuidador")}</strong></span>
-                          <span>Criado: <strong style={{ color: "var(--text)" }}>{formatDateTimeLabel(String(person.createdAt ?? ""))}</strong></span>
-                          <span>Atualizado: <strong style={{ color: "var(--text)" }}>{formatDateTimeLabel(String(person.updatedAt ?? ""))}</strong></span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Presencas: <strong style={{ color: "var(--text)" }}>{String(person.presences ?? 0)}</strong></span>
-                          <span>Faltas: <strong style={{ color: "var(--text)" }}>{String(person.absences ?? 0)}</strong></span>
-                          <span>Justificadas: <strong style={{ color: "var(--text)" }}>{String(person.justified ?? 0)}</strong></span>
-                          <span>Frequencia: <strong style={{ color: "var(--text)" }}>{person.frequency !== null && person.frequency !== undefined ? `${String(person.frequency)}%` : "—"}</strong></span>
-                          <span>Ultima presenca: <strong style={{ color: "var(--text)" }}>{String(person.lastPresence ?? "—")}</strong></span>
-                        </>
-                      )}
+                      <span>Origem: <strong style={{ color: "var(--text)" }}>{String(person.source ?? "—")}</strong></span>
+                      <span>Cuidador: <strong style={{ color: "var(--text)" }}>{String(person.caregiver ?? "Sem cuidador")}</strong></span>
+                      <span>Criado: <strong style={{ color: "var(--text)" }}>{formatDateTimeLabel(String(person.createdAt ?? ""))}</strong></span>
+                      <span>Atualizado: <strong style={{ color: "var(--text)" }}>{formatDateTimeLabel(String(person.updatedAt ?? ""))}</strong></span>
                     </div>
                   </div>
                 )) : <p style={{ margin: 0, padding: 18, color: "var(--text-3)", fontSize: 13 }}>Nenhum registro encontrado com esses filtros.</p>}
               </div>
             </Card>
 
-            <Card padding={20}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: 10, fontWeight: 800, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--accent)" }}>Perfil da Igreja</p>
-                  <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--text)" }}>Frequencia e cuidado</h2>
-                  <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-3)" }}>{churchProfile.range.label} Â· {selectedChurchMeetingType?.name ?? "Todos os tipos"} Â· {tenants[0]?.name ?? session.membership.tenantName}</p>
-                </div>
-                <form action="/coord" style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-                  <input type="hidden" name="tab" value="igreja" />
-                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
-                    Visao
-                    <select name="churchPeriod" defaultValue={churchPeriod} style={{ height: 38, minWidth: 112, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}>
-                      <option value="day">Dia</option>
-                      <option value="week">Semana</option>
-                      <option value="month">Mes</option>
-                    </select>
-                  </label>
-                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
-                    Data
-                    <input type="date" name="churchDate" defaultValue={churchDate} style={{ height: 38, minWidth: 150, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }} />
-                  </label>
-                  <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--text-3)" }}>
-                    Tipo
-                    <select name="churchMeetingTypeId" defaultValue={churchMeetingTypeId ?? ""} style={{ height: 38, minWidth: 180, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", padding: "0 10px", fontWeight: 700 }}>
-                      <option value="">Todos os tipos</option>
-                      {churchProfile.meetingTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
-                    </select>
-                  </label>
-                  <Button type="submit" variant="primary" size="md" icon={<IconFilter />}>Filtrar</Button>
-                </form>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginTop: 20 }}>
-                <KpiCard icon={<IconChurch />} label="Membros da Igreja" value={churchProfile.activeMemberships} sub="Vinculos ativos" accent="#2563EB" bg="#DBEAFE" />
-                <KpiCard icon={<IconUsers />} label="Pessoas que reuniram" value={churchProfile.presentPeople.value} sub={`${churchProfile.closedOccurrences.length} chamada(s) Â· ${formatComparison(churchProfile.presentPeople)}`} accent="#16A34A" bg="#DCFCE7" />
-                <KpiCard icon={<IconChart />} label="Frequencia media" value={churchProfile.attendanceBase.eligible > 0 ? `${churchProfile.averageFrequency.value}%` : "-"} sub={churchProfile.attendanceBase.eligible > 0 ? `${churchProfile.attendanceBase.present} de ${churchProfile.attendanceBase.eligible}` : "Sem chamada fechada"} accent="#7C3AED" bg="rgba(124,58,237,0.12)" />
-                <KpiCard icon={<IconBell />} label="Para revisao" value={churchProfile.attention.length} sub="Sinais de frequencia/cuidado" accent="#EA580C" bg="#FFEDD5" />
-                <KpiCard icon={<IconHeart />} label="Casos em andamento" value={churchProfile.inCareCases} sub="Em acompanhamento" accent="#2563EB" bg="#DBEAFE" />
-                <KpiCard icon={<IconCalendar />} label="Pessoas com acao vencida" value={churchProfile.overdueContacts} sub="1 por pessoa, pela proxima acao mais recente" snapshot accent="#E11D48" bg="#FFE4E6" />
-                <KpiCard icon={<IconHourglass />} label="Chamadas pendentes" value={churchProfile.pendingOccurrences.length} sub="Sem fechamento" accent="#E11D48" bg="#FFE4E6" />
-              </div>
-            </Card>
+            <DashboardMap items={mapItems} />
+          </>
+        )}
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
+        {activeSegment === "igreja" && (
+          <>
+            <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16 }}>
+              <KpiCard icon={<IconChurch />} label="Membros da Igreja" value={churchProfile.activeMemberships} sub="Vinculos ativos" accent="#2563EB" bg="#DBEAFE" />
+              <KpiCard icon={<IconUsers />} label="Pessoas que reuniram" value={churchProfile.presentPeople.value} sub={`${churchProfile.closedOccurrences.length} chamada(s) · ${formatComparison(churchProfile.presentPeople)}`} accent="#16A34A" bg="#DCFCE7" />
+              <KpiCard icon={<IconChart />} label="Frequencia media" value={churchProfile.attendanceBase.eligible > 0 ? `${churchProfile.averageFrequency.value}%` : "—"} sub={churchProfile.attendanceBase.eligible > 0 ? `${churchProfile.attendanceBase.present} de ${churchProfile.attendanceBase.eligible}` : "Sem chamada fechada"} accent="#7C3AED" bg="rgba(124,58,237,0.12)" />
+              <KpiCard icon={<IconHourglass />} label="Sem presenca" value={peopleSnapshot.summary.peopleWithoutPresence ?? 0} sub="Sem nenhuma presenca no periodo" accent="#EA580C" bg="#FFEDD5" />
+              <KpiCard icon={<IconCheck />} label="Justificadas" value={peopleSnapshot.summary.justifiedAbsences ?? 0} sub="Mantidas no denominador" accent="#0891B2" bg="#ECFEFF" />
+              <KpiCard icon={<IconCalendar />} label="Chamadas pendentes" value={churchProfile.pendingOccurrences.length} sub="Sem fechamento · nao entram na frequencia" accent="#E11D48" bg="#FFE4E6" />
+              <KpiCard icon={<IconBell />} label="Para revisao" value={churchProfile.attention.length} sub="Sinais de frequencia e cuidado" accent="#EA580C" bg="#FFEDD5" />
+            </section>
+
+            {peopleSnapshot.warnings.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {peopleSnapshot.warnings.map((warning) => (
+                  <div key={warning} style={{ padding: "10px 12px", borderRadius: 10, background: "#FFF7ED", border: "1px solid #FED7AA", color: "#9A3412", fontSize: 12.5 }}>
+                    {warning}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
               <Card padding={20}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline", marginBottom: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline", marginBottom: 8, flexWrap: "wrap" }}>
                   <div>
                     <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--text)" }}>Tendencia de participacao</h3>
-                    <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>Verde = presencas na base elegivel de chamadas fechadas.</p>
+                    <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>
+                      Verde = presencas na base elegivel de chamadas fechadas · {selectedChurchMeetingType?.name ?? "Todos os tipos"}.
+                    </p>
                   </div>
-                  <span style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 700 }}>Aus: {churchProfile.attendanceBase.absent} Â· Just: {churchProfile.attendanceBase.justified}</span>
+                  <span style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 700 }}>Aus: {churchProfile.attendanceBase.absent} · Just: {churchProfile.attendanceBase.justified}</span>
                 </div>
                 <ChurchTrendChart data={churchProfile.trend} />
               </Card>
               <Card padding={0}>
-                <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+                <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
                   <div>
                     <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--text)" }}>Pessoas para revisao</h3>
                     <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>Fila baseada em ausencias, frequencia e acoes vencidas.</p>
@@ -1361,9 +1419,9 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
                             <span style={{ width: 8, height: 8, borderRadius: 999, background: priorityColor(item.priority), flexShrink: 0 }} />
                             <strong style={{ fontSize: 13.5, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.member.name}</strong>
                           </div>
-                          <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-3)" }}>{item.caregiverName ?? "Sem cuidador"} Â· Ultima presenca: {item.lastPresence ? formatDateLabel(item.lastPresence) : "sem registro"}</p>
+                          <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-3)" }}>{item.caregiverName ?? "Sem cuidador"} · Ultima presenca: {item.lastPresence ? formatDateLabel(item.lastPresence) : "sem registro"}</p>
                         </div>
-                        <span style={{ fontSize: 10.5, fontWeight: 800, color: priorityColor(item.priority), textTransform: "uppercase" }}>{item.priority}</span>
+                        <span style={{ fontSize: 10.5, fontWeight: 800, color: priorityColor(item.priority), textTransform: "uppercase", flexShrink: 0 }}>{item.priority}</span>
                       </div>
                       <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-2)", lineHeight: 1.45 }}>{item.reason}. {item.presentTotal} presenca(s) em {item.sampleTotal} chamada(s).</p>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -1375,89 +1433,56 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
                 </div>
               </Card>
             </div>
-          </>
-        )}
 
-        {activeTab === "tci" && (
-          <>
-            <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
-              <KpiCard icon={<IconUsers />} label="Total Acolhidos" value={total} sub={`+${newContactsThisWeek} esta semana`} accent="#2D7FF9" bg="#E8F1FE" />
-              <KpiCard icon={<IconHeart />} label="Sendo Cuidados" value={activeMembers} sub={`${total > 0 ? Math.round((activeMembers / total) * 100) : 0}% da base`} accent="#16A34A" bg="#DCFCE7" />
-              <KpiCard icon={<IconCheck />} label="Concluidos" value={completedMembers} sub="Ciclos consolidados" accent="#7C3AED" bg="rgba(124,58,237,0.12)" />
-              <KpiCard icon={<IconDoc />} label="Novos Contatos" value={operationalAlerts.totalOpenContacts} sub="Em fase de triagem" snapshot accent="#EA580C" bg="#FFEDD5" />
-            </section>
-            <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
-              <Card padding={20}>
-                <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 700, color: "var(--text)" }}>Distribuicao por jornada do membro</h3>
-                <div style={{ display: "flex", alignItems: "center", gap: 24, justifyContent: "center" }}>
-                  <StatusDonut data={memberJourney} total={members.length} />
-                  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
-                    {memberJourney.map((item) => {
-                      const pct = members.length > 0 ? Math.round((item.count / members.length) * 100) : 0;
-                      return (
-                        <div key={item.key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <StatusDot status={item.key} size={8} />
-                          <span style={{ flex: 1, fontSize: 12.5, color: "var(--text)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>{item.count}</span>
-                          <span style={{ fontSize: 11, color: "var(--text-3)", minWidth: 32, textAlign: "right" }}>{pct}%</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </Card>
-              <Card padding={20}>
-                <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700, color: "var(--text)" }}>Acoes nos ultimos 7 dias</h3>
-                <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--text-3)" }}>Total de {followups.length} acompanhamentos</p>
-                <VisitChart data={visitsData} />
-              </Card>
-            </section>
             <Card padding={0}>
-              <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+              <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text)" }}>Sessoes de TCI</h3>
-                  <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--text-3)" }}>Acompanhe as sessoes e cameras</p>
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--text)" }}>Lista nominal de frequencia</h3>
+                  <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--text-3)" }}>Presencas, faltas, justificativas e ultima presenca.</p>
                 </div>
-                <Link href="/coord/tci" style={{ color: "var(--accent)", fontSize: 12.5, fontWeight: 700, textDecoration: "none" }}>Gerenciar TCI</Link>
+                <span style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 700 }}>{peopleSnapshot.people.length} registro(s)</span>
               </div>
-              <div style={{ padding: "20px 18px" }}>
-                <p style={{ margin: "0 0 14px", fontSize: 13, color: "var(--text-3)" }}>Acesse o modulo de TCI para visualizar sessoes, cameras e participantes.</p>
-                <Link href="/coord/tci"><Button variant="primary" size="md" icon={<IconUsers />}>Ir para TCI</Button></Link>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {peopleSnapshot.people.length > 0 ? peopleSnapshot.people.slice(0, 20).map((person) => (
+                  <div key={String(person.id)} style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+                      <div style={{ minWidth: 0 }}>
+                        <strong style={{ fontSize: 13.5, color: "var(--text)" }}>{String(person.name ?? "Sem nome")}</strong>
+                        <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-3)" }}>
+                          {String(person.city ?? "")}{person.state ? ` - ${String(person.state)}` : ""} · {String(person.tenantName ?? "Sem localidade")}
+                        </p>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: "var(--accent)", textTransform: "uppercase", flexShrink: 0 }}>
+                        {String(person.status ?? "—")}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12.5, color: "var(--text-2)" }}>
+                      <span>Presencas: <strong style={{ color: "var(--text)" }}>{String(person.presences ?? 0)}</strong></span>
+                      <span>Faltas: <strong style={{ color: "var(--text)" }}>{String(person.absences ?? 0)}</strong></span>
+                      <span>Justificadas: <strong style={{ color: "var(--text)" }}>{String(person.justified ?? 0)}</strong></span>
+                      <span>Frequencia: <strong style={{ color: "var(--text)" }}>{person.frequency !== null && person.frequency !== undefined ? `${String(person.frequency)}%` : "—"}</strong></span>
+                      <span>Ultima presenca: <strong style={{ color: "var(--text)" }}>{String(person.lastPresence ?? "—")}</strong></span>
+                    </div>
+                  </div>
+                )) : <p style={{ margin: 0, padding: 18, color: "var(--text-3)", fontSize: 13 }}>Nenhum registro encontrado com esses filtros.</p>}
               </div>
             </Card>
           </>
         )}
 
-        {activeTab === "cuidados" && (
+        {activeSegment === "equipe" && (
           <>
-            <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
-              <KpiCard icon={<IconDoc />} label="Contatos na Triagem" value={operationalAlerts.totalOpenContacts} sub="Novos, contatados ou em espera" snapshot accent="#7C3AED" bg="rgba(124,58,237,0.12)" />
-              <KpiCard icon={<IconHome />} label="Esperando Visita" value={operationalAlerts.waitingVisits} sub="Casas abertas aguardando visita" snapshot accent="#0891B2" bg="#ECFEFF" />
-              <KpiCard icon={<IconHourglass />} label="Membros Sem Cuidador" value={operationalAlerts.membersWithoutCaregiver} sub="Precisam de designacao" snapshot accent="#EA580C" bg="#FFEDD5" />
-              <KpiCard icon={<IconUsers />} label="Contatos Sem Cuidador" value={operationalAlerts.contactsWithoutCaregiver} sub="Fila operacional" snapshot accent="#2D7FF9" bg="#E8F1FE" />
-              <KpiCard icon={<IconBell />} label="Casos Urgentes" value={operationalAlerts.urgentMembers} sub="Prioridade de resposta" snapshot accent="#E11D48" bg="#FFE4E6" />
-              <KpiCard icon={<IconCalendar />} label="Pessoas com acao vencida" value={churchProfile.overdueContacts} sub="1 por pessoa, pela proxima acao mais recente" snapshot accent="#E11D48" bg="#FFE4E6" />
-            </section>
-            <DashboardMap items={mapItems} />
-            <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
-              <KpiCard icon={<IconHeart />} label="Sendo Cuidados" value={activeMembers} sub={`${total > 0 ? Math.round((activeMembers / total) * 100) : 0}% da base`} accent="#16A34A" bg="#DCFCE7" />
-              <KpiCard icon={<IconHourglass />} label="Sem Cuidador (Total)" value={operationalAlerts.unassignedPeople} sub="Aguardando vinculacao" snapshot accent="#EA580C" bg="#FFEDD5" />
-            </section>
-          </>
-        )}
-
-        {activeTab === "cuidadores" && (
-          <>
-            <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+            <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16 }}>
               <KpiCard icon={<IconUsers />} label="Total de Cuidadores" value={caregiversTotal} sub={`${caregiversActive} ativos`} accent="#2563EB" bg="#DBEAFE" />
-              <KpiCard icon={<IconHeart />} label="Casos Ativos" value={activeMembers} sub="Membros sendo acompanhados" accent="#16A34A" bg="#DCFCE7" />
-              <KpiCard icon={<IconHourglass />} label="Sem Cuidador" value={operationalAlerts.unassignedPeople} sub="Aguardando vinculacao" snapshot accent="#EA580C" bg="#FFEDD5" />
+              <KpiCard icon={<IconChart />} label="Carga media" value={averageCaseload} sub="Casos por cuidador ativo" snapshot accent="#7C3AED" bg="rgba(124,58,237,0.12)" />
+              <KpiCard icon={<IconHourglass />} label="Sobrecarregados" value={overloadedCaregivers} sub="4 casos ou mais" snapshot accent="#E11D48" bg="#FFE4E6" />
+              <KpiCard icon={<IconBell />} label="Sem movimento" value={stalledCaregivers} sub="Ativos sem acao ha 14 dias ou mais" snapshot accent="#EA580C" bg="#FFEDD5" />
             </section>
             <Card padding={0}>
-              <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+              <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                 <div>
                   <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text)" }}>Equipe de cuidadores</h3>
-                  <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--text-3)" }}>{caregiversActive} ativos de {caregiversTotal} Â· Ordenado por ultima acao</p>
+                  <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--text-3)" }}>{caregiversActive} ativos de {caregiversTotal} · Ordenado por ultima acao</p>
                 </div>
                 <Link href="/coord/cuidadores" style={{ color: "var(--accent)", fontSize: 12.5, fontWeight: 700, textDecoration: "none" }}>Gerenciar</Link>
               </div>
@@ -1489,25 +1514,25 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
           </>
         )}
 
-        {activeTab === "acoes" && (
+        {activeSegment === "atividade" && (
           <>
-            <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
-              <KpiCard icon={<IconCalendar />} label="Total de Acoes" value={followups.length} sub="Acompanhamentos registrados" accent="#2D7FF9" bg="#E8F1FE" />
-              <KpiCard icon={<IconCalendar />} label="Acoes esta semana" value={visitsData.reduce((sum, d) => sum + d.n, 0)} sub="Ultimos 7 dias" accent="#16A34A" bg="#DCFCE7" />
-              <KpiCard icon={<IconBell />} label="Pessoas com acao vencida" value={churchProfile.overdueContacts} sub="1 por pessoa, pela proxima acao mais recente" snapshot accent="#E11D48" bg="#FFE4E6" />
+            <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16 }}>
+              <KpiCard icon={<IconCalendar />} label="Total de Acoes" value={scopedFollowups.length} sub="Acompanhamentos registrados" accent="#2D7FF9" bg="#E8F1FE" />
+              <KpiCard icon={<IconCheck />} label="Acoes nos ultimos 7 dias" value={visitsData.reduce((sum, day) => sum + day.n, 0)} sub="Janela fixa de 7 dias" accent="#16A34A" bg="#DCFCE7" />
+              <KpiCard icon={<IconHome />} label="Visitas registradas" value={scopedFollowups.filter((followup) => followup.type === "visit").length} sub="Acoes do tipo visita" accent="#0891B2" bg="#ECFEFF" />
             </section>
             <Card padding={20}>
-              <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700, color: "var(--text)" }}>Grafico de atividade semanal</h3>
-              <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--text-3)" }}>Acompanhamentos registrados por dia nos ultimos 7 dias</p>
+              <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700, color: "var(--text)" }}>Acoes nos ultimos 7 dias</h3>
+              <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--text-3)" }}>Acompanhamentos registrados por dia</p>
               <VisitChart data={visitsData} />
             </Card>
             <Card padding={20}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16, gap: 12, flexWrap: "wrap" }}>
                 <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text)" }}>Ultimas interacoes pastorais</h3>
                 <Link href="/coord/acompanhamentos" style={{ color: "var(--accent)", fontSize: 12.5, fontWeight: 700, textDecoration: "none" }}>Ver todos</Link>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {followups.slice(0, 10).map((item) => (
+                {scopedFollowups.slice(0, 10).map((item) => (
                   <div key={item.id} style={{ padding: 14, borderRadius: 14, border: "1px solid var(--border)", background: "var(--surface-2)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
                       <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text)" }}>{item.member ?? "Sem membro"}</span>
@@ -1516,20 +1541,31 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
                       </span>
                     </div>
                     {item.notes && <p style={{ margin: "0 0 6px", fontSize: 12.5, color: "var(--text-2)", lineHeight: 1.4 }}>{item.notes}</p>}
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-3)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap", fontSize: 11, color: "var(--text-3)" }}>
                       <span>Registrado em: {new Date(item.occurredAt).toLocaleDateString("pt-BR")}</span>
                       {item.nextActionAt && <span style={{ color: "var(--accent)", fontWeight: 600 }}>Prox: {new Date(item.nextActionAt).toLocaleDateString("pt-BR")}</span>}
                     </div>
                   </div>
                 ))}
-                {followups.length === 0 && <p style={{ margin: 0, padding: "20px 0", textAlign: "center", fontSize: 13, color: "var(--text-3)" }}>Nenhum acompanhamento registrado ainda.</p>}
+                {scopedFollowups.length === 0 && <p style={{ margin: 0, padding: "20px 0", textAlign: "center", fontSize: 13, color: "var(--text-3)" }}>Nenhum acompanhamento registrado ainda.</p>}
               </div>
               <div style={{ marginTop: 16 }}>
                 <Link href="/coord/acompanhamentos"><Button variant="secondary" size="md" full icon={<IconCalendar />}>Novo Acompanhamento</Button></Link>
               </div>
             </Card>
 
-            <WeeklySchedulePanel followups={followups} />
+            <WeeklySchedulePanel followups={scopedFollowups} />
+
+            <Card padding={0}>
+              <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--border)" }}>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text)" }}>Saidas e sessoes de TCI</h3>
+                <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--text-3)" }}>Os dois modulos de atividade de campo ficam aqui.</p>
+              </div>
+              <div style={{ padding: "20px 18px", display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <Link href="/coord/saidas" style={{ textDecoration: "none" }}><Button variant="secondary" size="md" icon={<IconCar />}>Ir para Saidas</Button></Link>
+                <Link href="/coord/tci" style={{ textDecoration: "none" }}><Button variant="primary" size="md" icon={<IconUsers />}>Ir para TCI</Button></Link>
+              </div>
+            </Card>
           </>
         )}
 
