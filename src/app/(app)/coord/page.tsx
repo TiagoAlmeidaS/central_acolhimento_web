@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { requireServerAuthSession } from "@/server/auth/session";
-import { getDataScopeFromSession, listAccessibleTenantIds } from "@/server/auth/access-scope";
+import { listAccessibleTenantIds } from "@/server/auth/access-scope";
 import {
   listCaregivers,
   listFollowups,
@@ -39,6 +39,7 @@ import type {
 } from "@/server/domain/mvp";
 import { summarizeAcquisition } from "@/server/domain/acquisition";
 import { SEED_ORIGIN_CHANNELS, SEED_ORIGIN_CHANNEL_LABELS, isSeedOriginChannel } from "@/lib/seed-origin";
+import { filterTenantIdsByRecorte } from "@/lib/listing-filters";
 import { Avatar, Button, Card, StatusDot } from "@/ui/v2-components/ui";
 import { DashboardMap } from "@/ui/mvp/dashboard-map";
 import { WeeklySchedulePanel } from "@/ui/mvp/weekly-schedule-panel";
@@ -817,7 +818,6 @@ const fieldControlStyle: React.CSSProperties = {
 export default async function CoordDashboardPage({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams;
   const session = await requireServerAuthSession("coordinator");
-  const scope = getDataScopeFromSession(session);
   const accessibleTenantIds = await listAccessibleTenantIds(session);
   const accessibleScope: DataScope = { tenantIds: accessibleTenantIds };
   // --- Recorte global ------------------------------------------------------
@@ -845,12 +845,15 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
   // A lente do bloco de pessoas deixou de ser um filtro proprio: o segmento decide.
   const peopleView: PeopleDashboardView = activeSegment === "igreja" ? "church" : "contacts";
 
-  const [members, caregivers, followups, seeds, tenants, accessibleTenants] = await Promise.all([
-    listMembers(scope),
-    listCaregivers(scope),
-    listFollowups(scope),
-    listSeeds(scope),
-    listTenants(scope),
+  // Tudo carrega pelo escopo acessivel -- o mesmo universo que os seletores da
+  // barra de recorte oferecem e que getPeopleDashboardSnapshot ja usa. E o que
+  // listAccessibleTenantIds garante: apenas as localidades em que o usuario tem
+  // vinculo (listUserMemberships), nunca a base inteira.
+  const [members, caregivers, followups, seeds, accessibleTenants] = await Promise.all([
+    listMembers(accessibleScope),
+    listCaregivers(accessibleScope),
+    listFollowups(accessibleScope),
+    listSeeds(accessibleScope),
     listTenants(accessibleScope),
   ]);
   const availableStates = Array.from(new Set(accessibleTenants.map((tenant) => tenant.state).filter(Boolean))).sort();
@@ -863,20 +866,19 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
   const cityTenants = accessibleTenants.filter((tenant) => tenant.state === selectedState && (!selectedCity || tenant.city === selectedCity));
   const selectedTenantId = readParam("tenantId", "peopleTenantId") ?? "";
 
-  // Localidades do escopo da sessao que sobrevivem ao recorte: e por elas que o
-  // recorte passa a valer tambem fora do bloco de Pessoas.
-  const recorteTenantIds = tenants
-    .filter((tenant) => {
-      if (selectedTenantId) return tenant.id === selectedTenantId;
-      if (selectedState && tenant.state !== selectedState) return false;
-      if (selectedCity && tenant.city !== selectedCity) return false;
-      return true;
-    })
-    .map((tenant) => tenant.id);
+  // Localidades acessiveis que sobrevivem ao recorte: e por elas que o recorte
+  // passa a valer tambem fora do bloco de Pessoas. Precisa sair de
+  // accessibleTenants (a mesma fonte dos seletores acima), senao escolher uma
+  // localidade acessivel fora da sessao zeraria a pagina inteira.
+  const recorteTenantIds = filterTenantIdsByRecorte(accessibleTenants, {
+    state: selectedState,
+    city: selectedCity,
+    tenantId: selectedTenantId,
+  });
   const recorteTenantIdSet = new Set(recorteTenantIds);
   const inRecorte = (tenantId: string) => recorteTenantIdSet.has(tenantId);
   // tenantIds vazio significa "sem filtro" nos repositorios, entao um recorte que
-  // nao casa com nenhuma localidade da sessao precisa de um escopo que nao casa
+  // nao casa com nenhuma localidade acessivel precisa de um escopo que nao casa
   // com nada -- caso contrario a Igreja mostraria a base inteira enquanto o
   // restante da pagina, filtrado em memoria por inRecorte, mostra zero.
   const recorteScope: DataScope =
@@ -888,7 +890,9 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
     : seeds;
   const scopedSeeds = originSeeds.filter((seed) => inRecorte(seed.tenantId));
   const scopedMemberIds = new Set(scopedMembers.map((member) => member.id));
-  const scopedFollowups = followups.filter((followup) => !followup.memberId || scopedMemberIds.has(followup.memberId));
+  const scopedFollowups = followups.filter((followup) =>
+    followup.memberId ? scopedMemberIds.has(followup.memberId) : inRecorte(followup.tenantId),
+  );
 
   const peopleSnapshot = await getPeopleDashboardSnapshot(
     {
@@ -956,6 +960,12 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
     return !!createdOn && isDateBetween(createdOn, globalRange.start, globalRange.end);
   });
   const acquisition = summarizeAcquisition(acquisitionSeeds);
+  // Acoes dentro do recorte de periodo: o segmento Atividade responde "o que foi
+  // feito no periodo", entao seus cartoes nao podem contar a base historica.
+  const periodFollowups = scopedFollowups.filter((followup) => {
+    const occurredOn = dateOnlyInDashboardTimezone(followup.occurredAt);
+    return !!occurredOn && isDateBetween(occurredOn, globalRange.start, globalRange.end);
+  });
   // Quem cadastrou so tem nome quando o usuario da localidade tambem e cuidador;
   // o resto cai no rotulo honesto do proprio modulo de aquisicao.
   const registrarNames = Object.fromEntries(
@@ -1047,7 +1057,7 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
     globalRange.label,
     selectedState,
     selectedCity || null,
-    selectedTenantId ? tenants.find((tenant) => tenant.id === selectedTenantId)?.name ?? null : null,
+    selectedTenantId ? accessibleTenants.find((tenant) => tenant.id === selectedTenantId)?.name ?? null : null,
     selectedOrigin ? SEED_ORIGIN_CHANNEL_LABELS[selectedOrigin] : null,
   ].filter(Boolean).join(" \u00b7 ");
 
@@ -1174,7 +1184,7 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
                 ))}
               </select>
             </label>
-            {activeSegment === "igreja" && (
+            {activeSegment === "igreja" ? (
               <label style={fieldLabelStyle}>
                 Tipo de reuniao
                 <select name="meetingTypeId" defaultValue={selectedMeetingTypeId} style={fieldControlStyle}>
@@ -1182,6 +1192,11 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
                   {churchProfile.meetingTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
                 </select>
               </label>
+            ) : (
+              // O seletor so faz sentido na Igreja, mas o formulario envia apenas os
+              // campos presentes: sem este oculto, "Aplicar" descartaria o tipo de
+              // reuniao que segmentHref preserva na troca de segmento.
+              selectedMeetingTypeId ? <input type="hidden" name="meetingTypeId" value={selectedMeetingTypeId} /> : null
             )}
             <label style={fieldLabelStyle}>
               Relatorio
@@ -1517,9 +1532,9 @@ export default async function CoordDashboardPage({ searchParams }: PageProps) {
         {activeSegment === "atividade" && (
           <>
             <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16 }}>
-              <KpiCard icon={<IconCalendar />} label="Total de Acoes" value={scopedFollowups.length} sub="Acompanhamentos registrados" accent="#2D7FF9" bg="#E8F1FE" />
+              <KpiCard icon={<IconCalendar />} label="Total de Acoes" value={periodFollowups.length} sub={`Acompanhamentos registrados · ${globalRange.label}`} accent="#2D7FF9" bg="#E8F1FE" />
               <KpiCard icon={<IconCheck />} label="Acoes nos ultimos 7 dias" value={visitsData.reduce((sum, day) => sum + day.n, 0)} sub="Janela fixa de 7 dias" accent="#16A34A" bg="#DCFCE7" />
-              <KpiCard icon={<IconHome />} label="Visitas registradas" value={scopedFollowups.filter((followup) => followup.type === "visit").length} sub="Acoes do tipo visita" accent="#0891B2" bg="#ECFEFF" />
+              <KpiCard icon={<IconHome />} label="Visitas registradas" value={periodFollowups.filter((followup) => followup.type === "visit").length} sub={`Acoes do tipo visita · ${globalRange.label}`} accent="#0891B2" bg="#ECFEFF" />
             </section>
             <Card padding={20}>
               <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700, color: "var(--text)" }}>Acoes nos ultimos 7 dias</h3>
