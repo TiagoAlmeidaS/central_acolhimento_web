@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { getDataScopeFromSession, listAccessibleTenantIds, resolveCaregiverId, resolveTenantIdForUserAccess } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
 import { validateHouseFrontImageDataUrl } from "@/lib/house-front-image";
-import { parseSeedOriginChannel, SEED_ORIGIN_CHANNEL_INVALID_MESSAGE } from "@/lib/seed-origin";
+import { parseSeedOriginChannelForCreate, SEED_ORIGIN_CHANNEL_INVALID_MESSAGE } from "@/lib/seed-origin";
 import { createSeed, listSeedsPage } from "@/server/repositories/mvp-repository";
 import { normalizePage, normalizePageSize, type ContactListingFilters } from "@/lib/listing-filters";
 import { getOutingDetail } from "@/server/repositories/outing-repository";
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
       return Response.json({ error: imageValidationError }, { status: 400 });
     }
 
-    const originChannel = parseSeedOriginChannel(body.originChannel);
+    const originChannel = parseSeedOriginChannelForCreate(body.originChannel);
     if (!originChannel) {
       return Response.json({ error: SEED_ORIGIN_CHANNEL_INVALID_MESSAGE }, { status: 400 });
     }

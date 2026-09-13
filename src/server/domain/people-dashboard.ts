@@ -13,6 +13,7 @@ import type {
   SeedStatusHistoryEntry,
   Tenant,
 } from "@/server/domain/mvp";
+import { seedOriginText } from "@/lib/seed-origin";
 import { listChurchAttendance, listChurchMeetingTypes, listChurchMemberships, listChurchOccurrences } from "@/server/repositories/church-repository";
 import { listFollowups, listMembers, listSeeds, listSeedStatusHistory, listTenants } from "@/server/repositories/mvp-repository";
 
@@ -130,7 +131,7 @@ function buildScope(tenants: Tenant[], raw: {
   };
 }
 
-function summarizeContacts(seeds: Seed[], followups: Followup[], tenants: Tenant[], history: SeedStatusHistoryEntry[], filters: PeopleDashboardFilters): PeopleDashboardSnapshot {
+export function summarizeContacts(seeds: Seed[], followups: Followup[], tenants: Tenant[], history: SeedStatusHistoryEntry[], filters: PeopleDashboardFilters): PeopleDashboardSnapshot {
   const range = resolvePeriodRange(filters.period, filters.referenceDate);
   const tenantMap = new Map(tenants.map((tenant) => [tenant.id, tenant]));
   const filteredSeeds = seeds.filter((seed) => isInstantInRange(seed.createdAt, range.startAt, range.endExclusive));
@@ -193,7 +194,7 @@ function summarizeContacts(seeds: Seed[], followups: Followup[], tenants: Tenant
         city: seed.city,
         state: tenant?.state ?? seed.state,
         tenantName: tenant?.name ?? "",
-        source: seed.source,
+        source: seedOriginText(seed),
         currentStatus: seed.status,
         caregiver: seed.caregiver ?? null,
         createdAt: seed.createdAt ?? null,
