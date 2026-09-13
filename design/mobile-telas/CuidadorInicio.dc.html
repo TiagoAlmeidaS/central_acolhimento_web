@@ -1,0 +1,145 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: "Plus Jakarta Sans", system-ui, sans-serif; background: #F5F5F7; color: #0F172A; }
+    * { box-sizing: border-box; }
+    a { color: #2D7FF9; text-decoration: none; }
+    a:hover { color: #1F6BE0; }
+    button { font-family: inherit; cursor: pointer; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #F5F5F7; display: flex; flex-direction: column; overflow: hidden;">
+
+  <header style="padding: 18px 18px 14px; background: #FFFFFF; border-bottom: 1px solid #E8EAEE; display: flex; flex-direction: column; gap: 14px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+      <div style="min-width: 0;">
+        <p style="margin: 0; font-size: 13px; color: #94A3B8;">Sábado, 13 de setembro</p>
+        <h1 style="margin: 2px 0 0; font-size: 21px; font-weight: 800; letter-spacing: -0.025em; color: #0F172A;">Olá, Marina</h1>
+      </div>
+      <div style="width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; background: #E2E8F0; color: #64748B; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 15px;">MS</div>
+    </div>
+    <div style="display: flex; gap: 2px;">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="2">
+        <button onClick="{{t.pick}}" style="flex-grow: 1; min-height: 46px; border: none; border-bottom: 2px solid {{t.border}}; background: transparent; color: {{t.fg}}; font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 7px;">
+          {{t.label}}
+          <span style="display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 999px; background: {{t.badgeBg}}; color: {{t.badgeFg}}; font-size: 11.5px; font-weight: 800;">{{t.count}}</span>
+        </button>
+      </sc-for>
+    </div>
+  </header>
+
+  <main style="flex: 1; padding: 14px 18px 24px; display: flex; flex-direction: column; gap: 13px; overflow: hidden;">
+
+    <sc-if value="{{showAgenda}}" hint-placeholder-val="{{true}}">
+      <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; padding: 16px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px;">
+          <h2 style="margin: 0; font-size: 14.5px; font-weight: 800; color: #0F172A;">Hoje</h2>
+          <span style="font-size: 12.5px; color: #94A3B8;">2 ações agendadas</span>
+        </div>
+        <sc-for list="{{agenda}}" as="a" hint-placeholder-count="2">
+          <div style="display: flex; align-items: center; gap: 12px; padding: 11px 12px; border: 1px solid #E8EAEE; border-radius: 14px; background: #F8F9FB;">
+            <div style="width: 44px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center;">
+              <span style="font-size: 15px; font-weight: 800; color: #0F172A; letter-spacing: -0.02em;">{{a.hour}}</span>
+              <span style="font-size: 10.5px; color: #94A3B8;">{{a.kind}}</span>
+            </div>
+            <span style="width: 1px; align-self: stretch; background: #E8EAEE;"></span>
+            <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1; min-width: 0;">
+              <span style="font-size: 14px; font-weight: 700; color: #0F172A;">{{a.name}}</span>
+              <span style="font-size: 11.5px; color: #94A3B8;">{{a.meta}}</span>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-for list="{{cases}}" as="c" hint-placeholder-count="4">
+      <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; padding: 14px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; align-items: center; gap: 12px;">
+        <div style="width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; background: #E2E8F0; color: #64748B; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 15px;">{{c.initials}}</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; flex-grow: 1; min-width: 0;">
+          <span style="font-size: 14.5px; font-weight: 700; color: #0F172A;">{{c.name}}</span>
+          <span style="display: inline-flex; align-self: flex-start; align-items: center; gap: 5px; height: 21px; padding: 0 8px; border-radius: 999px; background: {{c.tagBg}}; color: {{c.tagFg}}; font-size: 11px; font-weight: 700;">
+            <span style="width: 5px; height: 5px; border-radius: 50%; background: currentColor;"></span>{{c.tag}}
+          </span>
+          <span style="font-size: 11.5px; color: #94A3B8;">{{c.meta}}</span>
+        </div>
+        <button style="width: 42px; height: 42px; flex-shrink: 0; border: 1px solid #D5D9E0; border-radius: 12px; background: #FFFFFF; color: #22C55E; display: flex; align-items: center; justify-content: center;">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.2-6.9"></path><path d="M8 10.5c.7 2.2 2.3 3.8 4.5 4.5l1.4-1.4 2.6 1v2.1c-3.9.4-7.6-3.3-8-7.2h2.1z"></path></svg>
+        </button>
+      </div>
+    </sc-for>
+
+  </main>
+
+  <nav style="padding: 10px 0 24px; background: #FFFFFF; border-top: 1px solid #E8EAEE; display: flex; justify-content: space-around; box-shadow: 0 -4px 20px rgba(0,0,0,0.03);">
+    <sc-for list="{{tabbar}}" as="t" hint-placeholder-count="4">
+      <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; color: {{t.fg}}; font-size: 11.5px; font-weight: 600;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{t.sw}}" stroke-linecap="round" stroke-linejoin="round"><path d="{{t.d1}}"></path><path d="{{t.d2}}"></path></svg>
+        <span>{{t.label}}</span>
+      </div>
+    </sc-for>
+  </nav>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'mine' };
+  }
+
+  renderVals() {
+    const mine = this.state.tab === 'mine';
+
+    return {
+      tabs: [
+        { key: 'mine',       label: 'Meus assistidos', count: '6' },
+        { key: 'unassigned', label: 'Sem cuidador',    count: '14' }
+      ].map((t) => ({
+        label: t.label,
+        count: t.count,
+        pick: () => this.setState({ tab: t.key }),
+        fg: t.key === this.state.tab ? '#2D7FF9' : '#94A3B8',
+        border: t.key === this.state.tab ? '#2D7FF9' : 'transparent',
+        badgeBg: t.key === this.state.tab ? '#E8F1FE' : '#F1F3F7',
+        badgeFg: t.key === this.state.tab ? '#1D4ED8' : '#94A3B8'
+      })),
+      showAgenda: mine,
+      agenda: [
+        { hour: '15h', kind: 'Visita',   name: 'Joana Batista', meta: 'Jd. Aurora · agendada há 4 dias' },
+        { hour: '19h', kind: 'Mensagem', name: 'Sérgio Dias',   meta: 'Confirmar presença no culto' }
+      ],
+      cases: mine
+        ? [
+            { initials: 'JB', name: 'Joana Batista',   tag: 'Urgente',      tagBg: '#FFE4E6', tagFg: '#E11D48', meta: 'Visita hoje às 15h · veio de Saída' },
+            { initials: 'PM', name: 'Pedro Martins',   tag: 'Aguardando',   tagBg: '#FFEDD5', tagFg: '#C2410C', meta: 'Visita vencida há 4 dias' },
+            { initials: 'MT', name: 'Marcos Teixeira', tag: 'Acompanhando', tagBg: '#DBEAFE', tagFg: '#1D4ED8', meta: 'Última presença há 26 dias' },
+            { initials: 'VC', name: 'Vera Campos',     tag: 'Consolidado',  tagBg: '#DCFCE7', tagFg: '#15803D', meta: 'Frequência 92% · pronta para consolidar' }
+          ]
+        : [
+            { initials: 'ER', name: 'Elaine Rocha', tag: 'Novo', tagBg: '#FFEDD5', tagFg: '#C2410C', meta: 'Centro · Link público · cadastrada ontem' },
+            { initials: 'LB', name: 'Lúcia Barros', tag: 'Novo', tagBg: '#FFEDD5', tagFg: '#C2410C', meta: 'Centro · Indicação · há 4 dias' },
+            { initials: 'HN', name: 'Hélio Nunes',  tag: 'Contatado', tagBg: '#ECFEFF', tagFg: '#0E7490', meta: 'Sumaré · WhatsApp · ação vencida' },
+            { initials: 'RA', name: 'Rita Alencar', tag: 'Aguardando', tagBg: '#FFEDD5', tagFg: '#C2410C', meta: 'Taquaral · Link público · sem visita' }
+          ],
+      tabbar: [
+        { label: 'Início',   active: true,  d1: 'M3 11l9-8 9 8', d2: 'M5 10v10h14V10' },
+        { label: 'Contatos', active: false, d1: 'M9 8a3.5 3.5 0 1 0 0-.001', d2: 'M3 21a6 6 0 0 1 12 0' },
+        { label: 'Ações',    active: false, d1: 'M3 5h18v16H3z', d2: 'M3 10h18M8 3v4M16 3v4' },
+        { label: 'Perfil',   active: false, d1: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', d2: 'M4 21a8 8 0 0 1 16 0' }
+      ].map((t) => ({ label: t.label, d1: t.d1, d2: t.d2, fg: t.active ? '#2D7FF9' : '#94A3B8', sw: t.active ? '2.2' : '1.8' }))
+    };
+  }
+}
+</script>
+</body>
+</html>

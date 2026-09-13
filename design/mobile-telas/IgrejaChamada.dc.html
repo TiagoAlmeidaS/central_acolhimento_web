@@ -1,0 +1,164 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: "Plus Jakarta Sans", system-ui, sans-serif; background: #F5F5F7; color: #0F172A; }
+    * { box-sizing: border-box; }
+    a { color: #2D7FF9; text-decoration: none; }
+    a:hover { color: #1F6BE0; }
+    button { font-family: inherit; cursor: pointer; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #F5F5F7; display: flex; flex-direction: column; overflow: hidden;">
+
+  <header style="padding: 16px 18px 14px; background: #FFFFFF; border-bottom: 1px solid #E8EAEE; display: flex; flex-direction: column; gap: 13px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <button style="width: 44px; height: 44px; flex-shrink: 0; border: 1px solid #D5D9E0; border-radius: 12px; background: #FFFFFF; color: #0F172A; display: flex; align-items: center; justify-content: center;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg>
+      </button>
+      <div style="flex-grow: 1; min-width: 0;">
+        <p style="margin: 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: #7C3AED;">Chamada aberta</p>
+        <h1 style="margin: 2px 0 0; font-size: 17px; font-weight: 800; letter-spacing: -0.02em; color: #0F172A;">Culto de domingo</h1>
+        <p style="margin: 1px 0 0; font-size: 12.5px; color: #94A3B8;">13 de setembro · 19h00</p>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 7px;">
+      <div style="display: flex; align-items: baseline; justify-content: space-between;">
+        <span style="font-size: 12.5px; font-weight: 700; color: #4B5563;">{{marked}} de {{total}} marcados</span>
+        <span style="font-size: 12.5px; color: #94A3B8; font-variant-numeric: tabular-nums;">{{remaining}}</span>
+      </div>
+      <div style="height: 8px; border-radius: 999px; background: #F1F3F7; overflow: hidden; display: flex;">
+        <div style="height: 8px; width: {{presentWidth}}; background: #16A34A;"></div>
+        <div style="height: 8px; width: {{absentWidth}}; background: #EA580C;"></div>
+        <div style="height: 8px; width: {{justifiedWidth}}; background: #0891B2;"></div>
+      </div>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <sc-for list="{{legend}}" as="l" hint-placeholder-count="3">
+          <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: #4B5563;">
+            <span style="width: 7px; height: 7px; border-radius: 50%; background: {{l.color}};"></span>{{l.label}}
+          </span>
+        </sc-for>
+      </div>
+    </div>
+  </header>
+
+  <main style="flex: 1; padding: 10px 0 0; display: flex; flex-direction: column; overflow: hidden; background: #FFFFFF;">
+    <sc-for list="{{people}}" as="p" hint-placeholder-count="6">
+      <div style="display: flex; flex-direction: column; gap: 9px; padding: 12px 18px; border-bottom: 1px solid #F1F3F7;">
+        <div style="display: flex; align-items: center; gap: 11px;">
+          <div style="width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0; background: #E2E8F0; color: #64748B; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px;">{{p.initials}}</div>
+          <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1; min-width: 0;">
+            <span style="font-size: 14.5px; font-weight: 700; color: #0F172A;">{{p.name}}</span>
+            <span style="font-size: 11.5px; color: #94A3B8;">{{p.meta}}</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <sc-for list="{{p.options}}" as="o" hint-placeholder-count="4">
+            <button onClick="{{o.pick}}" style="flex-grow: 1; min-height: 44px; padding: 0 4px; border: 1px solid {{o.border}}; border-radius: 11px; background: {{o.bg}}; color: {{o.fg}}; font-size: 12.5px; font-weight: 700;">{{o.label}}</button>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+  </main>
+
+  <div style="padding: 12px 18px 26px; background: #FFFFFF; border-top: 1px solid #E8EAEE; display: flex; flex-direction: column; gap: 9px; box-shadow: 0 -4px 20px rgba(0,0,0,0.04);">
+    <button style="height: 50px; width: 100%; border: 1px solid transparent; border-radius: 14px; background: {{closeBg}}; color: {{closeFg}}; font-size: 15px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"></path></svg>
+      Fechar chamada
+    </button>
+    <p style="margin: 0; font-size: 11.5px; line-height: 1.45; color: #94A3B8; text-align: center;">{{closeNote}}</p>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      marks: { cf: 'present', mt: 'absent', lb: 'unmarked', hn: 'justified', ra: 'present', vc: 'unmarked' }
+    };
+  }
+
+  roster() {
+    return [
+      { id: 'cf', initials: 'CF', name: 'Cláudia Freitas', meta: 'Cuidadora: Ana Lima · frequência 34%' },
+      { id: 'mt', initials: 'MT', name: 'Marcos Teixeira', meta: 'Cuidadora: Marina Souza · 2 faltas seguidas' },
+      { id: 'lb', initials: 'LB', name: 'Lúcia Barros',    meta: 'Sem cuidador designado' },
+      { id: 'hn', initials: 'HN', name: 'Hélio Nunes',     meta: 'Cuidador: Rafael Cunha · avisou que viajaria' },
+      { id: 'ra', initials: 'RA', name: 'Rita Alencar',    meta: 'Cuidador: João Prado · frequência 88%' },
+      { id: 'vc', initials: 'VC', name: 'Vera Campos',     meta: 'Cuidador: Rafael Cunha · frequência 92%' }
+    ];
+  }
+
+  renderVals() {
+    const OPTIONS = [
+      { key: 'present',   label: 'Presente', color: '#16A34A', bg: '#DCFCE7', fg: '#15803D' },
+      { key: 'absent',    label: 'Falta',    color: '#EA580C', bg: '#FFEDD5', fg: '#C2410C' },
+      { key: 'justified', label: 'Justif.',  color: '#0891B2', bg: '#ECFEFF', fg: '#0E7490' },
+      { key: 'unmarked',  label: '—',        color: '#94A3B8', bg: '#F1F3F7', fg: '#64748B' }
+    ];
+
+    const marks = this.state.marks;
+    const roster = this.roster();
+    const total = 52;
+    const sampleMarked = roster.filter((r) => marks[r.id] !== 'unmarked').length;
+    const baseMarked = 33;
+    const marked = baseMarked + sampleMarked;
+    const present = 24 + roster.filter((r) => marks[r.id] === 'present').length;
+    const absent = 6 + roster.filter((r) => marks[r.id] === 'absent').length;
+    const justified = 3 + roster.filter((r) => marks[r.id] === 'justified').length;
+    const pct = (n) => Math.round((n / total) * 100) + '%';
+    const complete = marked >= total;
+
+    return {
+      total: String(total),
+      marked: String(marked),
+      remaining: complete ? 'Tudo marcado' : (total - marked) + ' restantes',
+      presentWidth: pct(present),
+      absentWidth: pct(absent),
+      justifiedWidth: pct(justified),
+      legend: [
+        { label: present + ' presentes', color: '#16A34A' },
+        { label: absent + ' faltas', color: '#EA580C' },
+        { label: justified + ' justificadas', color: '#0891B2' }
+      ],
+      people: roster.map((r) => ({
+        initials: r.initials,
+        name: r.name,
+        meta: r.meta,
+        options: OPTIONS.map((o) => {
+          const on = marks[r.id] === o.key;
+          return {
+            label: o.label,
+            pick: () => {
+              const next = Object.assign({}, this.state.marks);
+              next[r.id] = o.key;
+              this.setState({ marks: next });
+            },
+            bg: on ? o.bg : '#FFFFFF',
+            fg: on ? o.fg : '#94A3B8',
+            border: on ? o.color : '#E8EAEE'
+          };
+        })
+      })),
+      closeBg: complete ? '#2D7FF9' : '#CBD5E1',
+      closeFg: '#FFFFFF',
+      closeNote: complete
+        ? 'Fechar grava attendance_closed_at e trava a base elegível do período.'
+        : (total - marked) + ' pessoas ainda sem marcação. Só chamadas fechadas entram no cálculo de frequência.'
+    };
+  }
+}
+</script>
+</body>
+</html>

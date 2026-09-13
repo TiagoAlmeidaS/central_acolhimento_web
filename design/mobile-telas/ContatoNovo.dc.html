@@ -1,0 +1,194 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: "Plus Jakarta Sans", system-ui, sans-serif; background: #F5F5F7; color: #0F172A; }
+    * { box-sizing: border-box; }
+    a { color: #2D7FF9; text-decoration: none; }
+    a:hover { color: #1F6BE0; }
+    button { font-family: inherit; cursor: pointer; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 900px; background: #F5F5F7; display: flex; flex-direction: column; overflow: hidden;">
+
+  <header style="padding: 16px 18px 14px; background: #FFFFFF; border-bottom: 1px solid #E8EAEE; display: flex; flex-direction: column; gap: 14px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <button style="width: 44px; height: 44px; flex-shrink: 0; border: 1px solid #D5D9E0; border-radius: 12px; background: #FFFFFF; color: #0F172A; display: flex; align-items: center; justify-content: center;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+      </button>
+      <h1 style="margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -0.02em; color: #0F172A; flex-grow: 1;">Novo contato</h1>
+      <span style="font-size: 12.5px; font-weight: 700; color: #94A3B8;">{{stepLabel}}</span>
+    </div>
+    <div style="display: flex; gap: 5px;">
+      <sc-for list="{{steps}}" as="s" hint-placeholder-count="3">
+        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 6px;">
+          <div style="height: 4px; border-radius: 999px; background: {{s.bar}};"></div>
+          <span style="font-size: 11px; font-weight: 700; color: {{s.fg}};">{{s.label}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </header>
+
+  <main style="flex: 1; padding: 16px 18px 24px; display: flex; flex-direction: column; gap: 14px; overflow: hidden;">
+
+    <div style="display: flex; gap: 11px; padding: 12px 14px; border-radius: 14px; background: #E8F1FE; border-left: 3px solid #2D7FF9;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2D7FF9" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><path d="M12 8h.01"></path><path d="M11 12h1v5h1"></path><circle cx="12" cy="12" r="9"></circle></svg>
+      <p style="margin: 0; font-size: 12.5px; line-height: 1.5; color: #4B5563;">{{hint}}</p>
+    </div>
+
+    <sc-for list="{{fields}}" as="f" hint-placeholder-count="4">
+      <div style="display: flex; flex-direction: column; gap: 7px;">
+        <div style="display: flex; align-items: baseline; gap: 7px;">
+          <span style="font-size: 13.5px; font-weight: 700; color: #0F172A;">{{f.label}}</span>
+          <span style="font-size: 11.5px; font-weight: 700; color: {{f.reqFg}};">{{f.req}}</span>
+        </div>
+        <sc-if value="{{f.isChips}}" hint-placeholder-val="{{true}}">
+          <div style="display: flex; gap: 7px; flex-wrap: wrap;">
+            <sc-for list="{{f.chips}}" as="c" hint-placeholder-count="4">
+              <button onClick="{{c.pick}}" style="min-height: 44px; padding: 0 14px; border: 1px solid {{c.border}}; border-radius: 12px; background: {{c.bg}}; color: {{c.fg}}; font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 7px;">
+                <span style="width: 7px; height: 7px; border-radius: 50%; background: {{c.dot}};"></span>{{c.label}}
+              </button>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{f.isInput}}" hint-placeholder-val="{{true}}">
+          <div style="min-height: 54px; padding: 15px 16px; border: 1px solid #D5D9E0; border-radius: 14px; background: #FFFFFF; display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 15px; color: {{f.valueFg}}; flex-grow: 1;">{{f.value}}</span>
+            <span style="font-size: 12px; color: #94A3B8;">{{f.suffix}}</span>
+          </div>
+        </sc-if>
+      </div>
+    </sc-for>
+
+    <sc-if value="{{showMap}}" hint-placeholder-val="{{true}}">
+      <div style="border: 1px solid #D5D9E0; border-radius: 16px; overflow: hidden; background: #FFFFFF;">
+        <div style="height: 132px; background: #EDF1F7; position: relative; display: flex; align-items: center; justify-content: center;">
+          <svg width="100%" height="132" viewBox="0 0 354 132" fill="none" aria-hidden="true">
+            <rect width="354" height="132" fill="#EDF1F7"></rect>
+            <path d="M0 46h354M0 92h354M88 0v132M177 0v132M266 0v132" stroke="#DDE3EC" stroke-width="1"></path>
+            <path d="M0 74C60 56 120 96 177 74s120-42 177-14" stroke="#CFD8E5" stroke-width="6" fill="none"></path>
+            <circle cx="177" cy="66" r="13" fill="#2D7FF9" opacity="0.18"></circle>
+            <circle cx="177" cy="66" r="6" fill="#2D7FF9"></circle>
+          </svg>
+        </div>
+        <div style="padding: 12px 14px; display: flex; align-items: center; gap: 11px; border-top: 1px solid #E8EAEE;">
+          <div style="flex-grow: 1; min-width: 0;">
+            <span style="font-size: 13px; font-weight: 700; color: #0F172A;">Ponto marcado no mapa</span>
+            <p style="margin: 1px 0 0; font-size: 11.5px; color: #94A3B8;">Rua das Palmeiras, 240 · Jd. Aurora</p>
+          </div>
+          <button style="height: 40px; padding: 0 13px; border: 1px solid #D5D9E0; border-radius: 11px; background: #FFFFFF; color: #2D7FF9; font-size: 12.5px; font-weight: 700;">Ajustar</button>
+        </div>
+      </div>
+    </sc-if>
+
+  </main>
+
+  <div style="padding: 12px 18px 26px; background: #FFFFFF; border-top: 1px solid #E8EAEE; display: flex; gap: 9px; box-shadow: 0 -4px 20px rgba(0,0,0,0.04);">
+    <button onClick="{{back}}" style="width: 108px; height: 52px; border: 1px solid #D5D9E0; border-radius: 14px; background: #FFFFFF; color: #0F172A; font-size: 14.5px; font-weight: 700;">Voltar</button>
+    <button onClick="{{next}}" style="flex-grow: 1; height: 52px; border: 1px solid transparent; border-radius: 14px; background: #2D7FF9; color: #fff; font-size: 14.5px; font-weight: 700;">{{nextLabel}}</button>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview":{"width":390,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { step: 1, origin: 'saida' };
+  }
+
+  renderVals() {
+    const step = this.state.step;
+    const ORIGINS = [
+      { key: 'saida',  label: 'Saída',        dot: '#2D7FF9' },
+      { key: 'indica', label: 'Indicação',    dot: '#16A34A' },
+      { key: 'culto',  label: 'Culto',        dot: '#7C3AED' },
+      { key: 'whats',  label: 'WhatsApp',     dot: '#0891B2' },
+      { key: 'manual', label: 'Cadastro meu', dot: '#64748B' }
+    ];
+
+    const chips = ORIGINS.map((o) => {
+      const on = o.key === this.state.origin;
+      return {
+        label: o.label,
+        dot: o.dot,
+        pick: () => this.setState({ origin: o.key }),
+        bg: on ? '#E8F1FE' : '#FFFFFF',
+        fg: on ? '#1D4ED8' : '#4B5563',
+        border: on ? '#2D7FF9' : '#D5D9E0'
+      };
+    });
+
+    const input = (label, value, req, suffix, filled) => ({
+      label, value, suffix: suffix || '',
+      req: req ? 'obrigatório' : 'opcional',
+      reqFg: req ? '#E11D48' : '#94A3B8',
+      valueFg: filled ? '#0F172A' : '#94A3B8',
+      isInput: true, isChips: false, chips: []
+    });
+
+    const stepsDef = [
+      { n: 1, label: 'Quem é' },
+      { n: 2, label: 'De onde veio' },
+      { n: 3, label: 'Onde mora' }
+    ];
+
+    const byStep = {
+      1: {
+        hint: 'Só o nome é obrigatório para salvar. O resto pode entrar depois, na ficha.',
+        fields: [
+          input('Nome de referência', 'Joana Batista', true, '', true),
+          input('Telefone (WhatsApp)', '(19) 9xxxx-4471', false, '', true),
+          input('Idade', 'Não informada', false, 'anos', false)
+        ],
+        showMap: false
+      },
+      2: {
+        hint: 'A origem é uma escolha de lista, não texto livre — é ela que alimenta o funil de aquisição no painel.',
+        fields: [
+          { label: 'Origem', req: 'obrigatório', reqFg: '#E11D48', isChips: true, isInput: false, chips: chips, value: '', suffix: '', valueFg: '#0F172A' },
+          input('Detalhe da origem', 'Saída de 06/09 · equipe 2', false, '', true),
+          input('Observações iniciais', 'Casa aberta, pediu visita no sábado', false, '', true)
+        ],
+        showMap: false
+      },
+      3: {
+        hint: 'O ponto no mapa é o que faz a pessoa aparecer no mapa do painel e no roteiro da próxima saída.',
+        fields: [
+          input('CEP', '13070-000', false, '', true),
+          input('Rua e número', 'Rua das Palmeiras, 240', false, '', true),
+          input('Bairro e cidade', 'Jd. Aurora · Campinas', false, '', true)
+        ],
+        showMap: true
+      }
+    };
+
+    const current = byStep[step];
+
+    return {
+      stepLabel: 'Passo ' + step + ' de 3',
+      steps: stepsDef.map((s) => ({
+        label: s.label,
+        bar: s.n <= step ? '#2D7FF9' : '#E8EAEE',
+        fg: s.n === step ? '#2D7FF9' : '#94A3B8'
+      })),
+      hint: current.hint,
+      fields: current.fields,
+      showMap: current.showMap,
+      nextLabel: step === 3 ? 'Salvar contato' : 'Continuar',
+      next: () => this.setState({ step: step === 3 ? 1 : step + 1 }),
+      back: () => this.setState({ step: step === 1 ? 3 : step - 1 })
+    };
+  }
+}
+</script>
+</body>
+</html>

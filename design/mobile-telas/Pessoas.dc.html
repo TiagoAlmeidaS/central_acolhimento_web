@@ -1,0 +1,160 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: "Plus Jakarta Sans", system-ui, sans-serif; background: #F5F5F7; color: #0F172A; }
+    * { box-sizing: border-box; }
+    a { color: #2D7FF9; text-decoration: none; }
+    a:hover { color: #1F6BE0; }
+    button { font-family: inherit; cursor: pointer; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #F5F5F7; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+
+  <header style="padding: 18px 18px 0; background: #FFFFFF; border-bottom: 1px solid #E8EAEE; display: flex; flex-direction: column; gap: 13px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+      <h1 style="margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.025em; color: #0F172A;">Pessoas</h1>
+      <button style="width: 44px; height: 44px; border: 1px solid #D5D9E0; border-radius: 12px; background: #FFFFFF; color: #0F172A; display: flex; align-items: center; justify-content: center;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 7v6l-4 2v-8z"></path></svg>
+      </button>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 13px; border: 1px solid #D5D9E0; border-radius: 12px; background: #F8F9FB;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+      <span style="font-size: 14px; color: #94A3B8;">Buscar por nome ou telefone</span>
+    </div>
+
+    <div style="display: flex; gap: 2px;">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="2">
+        <button onClick="{{t.pick}}" style="flex-grow: 1; min-height: 46px; padding: 0 8px; border: none; border-bottom: 2px solid {{t.border}}; background: transparent; color: {{t.fg}}; font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 7px;">
+          {{t.label}}
+          <span style="display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 999px; background: {{t.badgeBg}}; color: {{t.badgeFg}}; font-size: 11.5px; font-weight: 800;">{{t.count}}</span>
+        </button>
+      </sc-for>
+    </div>
+  </header>
+
+  <div style="padding: 12px 18px 0; display: flex; gap: 7px; overflow: hidden;">
+    <sc-for list="{{filters}}" as="f" hint-placeholder-count="4">
+      <span style="display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 11px; border: 1px solid {{f.border}}; border-radius: 999px; background: {{f.bg}}; color: {{f.fg}}; font-size: 12.5px; font-weight: 700; white-space: nowrap;">
+        <span style="width: 6px; height: 6px; border-radius: 50%; background: {{f.dot}};"></span>
+        {{f.label}}
+      </span>
+    </sc-for>
+  </div>
+
+  <main style="flex: 1; padding: 12px 18px 96px; display: flex; flex-direction: column; gap: 9px; overflow: hidden;">
+    <sc-for list="{{people}}" as="p" hint-placeholder-count="6">
+      <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 16px; padding: 13px 14px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; align-items: center; gap: 12px;">
+        <div style="width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0; background: #E2E8F0; color: #64748B; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14.3px;">{{p.initials}}</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; flex-grow: 1; min-width: 0;">
+          <span style="font-size: 14.5px; font-weight: 700; color: #0F172A;">{{p.name}}</span>
+          <div style="display: flex; align-items: center; gap: 7px; flex-wrap: wrap;">
+            <span style="display: inline-flex; align-items: center; gap: 5px; height: 21px; padding: 0 8px; border-radius: 999px; background: {{p.statusBg}}; color: {{p.statusFg}}; font-size: 11px; font-weight: 700;">
+              <span style="width: 5px; height: 5px; border-radius: 50%; background: currentColor;"></span>{{p.status}}
+            </span>
+            <span style="display: inline-flex; align-items: center; gap: 5px; height: 21px; padding: 0 8px; border-radius: 999px; background: {{p.originBg}}; color: {{p.originFg}}; font-size: 11px; font-weight: 700;">{{p.origin}}</span>
+          </div>
+          <span style="font-size: 11.5px; color: #94A3B8;">{{p.meta}}</span>
+        </div>
+        <button style="width: 40px; height: 40px; flex-shrink: 0; border: 1px solid #D5D9E0; border-radius: 11px; background: #FFFFFF; color: #22C55E; display: flex; align-items: center; justify-content: center;">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.2-6.9"></path><path d="M8 10.5c.7 2.2 2.3 3.8 4.5 4.5l1.4-1.4 2.6 1v2.1c-3.9.4-7.6-3.3-8-7.2h2.1z"></path></svg>
+        </button>
+      </div>
+    </sc-for>
+
+    <p style="margin: 6px 2px 0; font-size: 12px; color: #94A3B8; text-align: center;">{{footNote}}</p>
+  </main>
+
+  <button style="position: absolute; right: 18px; bottom: 104px; z-index: 3; height: 52px; padding: 0 20px; border: none; border-radius: 999px; background: #2D7FF9; color: #fff; font-size: 14.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 8px 24px rgba(45,127,249,0.34);">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+    {{fabLabel}}
+  </button>
+
+  <nav style="padding: 10px 0 24px; background: #FFFFFF; border-top: 1px solid #E8EAEE; display: flex; justify-content: space-around; box-shadow: 0 -4px 20px rgba(0,0,0,0.03);">
+    <sc-for list="{{tabbar}}" as="t" hint-placeholder-count="5">
+      <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; color: {{t.fg}}; font-size: 11.5px; font-weight: 600;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{t.sw}}" stroke-linecap="round" stroke-linejoin="round"><path d="{{t.d1}}"></path><path d="{{t.d2}}"></path></svg>
+        <span>{{t.label}}</span>
+      </div>
+    </sc-for>
+  </nav>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'contatos' };
+  }
+
+  renderVals() {
+    const isContacts = this.state.tab === 'contatos';
+
+    const contatos = [
+      { initials: 'JB', name: 'Joana Batista', status: 'Novo',        statusBg: '#FFEDD5', statusFg: '#C2410C', origin: 'Saída',        originBg: '#E8F1FE', originFg: '#1D4ED8', meta: 'Jd. Aurora · cadastrada há 2 dias · sem cuidador' },
+      { initials: 'ER', name: 'Elaine Rocha',  status: 'Novo',        statusBg: '#FFEDD5', statusFg: '#C2410C', origin: 'Link público', originBg: '#FFEDD5', originFg: '#C2410C', meta: 'Centro · cadastrada ontem · sem cuidador' },
+      { initials: 'SD', name: 'Sérgio Dias',   status: 'Contatado',   statusBg: '#ECFEFF', statusFg: '#0E7490', origin: 'Indicação',    originBg: '#DCFCE7', originFg: '#15803D', meta: 'Valinhos · Rafael Cunha · 1º contato feito' },
+      { initials: 'PM', name: 'Pedro Martins', status: 'Aguardando',  statusBg: '#FFEDD5', statusFg: '#C2410C', origin: 'Saída',        originBg: '#E8F1FE', originFg: '#1D4ED8', meta: 'Jd. Aurora · visita marcada para sábado' },
+      { initials: 'LB', name: 'Lúcia Barros',  status: 'Novo',        statusBg: '#FFEDD5', statusFg: '#C2410C', origin: 'Indicação',    originBg: '#DCFCE7', originFg: '#15803D', meta: 'Centro · cadastrada há 4 dias · sem cuidador' }
+    ];
+
+    const membros = [
+      { initials: 'CF', name: 'Cláudia Freitas', status: 'Acompanhando', statusBg: '#DBEAFE', statusFg: '#1D4ED8', origin: 'Culto',     originBg: 'rgba(124,58,237,0.12)', originFg: '#6D28D9', meta: 'Ana Lima · última ação há 3 dias · 3 faltas seguidas' },
+      { initials: 'MT', name: 'Marcos Teixeira', status: 'Acompanhando', statusBg: '#DBEAFE', statusFg: '#1D4ED8', origin: 'Saída',     originBg: '#E8F1FE', originFg: '#1D4ED8', meta: 'Marina Souza · última presença há 26 dias' },
+      { initials: 'VC', name: 'Vera Campos',     status: 'Consolidado',  statusBg: '#DCFCE7', statusFg: '#15803D', origin: 'Sem registro', originBg: '#E2E8F0', originFg: '#475569', meta: 'Rafael Cunha · frequência 92%' },
+      { initials: 'HN', name: 'Hélio Nunes',     status: 'Acompanhando', statusBg: '#DBEAFE', statusFg: '#1D4ED8', origin: 'WhatsApp',  originBg: '#ECFEFF', originFg: '#0E7490', meta: 'Sem cuidador · ação vencida há 6 dias' },
+      { initials: 'RA', name: 'Rita Alencar',    status: 'Inativo',      statusBg: '#E2E8F0', statusFg: '#475569', origin: 'Link público', originBg: '#FFEDD5', originFg: '#C2410C', meta: 'Sem ação há 41 dias' }
+    ];
+
+    return {
+      tabs: [
+        { key: 'contatos', label: 'Contatos', count: '31' },
+        { key: 'membros',  label: 'Membros',  count: '184' }
+      ].map((t) => ({
+        label: t.label,
+        count: t.count,
+        pick: () => this.setState({ tab: t.key }),
+        fg: t.key === this.state.tab ? '#2D7FF9' : '#94A3B8',
+        border: t.key === this.state.tab ? '#2D7FF9' : 'transparent',
+        badgeBg: t.key === this.state.tab ? '#E8F1FE' : '#F1F3F7',
+        badgeFg: t.key === this.state.tab ? '#1D4ED8' : '#94A3B8'
+      })),
+      filters: isContacts
+        ? [
+            { label: 'Sem cuidador', dot: '#EA580C', bg: '#E8F1FE', fg: '#1D4ED8', border: '#2D7FF9' },
+            { label: 'Origem: todas', dot: '#94A3B8', bg: '#FFFFFF', fg: '#4B5563', border: '#D5D9E0' },
+            { label: 'Esta semana', dot: '#16A34A', bg: '#FFFFFF', fg: '#4B5563', border: '#D5D9E0' },
+            { label: 'Urgentes', dot: '#E11D48', bg: '#FFFFFF', fg: '#4B5563', border: '#D5D9E0' }
+          ]
+        : [
+            { label: 'Para revisão', dot: '#E11D48', bg: '#E8F1FE', fg: '#1D4ED8', border: '#2D7FF9' },
+            { label: 'Origem: todas', dot: '#94A3B8', bg: '#FFFFFF', fg: '#4B5563', border: '#D5D9E0' },
+            { label: 'Sem cuidador', dot: '#EA580C', bg: '#FFFFFF', fg: '#4B5563', border: '#D5D9E0' },
+            { label: 'Frequência baixa', dot: '#EA580C', bg: '#FFFFFF', fg: '#4B5563', border: '#D5D9E0' }
+          ],
+      people: isContacts ? contatos : membros,
+      fabLabel: isContacts ? 'Novo contato' : 'Novo membro',
+      footNote: isContacts ? 'Mostrando 5 de 31 contatos no recorte' : 'Mostrando 5 de 184 membros no recorte',
+      tabbar: [
+        { label: 'Painel',  active: false, d1: 'M3 11l9-8 9 8', d2: 'M5 10v10h14V10' },
+        { label: 'Pessoas', active: true,  d1: 'M9 8a3.5 3.5 0 1 0 0-.001', d2: 'M3 21a6 6 0 0 1 12 0M17 10a2.5 2.5 0 1 0 0-.001M15 21a5 5 0 0 1 6.5-4.8' },
+        { label: 'Igreja',  active: false, d1: 'M12 3v6', d2: 'M9 6h6M5 21V11l7-5 7 5v10z' },
+        { label: 'Ações',   active: false, d1: 'M3 5h18v16H3z', d2: 'M3 10h18M8 3v4M16 3v4' },
+        { label: 'Mais',    active: false, d1: 'M5 12h.01M12 12h.01M19 12h.01', d2: 'M5 12h.01M12 12h.01M19 12h.01' }
+      ].map((t) => ({ label: t.label, d1: t.d1, d2: t.d2, fg: t.active ? '#2D7FF9' : '#94A3B8', sw: t.active ? '2.2' : '1.8' }))
+    };
+  }
+}
+</script>
+</body>
+</html>

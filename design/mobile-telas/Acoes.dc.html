@@ -1,0 +1,174 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: "Plus Jakarta Sans", system-ui, sans-serif; background: #F5F5F7; color: #0F172A; }
+    * { box-sizing: border-box; }
+    a { color: #2D7FF9; text-decoration: none; }
+    a:hover { color: #1F6BE0; }
+    button { font-family: inherit; cursor: pointer; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 900px; background: #F5F5F7; display: flex; flex-direction: column; overflow: hidden;">
+
+  <header style="padding: 16px 18px 14px; background: #FFFFFF; border-bottom: 1px solid #E8EAEE; display: flex; align-items: center; gap: 12px;">
+    <button style="width: 44px; height: 44px; flex-shrink: 0; border: 1px solid #D5D9E0; border-radius: 12px; background: #FFFFFF; color: #0F172A; display: flex; align-items: center; justify-content: center;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+    </button>
+    <div style="flex-grow: 1; min-width: 0;">
+      <p style="margin: 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: #2D7FF9;">Registrar</p>
+      <h1 style="margin: 2px 0 0; font-size: 17px; font-weight: 800; letter-spacing: -0.02em; color: #0F172A;">Acompanhamento</h1>
+    </div>
+  </header>
+
+  <main style="flex: 1; padding: 16px 18px 24px; display: flex; flex-direction: column; gap: 16px; overflow: hidden;">
+
+    <div style="display: flex; align-items: center; gap: 12px; padding: 13px 14px; border: 1px solid #E8EAEE; border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(15,23,42,0.04);">
+      <div style="width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0; background: #E2E8F0; color: #64748B; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px;">JB</div>
+      <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1; min-width: 0;">
+        <span style="font-size: 14.5px; font-weight: 700; color: #0F172A;">Joana Batista</span>
+        <span style="font-size: 11.5px; color: #94A3B8;">Jd. Aurora · veio de Saída · sem ação há 9 dias</span>
+      </div>
+      <button style="height: 38px; padding: 0 12px; flex-shrink: 0; border: 1px solid #D5D9E0; border-radius: 11px; background: #FFFFFF; color: #2D7FF9; font-size: 12.5px; font-weight: 700;">Trocar</button>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 9px;">
+      <span style="font-size: 13.5px; font-weight: 700; color: #0F172A;">Tipo de ação</span>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+        <sc-for list="{{types}}" as="t" hint-placeholder-count="5">
+          <button onClick="{{t.pick}}" style="min-height: 56px; padding: 0 13px; border: 1px solid {{t.border}}; border-radius: 14px; background: {{t.bg}}; color: {{t.fg}}; font-size: 14px; font-weight: 700; display: inline-flex; align-items: center; gap: 10px;">
+            <span style="width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0; background: {{t.iconBg}}; color: {{t.iconFg}}; display: inline-flex; align-items: center; justify-content: center;">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{t.d1}}"></path><path d="{{t.d2}}"></path></svg>
+            </span>
+            {{t.label}}
+          </button>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 9px;">
+      <span style="font-size: 13.5px; font-weight: 700; color: #0F172A;">Quando aconteceu</span>
+      <div style="display: flex; gap: 8px;">
+        <sc-for list="{{whens}}" as="w" hint-placeholder-count="3">
+          <button onClick="{{w.pick}}" style="flex-grow: 1; min-height: 46px; border: 1px solid {{w.border}}; border-radius: 12px; background: {{w.bg}}; color: {{w.fg}}; font-size: 13.5px; font-weight: 700;">{{w.label}}</button>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 9px;">
+      <div style="display: flex; align-items: baseline; gap: 7px;">
+        <span style="font-size: 13.5px; font-weight: 700; color: #0F172A;">O que aconteceu</span>
+        <span style="font-size: 11.5px; font-weight: 700; color: #94A3B8;">opcional</span>
+      </div>
+      <div style="min-height: 104px; padding: 14px 16px; border: 1px solid #D5D9E0; border-radius: 14px; background: #FFFFFF;">
+        <span style="font-size: 14.5px; line-height: 1.55; color: #4B5563;">{{noteSample}}</span>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; padding: 15px; border: 1px solid {{nextBorder}}; border-radius: 16px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(15,23,42,0.04);">
+      <div style="display: flex; align-items: center; gap: 11px;">
+        <button onClick="{{toggleNext}}" style="width: 46px; height: 28px; flex-shrink: 0; border: none; border-radius: 999px; background: {{switchBg}}; padding: 3px; display: flex; justify-content: {{switchJustify}};">
+          <span style="width: 22px; height: 22px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 3px rgba(15,23,42,0.25);"></span>
+        </button>
+        <div style="flex-grow: 1; min-width: 0;">
+          <span style="font-size: 14px; font-weight: 700; color: #0F172A;">Agendar próxima ação</span>
+          <p style="margin: 1px 0 0; font-size: 11.5px; line-height: 1.45; color: #94A3B8;">{{nextHint}}</p>
+        </div>
+      </div>
+      <sc-if value="{{nextOn}}" hint-placeholder-val="{{true}}">
+        <div style="display: flex; gap: 8px;">
+          <sc-for list="{{nextWhens}}" as="n" hint-placeholder-count="3">
+            <button onClick="{{n.pick}}" style="flex-grow: 1; min-height: 46px; border: 1px solid {{n.border}}; border-radius: 12px; background: {{n.bg}}; color: {{n.fg}}; font-size: 13px; font-weight: 700;">{{n.label}}</button>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+
+  </main>
+
+  <div style="padding: 12px 18px 26px; background: #FFFFFF; border-top: 1px solid #E8EAEE; box-shadow: 0 -4px 20px rgba(0,0,0,0.04);">
+    <button style="height: 52px; width: 100%; border: 1px solid transparent; border-radius: 14px; background: #2D7FF9; color: #fff; font-size: 15px; font-weight: 700;">Salvar acompanhamento</button>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview":{"width":390,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { type: 'visit', when: 'today', next: true, nextWhen: 'week' };
+  }
+
+  renderVals() {
+    const TYPES = [
+      { key: 'visit',   label: 'Visita',   iconBg: '#DCFCE7', iconFg: '#16A34A', d1: 'M3 11l9-8 9 8', d2: 'M5 10v10h14V10' },
+      { key: 'call',    label: 'Ligação',  iconBg: '#DBEAFE', iconFg: '#2563EB', d1: 'M6 3h3l2 5-2 1a12 12 0 0 0 6 6l1-2 5 2v3a2 2 0 0 1-2 2A17 17 0 0 1 4 5a2 2 0 0 1 2-2z', d2: '' },
+      { key: 'message', label: 'Mensagem', iconBg: '#E8F1FE', iconFg: '#2D7FF9', d1: 'M4 5h16v11H9l-5 4z', d2: '' },
+      { key: 'prayer',  label: 'Oração',   iconBg: 'rgba(124,58,237,0.12)', iconFg: '#7C3AED', d1: 'M12 21s-7-4.5-9.5-9.2A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 5.8C19 16.5 12 21 12 21z', d2: '' },
+      { key: 'other',   label: 'Outro',    iconBg: '#E2E8F0', iconFg: '#475569', d1: 'M5 12h.01M12 12h.01M19 12h.01', d2: '' }
+    ];
+
+    const pill = (on) => ({
+      bg: on ? '#E8F1FE' : '#FFFFFF',
+      fg: on ? '#1D4ED8' : '#4B5563',
+      border: on ? '#2D7FF9' : '#D5D9E0'
+    });
+
+    const notes = {
+      visit:   'Casa aberta, conversamos cerca de 40 minutos. Pediu oração pela filha mais nova.',
+      call:    'Atendeu, disse que não conseguiu vir no domingo por causa do turno no trabalho.',
+      message: 'Mandei mensagem confirmando o culto de domingo. Ainda sem resposta.',
+      prayer:  'Oração pelo emprego do marido, pedido levado à reunião de quarta.',
+      other:   'Descreva o que aconteceu neste encontro.'
+    };
+
+    return {
+      types: TYPES.map((t) => {
+        const on = t.key === this.state.type;
+        const p = pill(on);
+        return {
+          label: t.label, d1: t.d1, d2: t.d2 || t.d1,
+          iconBg: t.iconBg, iconFg: t.iconFg,
+          pick: () => this.setState({ type: t.key }),
+          bg: p.bg, fg: on ? '#0F172A' : '#4B5563', border: p.border
+        };
+      }),
+      whens: [
+        { key: 'today', label: 'Hoje' },
+        { key: 'yesterday', label: 'Ontem' },
+        { key: 'other', label: 'Outra data' }
+      ].map((w) => {
+        const p = pill(w.key === this.state.when);
+        return { label: w.label, pick: () => this.setState({ when: w.key }), bg: p.bg, fg: p.fg, border: p.border };
+      }),
+      noteSample: notes[this.state.type],
+      nextOn: this.state.next,
+      toggleNext: () => this.setState({ next: !this.state.next }),
+      switchBg: this.state.next ? '#2D7FF9' : '#CBD5E1',
+      switchJustify: this.state.next ? 'flex-end' : 'flex-start',
+      nextBorder: this.state.next ? '#2D7FF9' : '#E8EAEE',
+      nextHint: this.state.next
+        ? 'Vira a próxima ação da pessoa na fila da coordenação.'
+        : 'Sem próxima ação, a pessoa sai da fila de acompanhamento.',
+      nextWhens: [
+        { key: 'days3', label: 'Em 3 dias' },
+        { key: 'week', label: 'Em 1 semana' },
+        { key: 'pick', label: 'Escolher' }
+      ].map((n) => {
+        const p = pill(n.key === this.state.nextWhen);
+        return { label: n.label, pick: () => this.setState({ nextWhen: n.key }), bg: p.bg, fg: p.fg, border: p.border };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>
