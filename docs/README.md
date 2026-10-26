@@ -13,6 +13,7 @@ Este repositório contém a aplicacao **central_acolhimento_web** no formato de 
 - [Dashboard da Igreja: frequencia e acoes de cuidado](architecture/church-dashboard-care-analysis-spec.md) — analises por dia, semana e mes, sinais de atencao e fluxo de cuidado.
 - [Relatorio diario de saidas e novos contatos](architecture/daily-outing-report-spec.md) — tipos de saida, conclusao operacional, vinculo de contatos, casas abertas, mapa e PDF diario.
 - [Triagem por WhatsApp](architecture/whatsapp-triage-flow-spec.md) — proposta do estagio 1 de gestao + acao: captura em campo, pre-atendimento por WhatsApp (Evolution + IA), encaminhamento ao cuidador e ligacao. Apresentacao em [whatsapp-triage-flow.html](architecture/whatsapp-triage-flow.html).
+- [Apresentacao do produto (PDF)](apresentacao/apresentacao-produto.pdf) — deck para validar a proposta de gestao + acao com os interessados; fonte em [apresentacao-produto.html](apresentacao/apresentacao-produto.html).
 - [Inventario de dados do painel](database/inventario-dados-painel.html) — auditoria do modelo: o que o painel consegue medir hoje, onde a medicao sai errada e as consultas SQL que produzem os numeros.
 - [Postgres Setup on Vercel](database/vercel-postgres-setup.md) — variaveis e fluxo recomendado para conectar o banco na Vercel.
 - [Mapeamento das Telas Stitch](telas-stitch-mapping.md) — referencia visual usada para portar as telas.

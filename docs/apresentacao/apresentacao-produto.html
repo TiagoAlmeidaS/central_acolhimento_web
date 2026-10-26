@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Central de Acolhimento — Apresentação do produto</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  /* Deck A4 paisagem para PDF. Visual único e claro (impressão), com os tokens da Central. */
+  :root {
+    --bg: #F4F6F9;
+    --paper: #FFFFFF;
+    --soft: #F8F9FB;
+    --rule: #E3E7EE;
+    --ink: #0F172A;
+    --ink-2: #4B5563;
+    --ink-3: #8A94A6;
+    --accent: #2D7FF9;
+    --accent-deep: #1A4FA8;
+    --accent-soft: #E8F1FE;
+    --wa: #16A34A;
+    --wa-soft: #DCFCE7;
+    --wa-chat: #EFEAE2;
+    --wa-out: #D9FDD3;
+    --warn: #C2410C;
+    --warn-soft: #FFEDD5;
+    --crit: #BE123C;
+    --crit-soft: #FFE4E6;
+    --violet: #6D28D9;
+    --violet-soft: #EDE9FE;
+    --sans: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  }
+  @page { size: 297mm 210mm; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  h1, h2, h3, p { margin: 0; }
+  h1, h2, h3 { letter-spacing: -0.02em; text-wrap: balance; }
+
+  .slide {
+    width: 297mm; height: 210mm; overflow: hidden; position: relative;
+    background: var(--paper); padding: 16mm 18mm 14mm;
+    display: flex; flex-direction: column; gap: 8mm;
+    page-break-after: always; break-after: page;
+  }
+  .slide:last-child { page-break-after: auto; break-after: auto; }
+  @media screen { body { display: flex; flex-direction: column; align-items: center; gap: 10mm; padding: 10mm 0; } .slide { box-shadow: 0 2px 12px rgba(15,23,42,.08); } }
+
+  .top { display: flex; justify-content: space-between; align-items: baseline; gap: 10mm; }
+  .eyebrow { font-size: 10pt; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  .pg { font-family: var(--mono); font-size: 9pt; color: var(--ink-3); }
+  .title { font-size: 26pt; font-weight: 800; line-height: 1.12; max-width: 230mm; }
+  .lede { font-size: 13pt; line-height: 1.5; color: var(--ink-2); max-width: 210mm; }
+  .foot { margin-top: auto; display: flex; justify-content: space-between; font-size: 8.5pt; color: var(--ink-3); border-top: 1px solid var(--rule); padding-top: 3mm; }
+  .grid { display: grid; gap: 5mm; }
+  .card { background: var(--soft); border: 1px solid var(--rule); border-radius: 4mm; padding: 5mm; display: flex; flex-direction: column; gap: 2mm; }
+  .card h3 { font-size: 13pt; font-weight: 700; }
+  .card p, .card li { font-size: 10.5pt; line-height: 1.45; color: var(--ink-2); }
+  .card ul { margin: 0; padding-left: 4.5mm; display: flex; flex-direction: column; gap: 1.2mm; }
+  .chip { display: inline-block; padding: .3mm 2.2mm; border-radius: 1.6mm; font-family: var(--mono); font-size: 8.5pt; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+  .chip.green { background: var(--wa-soft); color: var(--wa); }
+  .chip.orange { background: var(--warn-soft); color: var(--warn); }
+  .chip.red { background: var(--crit-soft); color: var(--crit); }
+  .chip.violet { background: var(--violet-soft); color: var(--violet); }
+  .num { width: 9mm; height: 9mm; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 11pt; background: var(--accent-soft); color: var(--accent); }
+  .num.g { background: var(--wa-soft); color: var(--wa); }
+
+  /* Capa */
+  .cover { background: var(--accent-deep); color: #fff; justify-content: space-between; padding: 22mm 22mm 16mm; }
+  .cover .eyebrow { color: #BFD7FF; }
+  .cover h1 { font-size: 44pt; font-weight: 800; line-height: 1.04; max-width: 220mm; }
+  .cover .lede { color: #DCE8FF; font-size: 15pt; max-width: 190mm; }
+  .cover .meta { display: flex; gap: 10mm; font-size: 10pt; color: #BFD7FF; }
+  .cover .meta b { display: block; color: #fff; font-size: 11pt; }
+  .cover .mark { display: flex; align-items: center; gap: 4mm; font-weight: 700; font-size: 12pt; }
+  .cover .mark i { width: 10mm; height: 10mm; border-radius: 3mm; background: #fff; color: var(--accent-deep); display: grid; place-items: center; font-style: normal; font-weight: 800; }
+
+  /* Problema */
+  .big { font-size: 30pt; font-weight: 800; color: var(--accent); line-height: 1; }
+  .quote { border-left: 1.2mm solid var(--accent); padding: 2mm 0 2mm 5mm; font-size: 14pt; line-height: 1.45; color: var(--ink); max-width: 220mm; }
+
+  /* Timeline de perda */
+  .leak { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border: 1px solid var(--rule); border-radius: 4mm; overflow: hidden; }
+  .leak > div { padding: 5mm; border-right: 1px solid var(--rule); display: flex; flex-direction: column; gap: 2mm; }
+  .leak > div:last-child { border-right: 0; background: var(--crit-soft); }
+  .leak b { font-size: 12pt; }
+  .leak p { font-size: 10pt; color: var(--ink-2); line-height: 1.45; }
+  .leak .k { font-family: var(--mono); font-size: 8.5pt; color: var(--ink-3); }
+
+  /* Módulos */
+  .mods { grid-template-columns: repeat(4, 1fr); }
+  .mods .card { background: var(--paper); }
+  .mods .card .k { font-family: var(--mono); font-size: 8pt; color: var(--ink-3); }
+  .mods .card.new { border: 1.4px dashed var(--violet); background: var(--violet-soft); }
+  .mods .card.new .k { color: var(--violet); }
+
+  /* Jornada */
+  .journey { grid-template-columns: repeat(4, 1fr); }
+  .journey .card { background: var(--paper); }
+  .journey .who { font-size: 8.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); }
+  .arrowrow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5mm; }
+  .arrowrow div { font-size: 9.5pt; color: var(--ink-2); padding: 3mm 4mm; border-radius: 3mm; background: var(--soft); border: 1px solid var(--rule); }
+  .arrowrow div b { color: var(--ink); }
+
+  /* Conversa */
+  .two { display: grid; grid-template-columns: 105mm 1fr; gap: 10mm; align-items: start; }
+  .phone { border: 1px solid var(--rule); border-radius: 7mm; padding: 3mm; background: var(--paper); }
+  .phone .bar { display: flex; align-items: center; gap: 3mm; padding: 1.5mm 2mm 3mm; font-size: 9.5pt; }
+  .phone .bar i { width: 8mm; height: 8mm; border-radius: 50%; background: var(--wa); color: #fff; display: grid; place-items: center; font-style: normal; font-weight: 800; font-size: 8.5pt; }
+  .phone .bar small { display: block; color: var(--ink-3); font-size: 8pt; }
+  .chat { background: var(--wa-chat); border-radius: 5mm; padding: 3.5mm; display: flex; flex-direction: column; gap: 1.6mm; }
+  .msg { max-width: 86%; background: #fff; border-radius: 2.4mm; padding: 1.6mm 2.6mm; font-size: 8.8pt; line-height: 1.4; }
+  .msg.out { align-self: flex-end; background: var(--wa-out); }
+  .msg span { display: block; font-size: 6.8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--wa); }
+  .msg.in span { color: var(--accent); }
+  .sys { align-self: center; font-size: 7.6pt; font-weight: 600; padding: .8mm 2.6mm; border-radius: 2mm; background: #fff; color: var(--ink-2); }
+  .bul { display: flex; flex-direction: column; gap: 4mm; }
+  .bul > div { display: grid; grid-template-columns: 9mm 1fr; gap: 4mm; align-items: start; }
+  .bul b { font-size: 12pt; display: block; }
+  .bul p { font-size: 10.5pt; color: var(--ink-2); line-height: 1.45; }
+  pre.json { margin: 0; padding: 4mm; border-radius: 3mm; background: var(--soft); border: 1px solid var(--rule); font-family: var(--mono); font-size: 8.4pt; line-height: 1.5; color: var(--ink-2); white-space: pre-wrap; }
+
+  /* Encaminhamento */
+  .route { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid var(--rule); border-radius: 4mm; overflow: hidden; }
+  .route > div { padding: 5mm; border-right: 1px solid var(--rule); display: flex; flex-direction: column; gap: 2mm; }
+  .route > div:last-child { border-right: 0; background: var(--warn-soft); }
+  .route .k { font-family: var(--mono); font-size: 8.5pt; color: var(--ink-3); }
+  .route b { font-size: 12pt; }
+  .route p { font-size: 10pt; color: var(--ink-2); line-height: 1.45; }
+
+  /* Funil */
+  .room { display: grid; grid-template-columns: 1.4fr 1fr; gap: 8mm; }
+  .frow { display: grid; grid-template-columns: 40mm 1fr 12mm; gap: 3mm; align-items: center; font-size: 10pt; }
+  .bar2 { height: 6mm; border-radius: 1.6mm; background: var(--accent-soft); position: relative; overflow: hidden; }
+  .bar2 i { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 1.6mm; }
+  .v { font-family: var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+  .times { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; }
+  .times div { background: var(--soft); border: 1px solid var(--rule); border-radius: 3mm; padding: 3mm; }
+  .times b { display: block; font-size: 15pt; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .times span { font-size: 8.5pt; color: var(--ink-2); }
+  .q { display: flex; justify-content: space-between; align-items: center; padding: 2.6mm 3.5mm; border: 1px solid var(--rule); border-radius: 3mm; background: var(--soft); font-size: 10.5pt; }
+  .example { font-size: 8pt; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--warn); }
+
+  /* Roadmap */
+  .slices { grid-template-columns: repeat(4, 1fr); }
+  .slice { border-top: 1.4mm solid var(--accent); background: var(--soft); border-radius: 0 0 3mm 3mm; padding: 5mm; display: flex; flex-direction: column; gap: 2mm; }
+  .slice:nth-child(2) { border-top-color: var(--wa); }
+  .slice:nth-child(3) { border-top-color: var(--violet); }
+  .slice:nth-child(4) { border-top-color: var(--warn); }
+  .slice .k { font-family: var(--mono); font-size: 8.5pt; color: var(--ink-3); }
+  .slice b { font-size: 13pt; }
+  .slice p, .slice li { font-size: 10pt; color: var(--ink-2); line-height: 1.45; }
+  .slice ul { margin: 0; padding-left: 4.5mm; }
+  .slice .gain { margin-top: auto; font-size: 9.5pt; color: var(--ink); background: var(--paper); border-radius: 2mm; padding: 2.4mm 3mm; border: 1px solid var(--rule); }
+
+  /* Validação */
+  .qs { counter-reset: q; display: grid; grid-template-columns: 1fr 1fr; gap: 4mm 8mm; }
+  .qs > div { display: grid; grid-template-columns: 9mm 1fr; gap: 3mm; align-items: start; padding-bottom: 3mm; border-bottom: 1px solid var(--rule); }
+  .qs b { font-size: 11.5pt; display: block; }
+  .qs p { font-size: 9.8pt; color: var(--ink-2); line-height: 1.45; }
+  .check { width: 6mm; height: 6mm; border: 1.4px solid var(--ink-3); border-radius: 1.4mm; margin-top: 1mm; }
+
+  .closing { background: var(--accent-deep); color: #fff; }
+  .closing .eyebrow { color: #BFD7FF; }
+  .closing .title { color: #fff; }
+  .closing .lede { color: #DCE8FF; }
+  .closing .card { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.18); }
+  .closing .card h3 { color: #fff; }
+  .closing .card p { color: #DCE8FF; }
+  .closing .num { background: #fff; color: var(--accent-deep); }
+  .closing .foot { color: #BFD7FF; border-top-color: rgba(255,255,255,.2); }
+</style>
+</head>
+<body>
+
+<!-- 1. Capa -->
+<section class="slide cover">
+  <div class="mark"><i>CA</i>Central de Acolhimento</div>
+  <div style="display:flex;flex-direction:column;gap:7mm">
+    <span class="eyebrow">Apresentação do produto · Gestão + ação</span>
+    <h1>Ninguém que a gente encontra na rua fica sem uma ligação.</h1>
+    <p class="lede">Uma plataforma para cuidar de pessoas do primeiro encontro em campo até a comunhão: quem está na rua cadastra, uma assistente acolhe pelo WhatsApp, um cuidador liga, e a coordenação enxerga tudo.</p>
+  </div>
+  <div class="meta">
+    <div><b>Para quem</b>Igrejas e coordenações locais</div>
+    <div><b>Estágio</b>Proposta para validação</div>
+    <div><b>Data</b>Outubro de 2026</div>
+  </div>
+</section>
+
+<!-- 2. Problema -->
+<section class="slide">
+  <div class="top"><span class="eyebrow">O problema</span><span class="pg">02</span></div>
+  <h2 class="title">O contato feito em campo esfria antes de alguém ligar.</h2>
+  <p class="lede">A abordagem na rua funciona. O que se perde é o que vem depois: o nome vai para uma lista, a lista espera alguém lembrar, e a pessoa que abriu o coração na praça não recebe retorno.</p>
+  <div class="leak">
+    <div><span class="k">dia 0 · praça</span><b>Conversa boa</b><p>A pessoa pede oração e deixa o telefone.</p></div>
+    <div><span class="k">dia 0 · noite</span><b>Vai para a lista</b><p>O contato é cadastrado, mas ninguém é responsável por ele ainda.</p></div>
+    <div><span class="k">dia 1 a 7</span><b>Espera</b><p>Depende de um cuidador ver a lista e “assumir” por conta própria.</p></div>
+    <div><span class="k">dia 7+</span><b>Esfriou</b><p>Quando a ligação chega, a pessoa já não lembra de quem falou com ela.</p></div>
+  </div>
+  <div class="grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="card"><h3>Sem primeiro contato rápido</h3><p>Não existe mensagem automática de retorno no mesmo dia.</p></div>
+    <div class="card"><h3>Sem dono claro</h3><p>Nada garante que um cuidador disponível receba o contato com prazo.</p></div>
+    <div class="card"><h3>Sem visão para decidir</h3><p>A coordenação não sabe em que etapa as pessoas estão parando.</p></div>
+  </div>
+  <div class="foot"><span>Central de Acolhimento · Apresentação do produto</span><span>Proposta para validação</span></div>
+</section>
+
+<!-- 3. Quem usa -->
+<section class="slide">
+  <div class="top"><span class="eyebrow">Quem usa</span><span class="pg">03</span></div>
+  <h2 class="title">Quatro pessoas, cada uma com uma tarefa simples.</h2>
+  <div class="grid" style="grid-template-columns:repeat(4,1fr);flex:1">
+    <div class="card"><span class="chip">no celular</span><h3>Quem está em campo</h3><p>Cuidador ou coordenador na saída. Precisa cadastrar em menos de um minuto e voltar para a conversa.</p><p><b style="color:var(--ink)">Quer:</b> ter certeza de que a pessoa vai ser cuidada.</p></div>
+    <div class="card"><span class="chip green">no WhatsApp</span><h3>A pessoa abordada</h3><p>Não instala nada. Recebe uma mensagem gentil, responde quando puder e recebe uma ligação no horário que escolheu.</p><p><b style="color:var(--ink)">Quer:</b> ser lembrada e ouvida.</p></div>
+    <div class="card"><span class="chip">no app</span><h3>O cuidador</h3><p>Recebe poucos contatos, com resumo da conversa e horário combinado. Aceita, liga e registra.</p><p><b style="color:var(--ink)">Quer:</b> saber com quem vai falar antes de ligar.</p></div>
+    <div class="card"><span class="chip violet">no painel</span><h3>A coordenação</h3><p>Não opera o dia a dia. Entra nas exceções e usa os números na reunião para decidir.</p><p><b style="color:var(--ink)">Quer:</b> ver onde as pessoas estão parando.</p></div>
+  </div>
+  <div class="foot"><span>Central de Acolhimento · Apresentação do produto</span><span>Proposta para validação</span></div>
+</section>
+
+<!-- 4. O que já existe -->
+<section class="slide">
+  <div class="top"><span class="eyebrow">A plataforma hoje</span><span class="pg">04</span></div>
+  <h2 class="title">A base já está em uso. O próximo passo liga as pontas.</h2>
+  <div class="grid mods">
+    <div class="card"><span class="k">em uso</span><h3>Contatos</h3><p>Cadastro em campo com origem, saída, urgência, idade e localização. Histórico de status.</p></div>
+    <div class="card"><span class="k">em uso</span><h3>Membros</h3><p>Pessoas acompanhadas, cuidador responsável e temperatura espiritual.</p></div>
+    <div class="card"><span class="k">em uso</span><h3>Cuidadores</h3><p>Convite individual e link/QR para cadastro. App próprio no celular.</p></div>
+    <div class="card"><span class="k">em uso</span><h3>Acompanhamentos</h3><p>Visitas, ligações, mensagens e orações, com próxima ação.</p></div>
+    <div class="card"><span class="k">em uso</span><h3>Saídas</h3><p>Participantes, carros e grupos montados automaticamente.</p></div>
+    <div class="card"><span class="k">em uso</span><h3>Relatório diário</h3><p>Saídas realizadas, novos contatos, casas abertas e mapa, em PDF.</p></div>
+    <div class="card"><span class="k">em uso</span><h3>Igreja e TCI</h3><p>Reuniões, presença e agenda semanal de TCI.</p></div>
+    <div class="card new"><span class="k">nova proposta</span><h3>Triagem por WhatsApp</h3><p>Primeiro contato automático, assistente, encaminhamento ao cuidador e funil de gestão.</p></div>
+  </div>
+  <p class="lede" style="font-size:11.5pt">Já sabemos <b style="color:var(--ink)">quem</b> foi encontrado e <b style="color:var(--ink)">onde</b>. Falta garantir <b style="color:var(--ink)">o que acontece depois</b>, e com que rapidez.</p>
+  <div class="foot"><span>Central de Acolhimento · Apresentação do produto</span><span>Proposta para validação</span></div>
+</section>
+
+<!-- 5. Jornada -->
+<section class="slide">
+  <div class="top"><span class="eyebrow">A solução</span><span class="pg">05</span></div>
+  <h2 class="title">Do campo à ligação, em quatro etapas.</h2>
+  <div class="grid journey">
+    <div class="card"><span class="num">1</span><span class="who">Campo</span><h3>Captura</h3><ul><li>Nome, WhatsApp, idade e bairro</li><li>Saída do dia já selecionada</li><li>A pessoa autoriza a mensagem</li></ul></div>
+    <div class="card"><span class="num g">2</span><span class="who">Assistente no WhatsApp</span><h3>Pré-atendimento</h3><ul><li>Mensagem em até 5 min, citando quem conversou em campo</li><li>Pergunta a necessidade e o melhor horário</li><li>Percebe urgência e chama uma pessoa</li></ul></div>
+    <div class="card"><span class="num">3</span><span class="who">Sistema → cuidador</span><h3>Encaminhamento</h3><ul><li>Cuidador disponível e com vaga</li><li>30 min para aceitar</li><li>A pessoa é avisada de quem vai ligar</li></ul></div>
+    <div class="card"><span class="num g">4</span><span class="who">Cuidador</span><h3>Ligação e comunhão</h3><ul><li>Liga pelo WhatsApp com o resumo em mãos</li><li>Registra o resultado</li><li>Agenda visita, convida para célula ou culto</li></ul></div>
+  </div>
+  <div class="arrowrow">
+    <div><b>Leva</b> menos de 1 minuto</div>
+    <div><b>Responde</b> no ritmo da pessoa</div>
+    <div><b>Garante</b> um responsável com prazo</div>
+    <div><b>Termina</b> em um passo concreto</div>
+  </div>
+  <div class="quote" style="font-size:12pt">Agir em campo e agir na sala de reunião: cada etapa deixa um registro que a coordenação usa para decidir.</div>
+  <div class="foot"><span>Central de Acolhimento · Apresentação do produto</span><span>Proposta para validação</span></div>
+</section>
+
+<!-- 6. Conversa -->
+<section class="slide">
+  <div class="top"><span class="eyebrow">A experiência no WhatsApp</span><span class="pg">06</span></div>
+  <h2 class="title">Para quem recebe, é uma conversa. Para a equipe, um resumo.</h2>
+  <div class="two">
+    <div class="phone">
+      <div class="bar"><i>CA</i><div><b>Central de Acolhimento</b><small>número da igreja local</small></div></div>
+      <div class="chat">
+        <div class="sys">Pedro cadastrou Ana na saída Praça Central · 15:42</div>
+        <div class="msg out"><span>Mensagem inicial</span>Olá, Ana! Aqui é da Central de Acolhimento da Igreja Nova Vida. O Pedro conversou com você hoje na Praça Central. Podemos falar por aqui?</div>
+        <div class="msg out"><span>Assistente</span>Oi, Ana! Sou a assistente virtual da Central. Como você está? Tem algo que a gente possa fazer por você?</div>
+        <div class="msg in"><span>Ana</span>perdi o emprego e minha mãe tá doente. queria muito oração</div>
+        <div class="msg out"><span>Assistente</span>Vamos orar por vocês. Um cuidador pode te ligar. Qual o melhor horário?</div>
+        <div class="msg in"><span>Ana</span>hoje depois das 19h</div>
+        <div class="msg out"><span>Mensagem final</span>Quem vai te ligar é a Marta, hoje entre 19h e 20h. 💛</div>
+      </div>
+    </div>
+    <div class="bul">
+      <div><span class="num g">✓</span><div><b>Fala como gente, e diz que é assistente</b><p>Mensagens curtas, no máximo umas oito trocas. Nunca se passa por uma pessoa.</p></div></div>
+      <div><span class="num g">✓</span><div><b>Lembra quem a pessoa conheceu</b><p>Citar o nome de quem conversou em campo cria confiança e continuidade.</p></div></div>
+      <div><span class="num g">✓</span><div><b>Entrega um resumo ao cuidador</b><p>Necessidade, melhor horário, bairro e urgência, prontos antes da ligação.</p></div></div>
+      <pre class="json">{ "needs": ["oração", "conversa"],
+  "resumo": "Perdeu o emprego; mãe doente.",
+  "janela": "hoje, 19h–21h",
+  "bairro": "Mangabeira",
+  "urgência": "normal" }</pre>
+    </div>
+  </div>
+  <div class="foot"><span>Mensagens de exemplo</span><span>Proposta para validação</span></div>
+</section>
+
+<!-- 7. Encaminhamento -->
+<section class="slide">
+  <div class="top"><span class="eyebrow">Encaminhamento</span><span class="pg">07</span></div>
+  <h2 class="title">O contato vai para quem pode cuidar agora.</h2>
+  <p class="lede">Hoje o cuidador escolhe da lista quando lembra. Com a proposta, o sistema oferece a pessoa certa, com prazo. Assumir pela lista continua possível.</p>
+  <div class="route">
+    <div><span class="k">quem pode</span><b>Disponível</b><p>Ativo, da mesma localidade, aceita novos contatos e está abaixo do seu limite.</p></div>
+    <div><span class="k">quando pode</span><b>No horário</b><p>Tem disponibilidade na janela que a pessoa pediu.</p></div>
+    <div><span class="k">quem primeiro</span><b>Mais próximo</b><p>Quem cadastrou em campo, depois mesmo bairro, depois quem está com menos contatos.</p></div>
+    <div><span class="k">oferta</span><b>30 min para aceitar</b><p>No app e no WhatsApp. Se recusar ou não responder, vai para o próximo.</p></div>
+    <div><span class="k">ninguém aceitou</span><b>Coordenação</b><p>Depois de 3 ofertas, a coordenação decide e ajusta o prazo com a pessoa.</p></div>
+  </div>
+  <div class="grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="card"><h3>Carga equilibrada</h3><p>Cada cuidador define quantas pessoas consegue acompanhar e em quais horários.</p></div>
+    <div class="card"><h3>Ligação com contexto</h3><p>O cuidador sabe o nome, a necessidade e o horário combinado antes de ligar.</p></div>
+    <div class="card"><h3>Nada fica sem dono</h3><p>Se a ligação atrasar, o cuidador é lembrado e a coordenação pode reatribuir.</p></div>
+  </div>
+  <div class="foot"><span>Central de Acolhimento · Apresentação do produto</span><span>Proposta para validação</span></div>
+</section>
+
+<!-- 8. Cuidado e segurança -->
+<section class="slide">
+  <div class="top"><span class="eyebrow">Cuidado e segurança</span><span class="pg">08</span></div>
+  <h2 class="title">A tecnologia acolhe. Quem cuida é uma pessoa.</h2>
+  <div class="grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="card"><span class="chip">consentimento</span><h3>Só com autorização</h3><p>Nenhuma mensagem automática sem a pessoa ter aceitado em campo.</p></div>
+    <div class="card"><span class="chip">opt-out</span><h3>Parar é imediato</h3><p>“Não quero mais” encerra as mensagens automáticas para sempre, com uma despedida respeitosa.</p></div>
+    <div class="card"><span class="chip red">risco</span><h3>Situação de risco vai para humano</h3><p>A assistente para, acolhe, informa o CVV (188) e alerta a coordenação na hora.</p></div>
+    <div class="card"><span class="chip">limites</span><h3>Não aconselha</h3><p>A assistente só acolhe e organiza. Aconselhamento e cuidado pastoral ficam com pessoas.</p></div>
+    <div class="card"><span class="chip">privacidade</span><h3>Dados mínimos</h3><p>Conversa visível só para a coordenação e para o cuidador responsável. Endereço não vai para a IA.</p></div>
+    <div class="card"><span class="chip orange">horário</span><h3>Respeito ao tempo</h3><p>Mensagens apenas entre 8h e 21h. Menores de 18 anos não conversam com a assistente.</p></div>
+  </div>
+  <div class="foot"><span>Central de Acolhimento · Apresentação do produto</span><span>Proposta para validação</span></div>
+</section>
+
+<!-- 9. Sala de reunião -->
+<section class="slide">
+  <div class="top"><span class="eyebrow">Gestão</span><span class="pg">09</span></div>
+  <h2 class="title">Na sala de reunião, os números mostram onde agir.</h2>
+  <div class="room">
+    <div class="card" style="background:var(--paper);gap:2.6mm">
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><h3>Funil da semana</h3><span class="example">exemplo ilustrativo</span></div>
+      <div class="frow"><span>Cadastrados em campo</span><span class="bar2"><i style="width:100%"></i></span><span class="v">48</span></div>
+      <div class="frow"><span>Mensagem enviada</span><span class="bar2"><i style="width:92%"></i></span><span class="v">44</span></div>
+      <div class="frow"><span>Responderam</span><span class="bar2"><i style="width:65%"></i></span><span class="v">31</span></div>
+      <div class="frow"><span>Cuidador aceitou</span><span class="bar2"><i style="width:52%"></i></span><span class="v">25</span></div>
+      <div class="frow"><span>Ligação feita</span><span class="bar2"><i style="width:44%"></i></span><span class="v">21</span></div>
+      <div class="frow"><span>Visita ou membro</span><span class="bar2"><i style="width:23%"></i></span><span class="v">11</span></div>
+      <div class="times">
+        <div><b>4 min</b><span>até a 1ª mensagem</span></div>
+        <div><b>1h 50</b><span>até a resposta</span></div>
+        <div><b>22 min</b><span>até o aceite</span></div>
+        <div><b>6h 10</b><span>até a ligação</span></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:3mm">
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><h3 style="font-size:13pt">Filas que pedem ação</h3><span class="example">exemplo</span></div>
+      <div class="q">Urgentes ou com sinal de risco <span class="chip red">2</span></div>
+      <div class="q">Sem cuidador há mais de 2h <span class="chip orange">3</span></div>
+      <div class="q">Ligação passou do horário <span class="chip orange">4</span></div>
+      <div class="q">Sem resposta há 48h <span class="chip">9</span></div>
+      <div class="q">Pediram para parar <span class="chip">1</span></div>
+      <p style="font-size:9.5pt;color:var(--ink-2);line-height:1.45">Também por saída (quantos contatos cada ação gerou e quantos já receberam ligação) e por cuidador, para equilibrar carga. Nunca como ranking.</p>
+    </div>
+  </div>
+  <div class="foot"><span>Central de Acolhimento · Apresentação do produto</span><span>Números ilustrativos</span></div>
+</section>
+
+<!-- 10. Roadmap -->
+<section class="slide">
+  <div class="top"><span class="eyebrow">Como vamos entregar</span><span class="pg">10</span></div>
+  <h2 class="title">Quatro entregas. Cada uma já ajuda sozinha.</h2>
+  <div class="grid slices" style="flex:1">
+    <div class="slice"><span class="k">Entrega 1</span><b>Organizar o processo</b><ul><li>Autorização de WhatsApp no cadastro</li><li>Disponibilidade e limite do cuidador</li><li>Oferta com prazo</li><li>Resultado da ligação</li></ul><span class="gain">Todo contato ganha um dono e um prazo, sem integração nova.</span></div>
+    <div class="slice"><span class="k">Entrega 2</span><b>WhatsApp conectado</b><ul><li>Número da igreja conectado</li><li>Mensagem inicial automática</li><li>Respostas visíveis no sistema</li><li>Coordenação pode assumir a conversa</li></ul><span class="gain">Primeiro contato no mesmo dia, sem depender de alguém lembrar.</span></div>
+    <div class="slice"><span class="k">Entrega 3</span><b>Assistente</b><ul><li>Pré-atendimento com IA</li><li>Resumo para o cuidador</li><li>Detecção de risco</li><li>Encaminhamento automático</li></ul><span class="gain">O cuidador liga já sabendo o que a pessoa precisa.</span></div>
+    <div class="slice"><span class="k">Entrega 4</span><b>Sala de reunião</b><ul><li>Funil e tempos</li><li>Filas de ação e alertas</li><li>Visão por saída e por cuidador</li></ul><span class="gain">Decisões da reunião baseadas no que aconteceu de fato.</span></div>
+  </div>
+  <div class="foot"><span>Central de Acolhimento · Apresentação do produto</span><span>Ordem sujeita à validação</span></div>
+</section>
+
+<!-- 11. Validação -->
+<section class="slide">
+  <div class="top"><span class="eyebrow">Queremos ouvir vocês</span><span class="pg">11</span></div>
+  <h2 class="title">Antes de construir, precisamos confirmar seis pontos.</h2>
+  <div class="qs">
+    <div><span class="check"></span><div><b>Isso resolve um problema real de vocês?</b><p>Hoje, quantos contatos de campo ficam sem ligação na primeira semana?</p></div></div>
+    <div><span class="check"></span><div><b>A mensagem automática é bem-vinda?</b><p>A igreja se sente confortável com uma assistente fazendo o primeiro contato?</p></div></div>
+    <div><span class="check"></span><div><b>De qual número sai a ligação?</b><p>Do WhatsApp pessoal do cuidador ou de um número da igreja?</p></div></div>
+    <div><span class="check"></span><div><b>Quais prazos são realistas?</b><p>Sugerimos 30 min para aceitar e ligação em até 24h. Funciona com a equipe de vocês?</p></div></div>
+    <div><span class="check"></span><div><b>Como escolher o cuidador?</b><p>Quem cadastrou tem prioridade? Considerar bairro, gênero ou faixa etária?</p></div></div>
+    <div><span class="check"></span><div><b>Quem acompanha os números?</b><p>Em qual reunião o funil seria usado, e com que frequência?</p></div></div>
+  </div>
+  <div class="card" style="flex-direction:row;gap:6mm;align-items:center">
+    <span class="chip orange">decisão técnica</span>
+    <p style="font-size:10pt">Conexão do WhatsApp: a opção rápida (Evolution) usa o WhatsApp Web e tem risco de bloqueio do número; a oficial (Meta) exige mensagens aprovadas e tem custo por conversa.</p>
+  </div>
+  <div class="foot"><span>Central de Acolhimento · Apresentação do produto</span><span>Proposta para validação</span></div>
+</section>
+
+<!-- 12. Próximos passos -->
+<section class="slide closing">
+  <div class="top"><span class="eyebrow">Próximos passos</span><span class="pg" style="color:#BFD7FF">12</span></div>
+  <h2 class="title" style="font-size:30pt">Validar com quem está em campo e começar pela entrega 1.</h2>
+  <div class="grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="card"><span class="num">1</span><h3>Conversa de validação</h3><p>Apresentar a proposta à coordenação e a alguns cuidadores e registrar as respostas às seis perguntas.</p></div>
+    <div class="card"><span class="num">2</span><h3>Piloto em uma localidade</h3><p>Ligar a entrega 1 em uma igreja, por quatro semanas, e medir o tempo até a primeira ligação.</p></div>
+    <div class="card"><span class="num">3</span><h3>Decidir o WhatsApp</h3><p>Com o piloto rodando, escolher a forma de conexão e testar a mensagem inicial com contatos reais.</p></div>
+  </div>
+  <p class="lede">Sucesso no piloto: todo contato de campo com um cuidador responsável em até 2 horas e uma ligação em até 24 horas.</p>
+  <div class="foot"><span>Central de Acolhimento · Apresentação do produto</span><span>Outubro de 2026</span></div>
+</section>
+
+</body>
+</html>
