@@ -1,0 +1,742 @@
+<title>Triagem por WhatsApp</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: uma coluna de leitura (~1080px) com faixas largas para os diagramas; tokens da Central (azul #2D7FF9, status, verde WhatsApp). */
+  :root {
+    --bg: #F4F6F9;
+    --surface: #FFFFFF;
+    --surface-2: #F8F9FB;
+    --rule: #E3E7EE;
+    --ink: #0F172A;
+    --ink-2: #4B5563;
+    --ink-3: #8A94A6;
+    --accent: #2D7FF9;
+    --accent-soft: #E8F1FE;
+    --wa: #16A34A;
+    --wa-soft: #DCFCE7;
+    --wa-chat: #EFEAE2;
+    --wa-in: #FFFFFF;
+    --wa-out: #D9FDD3;
+    --warn: #C2410C;
+    --warn-soft: #FFEDD5;
+    --crit: #BE123C;
+    --crit-soft: #FFE4E6;
+    --violet: #6D28D9;
+    --violet-soft: #EDE9FE;
+    --shadow: 0 1px 2px rgba(15,23,42,.05), 0 6px 20px rgba(15,23,42,.04);
+    --sans: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0A0F17; --surface: #131A25; --surface-2: #18202D; --rule: #26303F;
+      --ink: #E9EDF4; --ink-2: #A3AEC0; --ink-3: #6E7A8C;
+      --accent: #63A2FF; --accent-soft: rgba(99,162,255,.14);
+      --wa: #4ADE80; --wa-soft: rgba(74,222,128,.14);
+      --wa-chat: #0B141A; --wa-in: #202C33; --wa-out: #005C4B;
+      --warn: #FB923C; --warn-soft: rgba(251,146,60,.14);
+      --crit: #FB7185; --crit-soft: rgba(251,113,133,.14);
+      --violet: #A78BFA; --violet-soft: rgba(167,139,250,.15);
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.22);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0A0F17; --surface: #131A25; --surface-2: #18202D; --rule: #26303F;
+    --ink: #E9EDF4; --ink-2: #A3AEC0; --ink-3: #6E7A8C;
+    --accent: #63A2FF; --accent-soft: rgba(99,162,255,.14);
+    --wa: #4ADE80; --wa-soft: rgba(74,222,128,.14);
+    --wa-chat: #0B141A; --wa-in: #202C33; --wa-out: #005C4B;
+    --warn: #FB923C; --warn-soft: rgba(251,146,60,.14);
+    --crit: #FB7185; --crit-soft: rgba(251,113,133,.14);
+    --violet: #A78BFA; --violet-soft: rgba(167,139,250,.15);
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.22);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--ink); font-family: var(--sans);
+    font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1080px; margin: 0 auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 40px 80px;
+    display: flex; flex-direction: column; gap: 64px;
+  }
+  h1, h2, h3 { margin: 0; text-wrap: balance; letter-spacing: -0.02em; }
+  p { margin: 0; }
+  .mono { font-family: var(--mono); font-size: 0.86em; }
+  .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  .muted { color: var(--ink-2); }
+  .small { font-size: 13px; }
+
+  /* Header */
+  header { display: flex; flex-direction: column; gap: 16px; max-width: 760px; }
+  header h1 { font-size: clamp(32px, 5vw, 48px); font-weight: 800; line-height: 1.08; }
+  header .lede { font-size: 18px; color: var(--ink-2); max-width: 64ch; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; background: var(--surface); border: 1px solid var(--rule); color: var(--ink-2);
+  }
+  .tag .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
+
+  section { display: flex; flex-direction: column; gap: 20px; }
+  .sec-head { display: flex; flex-direction: column; gap: 6px; max-width: 720px; }
+  .sec-head h2 { font-size: 26px; font-weight: 800; }
+  .sec-head p { color: var(--ink-2); }
+
+  /* Jornada */
+  .journey { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; counter-reset: step; }
+  .stage {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; padding: 18px;
+    display: flex; flex-direction: column; gap: 10px; position: relative; box-shadow: var(--shadow); min-width: 0;
+  }
+  .stage .num {
+    width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+    font-weight: 800; font-size: 14px; background: var(--accent-soft); color: var(--accent);
+  }
+  .stage.wa .num { background: var(--wa-soft); color: var(--wa); }
+  .stage h3 { font-size: 17px; font-weight: 700; }
+  .stage .who { font-size: 12px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
+  .stage ul { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
+  .stage .out { margin-top: auto; padding-top: 10px; border-top: 1px dashed var(--rule); font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .chip {
+    display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 6px;
+    font-family: var(--mono); font-size: 11.5px; font-weight: 500; white-space: nowrap;
+    background: var(--surface-2); border: 1px solid var(--rule); color: var(--ink-2);
+  }
+  .chip.blue { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+  .chip.green { background: var(--wa-soft); color: var(--wa); border-color: transparent; }
+  .chip.orange { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+  .chip.red { background: var(--crit-soft); color: var(--crit); border-color: transparent; }
+  .chip.violet { background: var(--violet-soft); color: var(--violet); border-color: transparent; }
+  .chip.new { position: relative; }
+  .chip.new::after { content: "novo"; margin-left: 6px; font-family: var(--sans); font-size: 10px; font-weight: 700; color: var(--violet); }
+
+  /* Swimlane */
+  .scroll-x { overflow-x: auto; border-radius: 14px; border: 1px solid var(--rule); background: var(--surface); box-shadow: var(--shadow); }
+  .lanes { display: grid; grid-template-columns: 150px repeat(4, minmax(170px, 1fr)); min-width: 880px; }
+  .lanes > div { padding: 12px; border-bottom: 1px solid var(--rule); border-right: 1px solid var(--rule); min-width: 0; }
+  .lanes > div:nth-child(5n) { border-right: 0; }
+  .lanes .hd { background: var(--surface-2); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); }
+  .lanes .lane { background: var(--surface-2); font-weight: 700; font-size: 14px; display: flex; flex-direction: column; gap: 2px; }
+  .lanes .lane small { font-weight: 500; font-size: 12px; color: var(--ink-3); }
+  .lanes .last { border-bottom: 0; }
+  .step {
+    font-size: 13px; line-height: 1.45; padding: 8px 10px; border-radius: 9px; background: var(--accent-soft);
+    color: var(--ink); display: block; margin-bottom: 6px;
+  }
+  .step:last-child { margin-bottom: 0; }
+  .step.wa { background: var(--wa-soft); }
+  .step.warn { background: var(--warn-soft); }
+  .step.ghost { background: transparent; border: 1px dashed var(--rule); color: var(--ink-3); }
+  .step b { font-weight: 700; }
+
+  /* Conversa */
+  .chat-layout { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 24px; align-items: start; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tabs button {
+    font: inherit; font-size: 13.5px; font-weight: 600; padding: 7px 14px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--rule); background: var(--surface); color: var(--ink-2);
+  }
+  .tabs button[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .tabs button:focus-visible, .copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .phone {
+    border-radius: 28px; border: 1px solid var(--rule); background: var(--surface); padding: 10px; box-shadow: var(--shadow);
+  }
+  .phone-top { display: flex; align-items: center; gap: 10px; padding: 8px 10px 12px; }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--wa); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 14px; flex: none; }
+  .phone-top b { font-size: 14px; display: block; line-height: 1.2; }
+  .phone-top span { font-size: 12px; color: var(--ink-3); }
+  .chat {
+    background: var(--wa-chat); border-radius: 18px; padding: 14px 10px; min-height: 440px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .msg {
+    max-width: 86%; padding: 7px 10px 6px; border-radius: 10px; font-size: 13.5px; line-height: 1.45;
+    color: var(--ink); background: var(--wa-in); box-shadow: 0 1px 0 rgba(0,0,0,.06); position: relative;
+  }
+  .msg.out { align-self: flex-end; background: var(--wa-out); }
+  .msg .by { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
+  .msg.out .by { color: var(--wa); }
+  .msg.in .by { color: var(--accent); }
+  .msg .t { display: block; text-align: right; font-size: 10.5px; color: var(--ink-3); margin-top: 2px; }
+  .sys {
+    align-self: center; font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 8px;
+    background: var(--surface); color: var(--ink-2); text-align: center; max-width: 92%;
+  }
+  .sys.red { background: var(--crit-soft); color: var(--crit); }
+  .sys.orange { background: var(--warn-soft); color: var(--warn); }
+  .side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; padding: 18px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .panel h3 { font-size: 16px; font-weight: 700; }
+  .kv { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 6px 12px; font-size: 14px; }
+  .kv dt { color: var(--ink-3); font-weight: 600; font-size: 13px; }
+  .kv dd { margin: 0; }
+  pre.json {
+    margin: 0; padding: 14px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--rule);
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.55; overflow-x: auto; color: var(--ink-2);
+  }
+
+  /* Estados */
+  .states { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .state-track { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .state-track .arr { color: var(--ink-3); font-size: 13px; }
+  .branch { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13px; color: var(--ink-2); }
+
+  /* Encaminhamento */
+  .route { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
+  .route > div { padding: 16px; border-right: 1px solid var(--rule); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .route > div:last-child { border-right: 0; background: var(--warn-soft); }
+  .route b { font-size: 14px; }
+  .route p { font-size: 13px; color: var(--ink-2); }
+  .route .k { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+
+  /* Sala de reunião */
+  .room { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; }
+  .funnel { display: flex; flex-direction: column; gap: 8px; }
+  .frow { display: grid; grid-template-columns: 150px minmax(0, 1fr) 44px; gap: 10px; align-items: center; font-size: 13px; }
+  .frow .bar { height: 22px; border-radius: 6px; background: var(--accent-soft); position: relative; overflow: hidden; }
+  .frow .bar i { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 6px; }
+  .frow .v { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; font-weight: 500; }
+  .times { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .time { padding: 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--rule); }
+  .time b { display: block; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .time span { font-size: 12px; color: var(--ink-2); }
+  .queue { display: flex; flex-direction: column; gap: 8px; }
+  .qi { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--rule); background: var(--surface-2); font-size: 14px; }
+  .qi .n { font-family: var(--mono); font-weight: 500; padding: 1px 9px; border-radius: 999px; font-size: 13px; }
+  .example { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--warn); }
+
+  /* Tabelas */
+  table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 640px; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); background: var(--surface-2); }
+  tr:last-child td { border-bottom: 0; }
+  td:first-child { font-weight: 600; width: 32%; }
+
+  /* Já temos / falta */
+  .have { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .have ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--ink-2); }
+  .have ul li::marker { color: var(--ink-3); }
+
+  /* Decisões e fatias */
+  .decisions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .decision { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+  .decision b { font-size: 15px; }
+  .decision p { font-size: 13.5px; color: var(--ink-2); }
+  .slices { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .slice { border-top: 3px solid var(--accent); background: var(--surface); border-radius: 0 0 12px 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; border-left: 1px solid var(--rule); border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+  .slice:nth-child(2) { border-top-color: var(--wa); }
+  .slice:nth-child(3) { border-top-color: var(--violet); }
+  .slice:nth-child(4) { border-top-color: var(--warn); }
+  .slice .k { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+  .slice b { font-size: 15px; }
+  .slice p { font-size: 13.5px; color: var(--ink-2); }
+
+  footer { font-size: 13px; color: var(--ink-3); border-top: 1px solid var(--rule); padding-top: 20px; }
+
+  @media (max-width: 900px) {
+    .journey, .slices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .chat-layout, .room { grid-template-columns: minmax(0, 1fr); }
+    .route { grid-template-columns: minmax(0, 1fr); }
+    .route > div { border-right: 0; border-bottom: 1px solid var(--rule); }
+  }
+  @media (max-width: 600px) {
+    .journey, .slices, .states, .have, .decisions, .times { grid-template-columns: minmax(0, 1fr); }
+    .frow { grid-template-columns: 110px minmax(0, 1fr) 36px; }
+    .kv { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+    .kv dd { margin-bottom: 8px; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .msg, .sys { animation: pop .25s ease both; }
+    @keyframes pop { from { transform: translateY(4px); opacity: .4; } to { transform: none; opacity: 1; } }
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <span class="eyebrow">Central de Acolhimento · Gestão + ação · Estágio 1</span>
+    <h1>Do campo à ligação do cuidador</h1>
+    <p class="lede">Quem está na rua cadastra a pessoa. Uma assistente no WhatsApp faz o primeiro acolhimento, entende a necessidade e passa para um cuidador disponível, que liga e começa a caminhar junto.</p>
+    <div class="meta">
+      <span class="tag"><span class="dot"></span>Proposta para discussão</span>
+      <span class="tag">Lead = Contato (<span class="mono">seeds</span>)</span>
+      <span class="tag">WhatsApp via Evolution API + IA</span>
+      <span class="tag">Spec: whatsapp-triage-flow-spec.md</span>
+    </div>
+  </header>
+
+  <!-- 1. Jornada -->
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">A jornada</span>
+      <h2>Quatro etapas, um contato</h2>
+      <p>Cada etapa tem um responsável e deixa o contato em um estado conhecido. Os status em azul já existem no sistema; os marcados como novo são o que precisamos criar.</p>
+    </div>
+    <div class="journey">
+      <article class="stage">
+        <span class="num">1</span>
+        <span class="who">Campo · cuidador ou coordenador</span>
+        <h3>Captura</h3>
+        <ul>
+          <li>Cadastra nome, WhatsApp, idade e bairro</li>
+          <li>Saída do dia vem pré-selecionada</li>
+          <li>Marca o consentimento para receber mensagem</li>
+          <li>Opcional: “eu acompanho” ou “urgente”</li>
+        </ul>
+        <div class="out">Sai como <span class="chip blue">new</span><span class="chip violet new">queued</span></div>
+      </article>
+      <article class="stage wa">
+        <span class="num">2</span>
+        <span class="who">Assistente no WhatsApp</span>
+        <h3>Pré-atendimento</h3>
+        <ul>
+          <li>1ª mensagem em até 5 min, citando quem conversou em campo</li>
+          <li>IA acolhe e pergunta necessidade e melhor horário</li>
+          <li>Detecta urgência e risco; passa para humano quando precisa</li>
+          <li>Gera resumo estruturado</li>
+        </ul>
+        <div class="out">Sai como <span class="chip blue">contacted</span><span class="chip violet new">completed</span></div>
+      </article>
+      <article class="stage">
+        <span class="num">3</span>
+        <span class="who">Sistema → cuidador</span>
+        <h3>Encaminhamento</h3>
+        <ul>
+          <li>Filtra cuidadores ativos, com vaga e disponíveis no horário</li>
+          <li>Oferece com prazo de 30 min para aceitar</li>
+          <li>Sem aceite, passa ao próximo; após 3, vai para a coordenação</li>
+          <li>Contato é avisado de quem vai ligar</li>
+        </ul>
+        <div class="out">Sai como <span class="chip blue">in_progress</span><span class="chip violet new">accepted</span></div>
+      </article>
+      <article class="stage wa">
+        <span class="num">4</span>
+        <span class="who">Cuidador</span>
+        <h3>Ligação e comunhão</h3>
+        <ul>
+          <li>Abre o card com o resumo e liga pelo WhatsApp</li>
+          <li>Registra o resultado da ligação</li>
+          <li>Próximo passo: visita, culto, célula ou virar membro</li>
+        </ul>
+        <div class="out">Vira <span class="chip blue">waiting_visit</span><span class="chip blue">consolidated</span></div>
+      </article>
+    </div>
+  </section>
+
+  <!-- 2. Raias -->
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">Quem faz o quê</span>
+      <h2>Fluxo por raia</h2>
+      <p>Leia de cima para baixo dentro de cada coluna. A coordenação não opera o dia a dia; ela entra nas exceções e enxerga o todo.</p>
+    </div>
+    <div class="scroll-x" role="region" aria-label="Fluxo por raia" tabindex="0">
+      <div class="lanes">
+        <div class="hd"></div>
+        <div class="hd">1 · Captura</div>
+        <div class="hd">2 · Pré-atendimento</div>
+        <div class="hd">3 · Encaminhamento</div>
+        <div class="hd">4 · Ligação</div>
+
+        <div class="lane">Campo<small>quem está na saída</small></div>
+        <div>
+          <span class="step"><b>Novo contato</b> no celular, com telefone e consentimento</span>
+          <span class="step">Marca <b>urgente</b> se perceber risco</span>
+        </div>
+        <div><span class="step ghost">Recebe aviso se o número falhar</span></div>
+        <div><span class="step">Se marcou “eu acompanho”, recebe o contato direto</span></div>
+        <div></div>
+
+        <div class="lane">Assistente<small>Evolution + IA</small></div>
+        <div><span class="step wa">Sessão de triagem entra na fila</span></div>
+        <div>
+          <span class="step wa"><b>Template</b> de boas-vindas (8h–21h)</span>
+          <span class="step wa">Conversa curta: necessidade, horário, bairro</span>
+          <span class="step warn"><b>Risco?</b> Para, acolhe, CVV 188, alerta</span>
+          <span class="step wa">Grava resumo estruturado</span>
+        </div>
+        <div><span class="step wa">Avisa o contato: “a Marta vai te ligar hoje 19h–20h”</span></div>
+        <div><span class="step wa">Lembra o contato 1h antes (opcional)</span></div>
+
+        <div class="lane">Cuidador<small>app + WhatsApp</small></div>
+        <div></div>
+        <div></div>
+        <div>
+          <span class="step">Recebe <b>oferta</b> com resumo</span>
+          <span class="step"><b>Aceitar</b> ou “Não posso agora”</span>
+        </div>
+        <div>
+          <span class="step"><b>Ligar pelo WhatsApp</b></span>
+          <span class="step">Registra resultado e próximo passo</span>
+        </div>
+
+        <div class="lane last">Coordenação<small>sala de reunião</small></div>
+        <div class="last"><span class="step ghost">Vê captação por saída</span></div>
+        <div class="last"><span class="step warn">Recebe urgentes; pode <b>assumir a conversa</b></span></div>
+        <div class="last"><span class="step warn">Fila: sem cuidador após 3 ofertas</span></div>
+        <div class="last"><span class="step warn">Alerta: ligação atrasada; reatribui</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Conversa -->
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">A conversa</span>
+      <h2>Como a triagem soa para quem recebe</h2>
+      <p>Mensagens de exemplo. A IA se apresenta como assistente, fala pouco e entrega para uma pessoa assim que entende o que importa.</p>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Cenários de conversa">
+      <button role="tab" id="tab-feliz" aria-selected="true" data-s="feliz">Caminho feliz</button>
+      <button role="tab" id="tab-silencio" aria-selected="false" data-s="silencio">Não responde</button>
+      <button role="tab" id="tab-risco" aria-selected="false" data-s="risco">Sinal de risco</button>
+      <button role="tab" id="tab-sair" aria-selected="false" data-s="sair">Pede para parar</button>
+    </div>
+    <div class="chat-layout">
+      <div class="phone">
+        <div class="phone-top">
+          <span class="avatar">CA</span>
+          <div><b>Central de Acolhimento</b><span>número da localidade · Evolution</span></div>
+        </div>
+        <div class="chat" id="chat" role="tabpanel" aria-live="polite"></div>
+      </div>
+      <div class="side">
+        <div class="panel">
+          <h3 id="res-title">O que o sistema faz</h3>
+          <dl class="kv" id="res-kv"></dl>
+        </div>
+        <div class="panel">
+          <h3>Resumo gravado pela IA</h3>
+          <p class="small muted">A IA não escreve no banco. Ela devolve este objeto, validado por schema, e só então ele vai para <span class="mono">triage_sessions.summary</span>.</p>
+          <pre class="json" id="res-json"></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Estados -->
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">Estados</span>
+      <h2>Dois trilhos que andam juntos</h2>
+      <p>O status do contato continua o mesmo de hoje. A sessão de triagem é nova e explica em que ponto da conversa a pessoa está.</p>
+    </div>
+    <div class="states">
+      <div class="panel">
+        <h3>Contato <span class="mono muted">seeds.status</span></h3>
+        <div class="state-track">
+          <span class="chip blue">new</span><span class="arr">→</span>
+          <span class="chip blue">contacted</span><span class="arr">→</span>
+          <span class="chip blue">in_progress</span><span class="arr">→</span>
+          <span class="chip blue">waiting_visit</span><span class="arr">→</span>
+          <span class="chip green">consolidated</span>
+        </div>
+        <div class="branch">a qualquer momento <span class="arr">→</span> <span class="chip">inactive</span> com motivo</div>
+        <p class="small muted">Tudo já existe, com histórico em <span class="mono">seed_status_history</span>. Novos campos: data do consentimento e do opt-out.</p>
+      </div>
+      <div class="panel">
+        <h3>Triagem <span class="mono muted">triage_sessions.status</span></h3>
+        <div class="state-track">
+          <span class="chip violet">queued</span><span class="arr">→</span>
+          <span class="chip violet">sent</span><span class="arr">→</span>
+          <span class="chip violet">in_conversation</span><span class="arr">→</span>
+          <span class="chip green">completed</span>
+        </div>
+        <div class="branch">desvios:
+          <span class="chip orange">handoff</span>
+          <span class="chip orange">no_reply</span>
+          <span class="chip red">opted_out</span>
+          <span class="chip red">failed</span>
+        </div>
+        <p class="small muted">Tudo novo. Cada mensagem fica em <span class="mono">whatsapp_messages</span>, sem duplicar.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Encaminhamento -->
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">Encaminhamento</span>
+      <h2>Como o cuidador é escolhido</h2>
+      <p>Hoje o cuidador “assume” um contato da lista por conta própria. A proposta mantém isso como atalho e adiciona uma oferta automática com prazo.</p>
+    </div>
+    <div class="route">
+      <div><span class="k">filtro</span><b>Quem pode</b><p>Ativo, mesma localidade, aceita triagem e está abaixo da capacidade.</p></div>
+      <div><span class="k">filtro</span><b>Quando pode</b><p>Tem disponibilidade na janela que o contato pediu.</p></div>
+      <div><span class="k">ordem</span><b>Quem primeiro</b><p>Quem cadastrou em campo → mesmo bairro → menor carga → há mais tempo sem oferta.</p></div>
+      <div><span class="k">oferta</span><b>30 min para aceitar</b><p>No app e no WhatsApp. Recusou ou expirou, vai para o próximo.</p></div>
+      <div><span class="k">fallback</span><b>Coordenação</b><p>Após 3 ofertas sem aceite ou sem ninguém disponível.</p></div>
+    </div>
+  </section>
+
+  <!-- 6. Sala de reunião -->
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">Gestão</span>
+      <h2>O que a sala de reunião enxerga</h2>
+      <p>Um funil por localidade e período, com os tempos entre etapas e as filas que pedem ação. Os números abaixo são ilustrativos.</p>
+    </div>
+    <div class="room">
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap"><h3>Funil da semana</h3><span class="example">exemplo</span></div>
+        <div class="funnel">
+          <div class="frow"><span>Cadastrados</span><span class="bar"><i style="width:100%"></i></span><span class="v">48</span></div>
+          <div class="frow"><span>Mensagem enviada</span><span class="bar"><i style="width:92%"></i></span><span class="v">44</span></div>
+          <div class="frow"><span>Responderam</span><span class="bar"><i style="width:65%"></i></span><span class="v">31</span></div>
+          <div class="frow"><span>Triagem concluída</span><span class="bar"><i style="width:56%"></i></span><span class="v">27</span></div>
+          <div class="frow"><span>Cuidador aceitou</span><span class="bar"><i style="width:52%"></i></span><span class="v">25</span></div>
+          <div class="frow"><span>Ligação feita</span><span class="bar"><i style="width:44%"></i></span><span class="v">21</span></div>
+          <div class="frow"><span>Visita ou membro</span><span class="bar"><i style="width:23%"></i></span><span class="v">11</span></div>
+        </div>
+        <div class="times">
+          <div class="time"><b>4 min</b><span>cadastro → 1ª mensagem</span></div>
+          <div class="time"><b>1h 50</b><span>cadastro → 1ª resposta</span></div>
+          <div class="time"><b>22 min</b><span>triagem → aceite</span></div>
+          <div class="time"><b>6h 10</b><span>aceite → ligação</span></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap"><h3>Filas de ação</h3><span class="example">exemplo</span></div>
+        <div class="queue">
+          <div class="qi"><span>Urgentes / sinal de risco</span><span class="n chip red">2</span></div>
+          <div class="qi"><span>Sem cuidador há mais de 2h</span><span class="n chip orange">3</span></div>
+          <div class="qi"><span>Ligação passou da janela</span><span class="n chip orange">4</span></div>
+          <div class="qi"><span>Sem resposta há 48h</span><span class="n chip">9</span></div>
+          <div class="qi"><span>Pediram para parar</span><span class="n chip">1</span></div>
+        </div>
+        <p class="small muted">Visão por cuidador serve para equilibrar carga, nunca como ranking. Mesmo princípio do relatório diário de saídas.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. Casos -->
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">Casos e exceções</span>
+      <h2>Quando o caminho feliz não acontece</h2>
+    </div>
+    <div class="scroll-x" role="region" aria-label="Casos e exceções" tabindex="0">
+      <table>
+        <thead><tr><th>Caso</th><th>O que acontece</th></tr></thead>
+        <tbody>
+          <tr><td>Sem telefone ou sem consentimento</td><td>Nenhuma mensagem automática. Fica na fila manual; se for casa aberta, sugere visita.</td></tr>
+          <tr><td>Número sem WhatsApp</td><td>A Evolution devolve falha. Sessão <span class="chip red">failed</span> e aviso para quem cadastrou corrigir o número.</td></tr>
+          <tr><td>Telefone já cadastrado</td><td>Não abre nova triagem. Avisa quem cadastrou e mantém o cuidador atual.</td></tr>
+          <tr><td>Não responde</td><td>Lembrete gentil em 24h. Em 72h vira <span class="chip orange">no_reply</span> e o cuidador liga direto.</td></tr>
+          <tr><td>Pede para parar</td><td>Opt-out imediato e definitivo para mensagens automáticas, com uma despedida respeitosa.</td></tr>
+          <tr><td>Sinal de risco</td><td>IA para, acolhe, informa CVV 188 (ou 190), marca urgente e alerta a coordenação na hora.</td></tr>
+          <tr><td>Menor de 18 anos</td><td>IA não conduz a conversa. Pede contato do responsável ou vai direto à coordenação. <em>Decisão em aberto.</em></td></tr>
+          <tr><td>Áudio, foto ou figurinha</td><td>V1: pede texto ou passa para humano. Transcrição de áudio fica para depois.</td></tr>
+          <tr><td>Mensagem fora do horário</td><td>Resposta curta e retomada no próximo período (8h–21h).</td></tr>
+          <tr><td>Nenhum cuidador disponível</td><td>Fila da coordenação; o prazo prometido ao contato é ajustado (“vamos te ligar amanhã”).</td></tr>
+          <tr><td>Cuidador aceitou e não ligou</td><td>Lembrete ao cuidador; 2h depois da janela, alerta na coordenação para reatribuir.</td></tr>
+          <tr><td>Mensagem espontânea de número novo</td><td>Cria contato com origem WhatsApp e inicia a triagem.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 8. Já temos / falta -->
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">Ponto de partida</span>
+      <h2>O que já temos e o que falta</h2>
+      <p>Boa parte da base existe. O Lead é o Contato de hoje; não precisamos de uma entidade nova.</p>
+    </div>
+    <div class="have">
+      <div class="panel">
+        <h3>Já existe no sistema</h3>
+        <ul>
+          <li>Cadastro de contato no app do cuidador, com origem, saída, autoria, urgência e localização</li>
+          <li>Status do contato com histórico de mudanças</li>
+          <li>“Assumir contato” pelo cuidador e atribuição pela coordenação</li>
+          <li>Acompanhamentos do tipo ligação, mensagem e visita, com próxima ação</li>
+          <li>Botões que abrem o WhatsApp com mensagem pronta</li>
+          <li>Conversão de contato em membro</li>
+          <li>KPI “Contatos na Triagem” no painel</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Precisamos criar</h3>
+        <ul>
+          <li>Consentimento e opt-out de WhatsApp no contato</li>
+          <li>Instância Evolution por localidade e webhook de mensagens</li>
+          <li>Sessão de triagem e histórico de mensagens</li>
+          <li>IA de pré-atendimento com resumo estruturado e detecção de risco</li>
+          <li>Disponibilidade, capacidade e região do cuidador</li>
+          <li>Oferta com prazo, expiração e reatribuição</li>
+          <li>Resultado da ligação no acompanhamento</li>
+          <li>Funil, tempos e filas na coordenação</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9. Decisões -->
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">Para decidir</span>
+      <h2>Decisões em aberto</h2>
+    </div>
+    <div class="decisions">
+      <div class="decision"><b>Evolution ou API oficial?</b><p>Evolution usa o WhatsApp Web: rápido e barato, mas com risco de bloqueio do número. A Cloud API da Meta é oficial, exige templates aprovados e cobra por conversa.</p></div>
+      <div class="decision"><b>De qual número sai a ligação?</b><p>Do WhatsApp pessoal do cuidador (simples, expõe o número dele) ou de um número da Central (protege, mas exige aparelho compartilhado).</p></div>
+      <div class="decision"><b>Prazos</b><p>Sugestão: 30 min para aceitar a oferta e ligação em até 24h. Ajustar à realidade da equipe.</p></div>
+      <div class="decision"><b>Afinidade no encaminhamento</b><p>Considerar gênero, faixa etária e região? Quem cadastrou em campo tem prioridade?</p></div>
+      <div class="decision"><b>Menores de 18 anos</b><p>A IA não conversa com menores. Pedimos o responsável ou a coordenação assume direto?</p></div>
+      <div class="decision"><b>Tom da assistente</b><p>Revisar o texto com a coordenação e testar com conversas reais antes de ligar para todos.</p></div>
+    </div>
+  </section>
+
+  <!-- 10. Fatias -->
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">Ordem de entrega</span>
+      <h2>Quatro fatias, cada uma útil sozinha</h2>
+    </div>
+    <div class="slices">
+      <div class="slice"><span class="k">Fatia 0</span><b>Processo sem integração</b><p>Consentimento, disponibilidade do cuidador, oferta com prazo, resultado da ligação e funil. Usa os botões de WhatsApp que já existem.</p></div>
+      <div class="slice"><span class="k">Fatia 1</span><b>Mensagens</b><p>Evolution conectada, 1ª mensagem por template, respostas visíveis no contato e “assumir conversa”. Sem IA.</p></div>
+      <div class="slice"><span class="k">Fatia 2</span><b>Assistente com IA</b><p>Pré-atendimento, resumo estruturado, detecção de risco e encaminhamento automático.</p></div>
+      <div class="slice"><span class="k">Fatia 3</span><b>Sala de reunião</b><p>Tempos entre etapas, alertas, visão por saída e por cuidador.</p></div>
+    </div>
+  </section>
+
+  <footer>Central de Acolhimento · Proposta do estágio 1 do eixo gestão + ação · Detalhes técnicos, modelo de dados e critérios de aceite em <span class="mono">docs/architecture/whatsapp-triage-flow-spec.md</span>.</footer>
+</div>
+
+<script>
+(function () {
+  var S = {
+    feliz: {
+      title: "Caminho feliz",
+      msgs: [
+        ["sys", "Pedro cadastrou Ana na saída Praça Central · 15:42"],
+        ["out", "Template", "Olá, Ana! Aqui é da Central de Acolhimento da Igreja Nova Vida. O Pedro conversou com você hoje na Praça Central e pediu pra gente continuar esse papo. Podemos falar por aqui?", "15:46"],
+        ["in", "Ana", "oi! pode sim", "16:20"],
+        ["out", "Assistente", "Que bom! Sou a assistente virtual da Central. Como você está hoje? Tem algo que a gente possa fazer por você?", "16:20"],
+        ["in", "Ana", "to passando por um momento difícil, perdi o emprego e minha mãe tá doente. queria muito oração", "16:23"],
+        ["out", "Assistente", "Sinto muito, Ana. Vamos orar por você e pela sua mãe. Um cuidador da nossa equipe pode te ligar pra conversar. Qual o melhor horário?", "16:23"],
+        ["in", "Ana", "hoje depois das 19h", "16:25"],
+        ["sys", "Resumo gravado · oferta enviada para Marta"],
+        ["sys", "Marta aceitou em 12 min"],
+        ["out", "Template", "Obrigado, Ana! Quem vai te ligar é a Marta, hoje entre 19h e 20h, por aqui mesmo no WhatsApp. 💛", "16:38"]
+      ],
+      kv: [
+        ["Contato", "new → contacted → in_progress"],
+        ["Triagem", "queued → sent → in_conversation → completed"],
+        ["Cuidador", "Marta (mesmo bairro, 3 de 5 vagas)"],
+        ["Próximo", "Ligação hoje 19h–20h; registrar resultado"]
+      ],
+      json: { needs: ["prayer", "conversation"], summary: "Perdeu o emprego; mãe doente. Pediu oração e gostaria de conversar.", preferredContact: "call", preferredWindow: { day: "today", from: "19:00", to: "21:00" }, neighborhood: "Mangabeira", riskFlags: [], urgency: "normal", handoffReason: null }
+    },
+    silencio: {
+      title: "Não responde",
+      msgs: [
+        ["sys", "Cadastrado por Pedro · saída Praça Central · seg 15:42"],
+        ["out", "Template", "Olá, Carlos! Aqui é da Central de Acolhimento da Igreja Nova Vida. O Pedro conversou com você hoje na Praça Central. Podemos falar por aqui?", "seg 15:46"],
+        ["sys", "24h sem resposta"],
+        ["out", "Template", "Oi, Carlos! Só passando pra dizer que estamos orando por você. Se quiser conversar, é só responder aqui. 🙏", "ter 15:46"],
+        ["sys", "72h sem resposta · triagem encerrada como no_reply"],
+        ["sys", "Oferta de ligação direta enviada para Pedro (quem cadastrou)"]
+      ],
+      kv: [
+        ["Contato", "Continua new; nenhum status inventado"],
+        ["Triagem", "sent → no_reply"],
+        ["Cuidador", "Recebe para ligar direto, sem resumo da IA"],
+        ["Coordenação", "Entra na fila “sem resposta há 48h”"]
+      ],
+      json: { needs: [], summary: null, preferredContact: null, preferredWindow: null, neighborhood: "Centro", riskFlags: [], urgency: "normal", handoffReason: "no_reply" }
+    },
+    risco: {
+      title: "Sinal de risco",
+      msgs: [
+        ["out", "Template", "Olá, João! Aqui é da Central de Acolhimento. A Rute conversou com você hoje. Podemos falar por aqui?", "18:02"],
+        ["in", "João", "pra que? nao aguento mais nada, nao vejo sentido em continuar", "18:10"],
+        ["sys", "red", "Sinal de risco detectado · IA pausada · coordenação alertada"],
+        ["out", "Assistente", "João, obrigado por me contar. Você não está sozinho. Uma pessoa da nossa equipe vai falar com você agora. Se precisar de ajuda imediata, ligue 188 (CVV), 24 horas e gratuito.", "18:10"],
+        ["sys", "Coordenadora Lúcia assumiu a conversa · 18:13"],
+        ["out", "Lúcia", "João, aqui é a Lúcia. Estou aqui com você. Posso te ligar agora?", "18:13"]
+      ],
+      kv: [
+        ["Contato", "is_urgent = true"],
+        ["Triagem", "in_conversation → handoff (ai_paused)"],
+        ["Coordenação", "Notificação imediata no app e no WhatsApp"],
+        ["Regra", "A IA nunca tenta aconselhar em situação de risco"]
+      ],
+      json: { needs: ["urgent_support"], summary: "Expressou desesperança. Encaminhado a humano imediatamente.", preferredContact: "call", preferredWindow: { day: "now" }, neighborhood: null, riskFlags: ["self_harm"], urgency: "critical", handoffReason: "risk" }
+    },
+    sair: {
+      title: "Pede para parar",
+      msgs: [
+        ["out", "Template", "Olá, Bruna! Aqui é da Central de Acolhimento. A Rute conversou com você hoje na feira. Podemos falar por aqui?", "10:05"],
+        ["in", "Bruna", "não quero receber mensagem, obrigada", "10:30"],
+        ["out", "Template", "Tudo bem, Bruna. Não vamos mais enviar mensagens. Se um dia quiser conversar, estamos aqui. Fique com Deus!", "10:30"],
+        ["sys", "orange", "Opt-out registrado · nenhuma mensagem automática daqui em diante"]
+      ],
+      kv: [
+        ["Contato", "whatsapp_opt_out_at preenchido"],
+        ["Triagem", "sent → opted_out"],
+        ["Cuidador", "Nenhuma oferta é criada"],
+        ["Coordenação", "Aparece em “pediram para parar”, só para ciência"]
+      ],
+      json: { needs: [], summary: "Pediu para não receber mensagens.", preferredContact: "none", preferredWindow: null, neighborhood: null, riskFlags: [], urgency: "normal", handoffReason: "opt_out" }
+    }
+  };
+
+  var chat = document.getElementById("chat");
+  var kv = document.getElementById("res-kv");
+  var js = document.getElementById("res-json");
+  var title = document.getElementById("res-title");
+  var tabs = document.querySelectorAll('[role="tab"]');
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function render(key) {
+    var s = S[key];
+    chat.replaceChildren();
+    chat.setAttribute("aria-labelledby", "tab-" + key);
+    s.msgs.forEach(function (m) {
+      if (m[0] === "sys") {
+        var tone = m.length === 3 ? m[1] : "";
+        chat.appendChild(el("div", "sys " + tone, m[m.length - 1]));
+        return;
+      }
+      var b = el("div", "msg " + m[0]);
+      b.appendChild(el("span", "by", m[1]));
+      b.appendChild(document.createTextNode(m[2]));
+      b.appendChild(el("span", "t", m[3]));
+      chat.appendChild(b);
+    });
+    title.textContent = "O que o sistema faz · " + s.title;
+    kv.replaceChildren();
+    s.kv.forEach(function (p) { kv.appendChild(el("dt", "", p[0])); kv.appendChild(el("dd", "", p[1])); });
+    js.textContent = JSON.stringify(s.json, null, 2);
+    tabs.forEach(function (t) { t.setAttribute("aria-selected", String(t.dataset.s === key)); t.tabIndex = t.dataset.s === key ? 0 : -1; });
+  }
+
+  tabs.forEach(function (t, i) {
+    t.addEventListener("click", function () { render(t.dataset.s); });
+    t.addEventListener("keydown", function (e) {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      var n = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+      n.focus(); render(n.dataset.s);
+    });
+  });
+
+  render("feliz");
+})();
+</script>
