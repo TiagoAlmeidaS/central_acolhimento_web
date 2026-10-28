@@ -1,93 +1,55 @@
 import React from "react";
-import { IconChevronDown, IconChevronRight, IconArrowLeft, IconSearch, IconHelpCircle } from "./icons";
+import { getInitials } from "@/ui/atalaia/avatar";
+import { buttonClass } from "@/ui/atalaia/button";
+import { Chip } from "@/ui/atalaia/chip";
+import { cx } from "@/ui/atalaia/cx";
+import { Pill } from "@/ui/atalaia/pill";
+import {
+  normalizeStatusKey,
+  STATUS_INFO,
+  STATUS_KEY_ORDER,
+  type PillTone,
+} from "@/ui/atalaia/status-map";
+import { IconChevronDown, IconArrowLeft, IconSearch, IconHelpCircle } from "./icons";
+
+/*
+ * Camada de compatibilidade: mantem as APIs de v2-components/ui e aplica o visual Atalaia
+ * (tokens, controles de 32px, raio 3/5px, IBM Plex Mono nos rotulos). Telas novas devem usar
+ * as primitivas de `@/ui/atalaia`.
+ */
 
 // Helpers
 export function initials(name?: string | null): string {
-  if (!name) return "";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 0) return "";
-  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return getInitials(name);
 }
+
+const TONE_COLORS: Record<PillTone, { fg: string; bg: string }> = {
+  neutral: { fg: "var(--muted)", bg: "var(--sunken)" },
+  primary: { fg: "var(--primary)", bg: "var(--primary-soft)" },
+  warning: { fg: "var(--warning)", bg: "var(--warning-soft)" },
+  cold: { fg: "var(--cold)", bg: "var(--cold-soft)" },
+  success: { fg: "var(--success)", bg: "var(--success-soft)" },
+  danger: { fg: "var(--danger)", bg: "var(--danger-soft)" },
+  muted: { fg: "var(--subtle)", bg: "var(--sunken)" },
+  warm: { fg: "var(--warm)", bg: "var(--warm-soft)" },
+  hot: { fg: "var(--hot)", bg: "var(--hot-soft)" },
+  lume: { fg: "var(--lume-ink)", bg: "var(--lume-soft)" },
+};
 
 export const STATUS: Record<
   string,
   { key: string; label: string; fg: string; bg: string; dot: string; shortLabel?: string }
-> = {
-  novo: {
-    key: "novo",
-    label: "Novo",
-    fg: "#C2410C",
-    bg: "#FFEDD5",
-    dot: "#EA580C",
-  },
-  urgente: {
-    key: "urgente",
-    label: "Urgente",
-    fg: "#E11D48",
-    bg: "#FFE4E6",
-    dot: "#E11D48",
-  },
-  aguardando: {
-    key: "aguardando",
-    label: "Aguardando",
-    fg: "#C2410C",
-    bg: "#FFEDD5",
-    dot: "#EA580C",
-  },
-  acompanhamento: {
-    key: "acompanhamento",
-    label: "Em Acompanhamento",
-    shortLabel: "Acompanhando",
-    fg: "#1D4ED8",
-    bg: "#DBEAFE",
-    dot: "#2563EB",
-  },
-  concluido: {
-    key: "concluido",
-    label: "Concluído",
-    fg: "#15803D",
-    bg: "#DCFCE7",
-    dot: "#16A34A",
-  },
-  esperando_visita: {
-    key: "esperando_visita",
-    label: "Esperando Visita",
-    fg: "#0891B2",
-    bg: "#ECFEFF",
-    dot: "#06B6D4",
-  },
-  inativo: {
-    key: "inativo",
-    label: "Inativo",
-    fg: "#475569",
-    bg: "#E2E8F0",
-    dot: "#64748B",
-  },
-  frio: {
-    key: "frio",
-    label: "Frio",
-    fg: "#1D4ED8",
-    bg: "#DBEAFE",
-    dot: "#3B82F6",
-  },
-  morno: {
-    key: "morno",
-    label: "Morno",
-    fg: "#C2410C",
-    bg: "#FFEDD5",
-    dot: "#F59E0B",
-  },
-  quente: {
-    key: "quente",
-    label: "Quente",
-    fg: "#DC2626",
-    bg: "#FEE2E2",
-    dot: "#EF4444",
-  },
-};
+> = Object.fromEntries(
+  Object.values(STATUS_INFO).map((info) => {
+    const colors = TONE_COLORS[info.tone];
+    return [
+      info.key,
+      { key: info.key, label: info.label, shortLabel: info.shortLabel, fg: colors.fg, bg: colors.bg, dot: colors.fg },
+    ];
+  }),
+);
 
-export const STATUS_ORDER = ["urgente", "novo", "esperando_visita", "aguardando", "acompanhamento", "concluido", "inativo"];
+export const STATUS_ORDER: string[] = STATUS_KEY_ORDER;
 
 // ─── Avatar ────────────────────────────────────────────────────
 interface AvatarProps {
@@ -108,17 +70,15 @@ export const Avatar: React.FC<AvatarProps> = ({ src, name, size = 60, online = f
           borderRadius: "50%",
           overflow: "hidden",
           position: "relative",
-          background: "#E2E8F0",
-          color: "#64748B",
+          background: "var(--primary-soft)",
+          color: "var(--primary)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontWeight: 600,
-          fontSize: size * 0.34,
-          letterSpacing: "-0.02em",
-          boxShadow: ring
-            ? "0 0 0 3px var(--surface), 0 0 0 4.5px var(--accent)"
-            : "0 0 0 1px rgba(15,23,42,0.04)",
+          fontWeight: 700,
+          fontSize: Math.max(9, size * 0.34),
+          letterSpacing: "0.02em",
+          boxShadow: ring ? "0 0 0 2px var(--surface), 0 0 0 3.5px var(--primary)" : "none",
         }}
       >
         <span
@@ -133,6 +93,7 @@ export const Avatar: React.FC<AvatarProps> = ({ src, name, size = 60, online = f
           {initials(name)}
         </span>
         {src && (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={src}
             alt=""
@@ -160,8 +121,8 @@ export const Avatar: React.FC<AvatarProps> = ({ src, name, size = 60, online = f
             width: size * 0.24,
             height: size * 0.24,
             borderRadius: "50%",
-            background: "#22C55E",
-            border: "2.5px solid var(--surface)",
+            background: "var(--success)",
+            border: "2px solid var(--surface)",
           }}
         />
       )}
@@ -175,54 +136,18 @@ interface StatusPillProps {
   size?: "xs" | "sm" | "md";
 }
 
+const PILL_SIZE: Record<NonNullable<StatusPillProps["size"]>, string> = {
+  xs: "h-[18px] px-1.5 text-[10.5px]",
+  sm: "",
+  md: "h-6 px-2 text-xs",
+};
+
 export const StatusPill: React.FC<StatusPillProps> = ({ status, size = "sm" }) => {
-  const normalized = status.toLowerCase().replace(/[^a-z]/g, "");
-  const lookupKey = normalized.includes("urg")
-    ? "urgente"
-    : normalized.includes("nov")
-    ? "novo"
-    : normalized.includes("visit") || normalized.includes("esperando")
-    ? "esperando_visita"
-    : normalized.includes("aguard")
-    ? "aguardando"
-    : normalized.includes("inativ")
-    ? "inativo"
-    : normalized.includes("concl") || normalized.includes("cons")
-    ? "concluido"
-    : normalized.includes("frio")
-    ? "frio"
-    : normalized.includes("morno")
-    ? "morno"
-    : normalized.includes("quente")
-    ? "quente"
-    : "acompanhamento";
-
-  const s = STATUS[lookupKey];
-  if (!s) return null;
-
-  const dims = {
-    xs: { fs: 11, pad: "3px 8px", radius: 8 },
-    sm: { fs: 12, pad: "4px 10px", radius: 8 },
-    md: { fs: 13, pad: "6px 12px", radius: 10 },
-  }[size];
-
+  const info = STATUS_INFO[normalizeStatusKey(status)];
   return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: dims.pad,
-        borderRadius: dims.radius,
-        background: s.bg,
-        color: s.fg,
-        fontSize: dims.fs,
-        fontWeight: 600,
-        lineHeight: 1.2,
-        letterSpacing: "-0.005em",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {s.label}
-    </span>
+    <Pill tone={info.tone} className={PILL_SIZE[size]}>
+      {info.label}
+    </Pill>
   );
 };
 
@@ -232,25 +157,11 @@ interface StatusDotProps {
 }
 
 export const StatusDot: React.FC<StatusDotProps> = ({ status, size = 8 }) => {
-  const normalized = status.toLowerCase().replace(/[^a-z]/g, "");
-  const lookupKey = normalized.includes("urg")
-    ? "urgente"
-    : normalized.includes("nov")
-    ? "novo"
-    : normalized.includes("visit") || normalized.includes("esperando")
-    ? "esperando_visita"
-    : normalized.includes("aguard")
-    ? "aguardando"
-    : normalized.includes("inativ")
-    ? "inativo"
-    : normalized.includes("concl") || normalized.includes("cons")
-    ? "concluido"
-    : "acompanhamento";
-
-  const s = STATUS[lookupKey];
+  const s = STATUS[normalizeStatusKey(status)];
   if (!s) return null;
   return (
     <span
+      aria-hidden="true"
       style={{
         width: size,
         height: size,
@@ -281,124 +192,75 @@ export const Button: React.FC<ButtonProps> = ({
   iconRight,
   full,
   disabled,
+  className,
   style = {},
   ...rest
 }) => {
-  const sizes = {
-    sm: { h: 36, px: 14, fs: 13, gap: 6, ic: 16, radius: 10 },
-    md: { h: 44, px: 18, fs: 14, gap: 8, ic: 18, radius: 12 },
-    lg: { h: 54, px: 22, fs: 15.5, gap: 10, ic: 20, radius: 14 },
-  }[size];
-
-  const variants = {
-    primary: {
-      bg: "var(--accent)",
-      fg: "#fff",
-      bd: "transparent",
-      hover: "var(--accent-strong)",
-    },
-    secondary: {
-      bg: "var(--surface)",
-      fg: "var(--text)",
-      bd: "var(--border-strong)",
-    },
-    ghost: { bg: "transparent", fg: "var(--text)", bd: "transparent" },
-    whatsapp: { bg: "#22C55E", fg: "#fff", bd: "transparent", hover: "#16A34A" },
-    danger: { bg: "var(--status-urgente)", fg: "#fff", bd: "transparent" },
-    link: { bg: "transparent", fg: "var(--accent)", bd: "transparent" },
-  }[variant];
+  const ic = { sm: 14, md: 16, lg: 16 }[size];
+  const atalaiaVariant = { primary: "primary", secondary: "neutral", ghost: "ghost", whatsapp: "neutral", danger: "danger", link: "ghost" }[
+    variant
+  ] as "primary" | "neutral" | "ghost" | "danger";
+  const variantStyle: React.CSSProperties =
+    variant === "whatsapp"
+      ? { background: "var(--success)", borderColor: "var(--success)", color: "var(--bg)" }
+      : variant === "link"
+      ? { color: "var(--primary)" }
+      : {};
+  const sizeStyle: React.CSSProperties = size === "lg" ? { height: 36, padding: "0 16px" } : {};
 
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: sizes.gap,
-        height: sizes.h,
-        padding: `0 ${sizes.px}px`,
-        background: variants.bg,
-        color: variants.fg,
-        border: `1.5px solid ${variants.bd}`,
-        borderRadius: sizes.radius,
-        fontSize: sizes.fs,
-        fontWeight: 600,
-        fontFamily: "inherit",
-        letterSpacing: "-0.01em",
-        cursor: disabled ? "not-allowed" : "pointer",
-        width: full ? "100%" : "auto",
-        opacity: disabled ? 0.5 : 1,
-        transition: "transform .08s, background .15s",
-        boxShadow:
-          variant === "primary" || variant === "whatsapp"
-            ? "0 6px 16px rgba(45,127,249,0.18)"
-            : "none",
-        ...style,
-      }}
+      className={buttonClass(atalaiaVariant, size === "sm" ? "sm" : "md", cx(full && "w-full", className))}
+      style={{ ...sizeStyle, ...variantStyle, ...style }}
       {...rest}
     >
-      {icon && React.cloneElement(icon as React.ReactElement<{ size?: number }>, { size: sizes.ic })}
+      {icon && React.cloneElement(icon as React.ReactElement<{ size?: number }>, { size: ic })}
       {children}
-      {iconRight && React.cloneElement(iconRight as React.ReactElement<{ size?: number }>, { size: sizes.ic })}
+      {iconRight && React.cloneElement(iconRight as React.ReactElement<{ size?: number }>, { size: ic })}
     </button>
   );
 };
 
-// ─── IconBtn (circular icon button) ────────────────────────────
+// ─── IconBtn (icon button) ─────────────────────────────────────
 interface IconBtnProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   icon: React.ReactElement;
   size?: number;
   variant?: "soft" | "flat" | "outlined" | "tinted";
 }
 
+const ICON_BTN_VARIANT: Record<NonNullable<IconBtnProps["variant"]>, string> = {
+  soft: "border-transparent bg-sunken text-fg hover:bg-raised",
+  flat: "border-transparent bg-transparent text-fg hover:bg-sunken",
+  outlined: "border-border-strong bg-surface text-fg hover:bg-sunken",
+  tinted: "border-transparent bg-primary-soft text-primary",
+};
+
 export const IconBtn: React.FC<IconBtnProps> = ({
   icon,
   onClick,
-  size = 40,
+  size = 32,
   variant = "soft",
+  className,
   style = {},
   ...rest
-}) => {
-  const bg =
-    variant === "soft"
-      ? "var(--surface-2)"
-      : variant === "flat"
-      ? "transparent"
-      : variant === "outlined"
-      ? "var(--surface)"
-      : variant === "tinted"
-      ? "var(--accent-bg)"
-      : "var(--surface)";
-  const fg = variant === "tinted" ? "var(--accent)" : "var(--text)";
-  const bd = variant === "outlined" ? "1.5px solid var(--border)" : "none";
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        background: bg,
-        border: bd,
-        color: fg,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        cursor: "pointer",
-        flexShrink: 0,
-        fontFamily: "inherit",
-        ...style,
-      }}
-      {...rest}
-    >
-      {React.cloneElement(icon as React.ReactElement<{ size?: number }>, { size: size * 0.48 })}
-    </button>
-  );
-};
+}) => (
+  <button
+    onClick={onClick}
+    className={cx(
+      "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-control border p-0 transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50",
+      ICON_BTN_VARIANT[variant],
+      className,
+    )}
+    style={{ width: size, height: size, ...style }}
+    {...rest}
+  >
+    {React.cloneElement(icon as React.ReactElement<{ size?: number }>, { size: Math.round(size * 0.5) })}
+  </button>
+);
 
-// ─── Card (white surface, soft border) ─────────────────────────
+// ─── Card (surface with border) ────────────────────────────────
 interface CardProps {
   children: React.ReactNode;
   padding?: number;
@@ -407,31 +269,39 @@ interface CardProps {
   style?: React.CSSProperties;
 }
 
-export const Card: React.FC<CardProps> = ({
-  children,
-  padding = 18,
-  onClick,
-  hoverable = false,
-  style = {},
-}) => (
+export const Card: React.FC<CardProps> = ({ children, padding = 16, onClick, hoverable = false, style = {} }) => (
   <div
     onClick={onClick}
-    style={{
-      background: "var(--surface)",
-      borderRadius: 18,
-      padding,
-      border: "1px solid var(--border)",
-      boxShadow: "var(--shadow-card)",
-      cursor: onClick ? "pointer" : "default",
-      transition: hoverable ? "transform .12s, box-shadow .15s" : "none",
-      ...style,
-    }}
+    role={onClick ? "button" : undefined}
+    tabIndex={onClick ? 0 : undefined}
+    onKeyDown={
+      onClick
+        ? (event) => {
+            if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+              event.preventDefault();
+              onClick();
+            }
+          }
+        : undefined
+    }
+    className={cx(
+      "min-w-0 rounded-card border border-border bg-surface",
+      (hoverable || onClick) && "transition-colors duration-150 hover:border-border-strong",
+      onClick && "cursor-pointer",
+    )}
+    style={{ padding, ...style }}
   >
     {children}
   </div>
 );
 
 // ─── Inputs ────────────────────────────────────────────────────
+const LABEL_CLASS = "text-xs font-semibold text-muted";
+const BOX_CLASS =
+  "flex min-h-8 items-center gap-2 rounded-control border border-border-strong bg-surface px-2.5 focus-within:border-primary focus-within:outline-2 focus-within:-outline-offset-1 focus-within:outline-primary max-[560px]:min-h-9";
+const INNER_CLASS =
+  "min-w-0 flex-1 border-0 bg-transparent py-[5px] text-fg outline-none placeholder:text-subtle focus-visible:outline-none";
+
 interface InputProps {
   label?: string;
   value?: string;
@@ -453,7 +323,6 @@ interface InputProps {
   onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
 }
 
-
 export const Input: React.FC<InputProps> = ({
   label,
   value,
@@ -463,61 +332,39 @@ export const Input: React.FC<InputProps> = ({
   type = "text",
   hint,
   required,
+  id,
   ...rest
-}) => (
-  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-    {label && (
-      <label
-        style={{
-          fontSize: 13.5,
-          fontWeight: 600,
-          color: "var(--text)",
-          letterSpacing: "-0.005em",
-        }}
-      >
-        {label}
-      </label>
-    )}
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        height: 54,
-        padding: "0 18px",
-        background: "var(--surface)",
-        border: "1.5px solid var(--border)",
-        borderRadius: 14,
-      }}
-    >
-      <input
-        type={type}
-        value={value || ""}
-        onChange={(e) => onChange && onChange(e.target.value)}
-        placeholder={placeholder}
-        required={required}
-        style={{
-          flex: 1,
-          minWidth: 0,
-          border: 0,
-          outline: "none",
-          background: "transparent",
-          fontFamily: "inherit",
-          fontSize: 15,
-          color: "var(--text)",
-          letterSpacing: "-0.005em",
-        }}
-        {...rest}
-      />
-      {icon && (
-        <span style={{ color: "var(--accent)", display: "flex" }}>
-          {React.cloneElement(icon as React.ReactElement<{ size?: number }>, { size: 20 })}
-        </span>
+}) => {
+  const uid = React.useId();
+  const inputId = id ?? uid;
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      {label && (
+        <label htmlFor={inputId} className={LABEL_CLASS}>
+          {label}
+        </label>
       )}
+      <div className={BOX_CLASS}>
+        <input
+          id={inputId}
+          type={type}
+          value={value || ""}
+          onChange={(e) => onChange && onChange(e.target.value)}
+          placeholder={placeholder}
+          required={required}
+          className={INNER_CLASS}
+          {...rest}
+        />
+        {icon && (
+          <span className="flex text-subtle">
+            {React.cloneElement(icon as React.ReactElement<{ size?: number }>, { size: 16 })}
+          </span>
+        )}
+      </div>
+      {hint && <span className="text-xs text-subtle">{hint}</span>}
     </div>
-    {hint && <span style={{ fontSize: 12, color: "var(--text-3)" }}>{hint}</span>}
-  </div>
-);
+  );
+};
 
 interface SelectProps {
   label?: string;
@@ -530,81 +377,46 @@ interface SelectProps {
   disabled?: boolean;
 }
 
-export const Select: React.FC<SelectProps> = ({
-  label,
-  value,
-  onChange,
-  options,
-  placeholder,
-  required,
-  disabled,
-}) => (
-  <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
-    {label && (
-      <label
-        style={{
-          fontSize: 13.5,
-          fontWeight: 600,
-          color: "var(--text)",
-          letterSpacing: "-0.005em",
-        }}
-      >
-        {label}
-      </label>
-    )}
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        height: 54,
-        padding: "0 18px",
-        background: "var(--surface)",
-        border: "1.5px solid var(--border)",
-        borderRadius: 14,
-        position: "relative",
-      }}
-    >
-      <select
-        value={value || ""}
-        onChange={(e) => onChange && onChange(e.target.value)}
-        required={required}
-        disabled={disabled}
-        style={{
-          flex: 1,
-          border: 0,
-          outline: "none",
-          background: "transparent",
-          fontFamily: "inherit",
-          fontSize: 15,
-          color: value ? "var(--text)" : "var(--text-3)",
-          appearance: "none",
-          WebkitAppearance: "none",
-          paddingRight: 24,
-          letterSpacing: "-0.005em",
-        }}
-      >
-        {placeholder && (
-          <option value="" disabled>
-            {placeholder}
-          </option>
-        )}
-        {options.map((o) => {
-          const v = typeof o === "object" ? o.value : o;
-          const l = typeof o === "object" ? o.label : o;
-          return (
-            <option key={v} value={v}>
-              {l}
+export const Select: React.FC<SelectProps> = ({ label, value, onChange, options, placeholder, required, disabled }) => {
+  const uid = React.useId();
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      {label && (
+        <label htmlFor={uid} className={LABEL_CLASS}>
+          {label}
+        </label>
+      )}
+      <div className={cx(BOX_CLASS, "relative", disabled && "opacity-60")}>
+        <select
+          id={uid}
+          value={value || ""}
+          onChange={(e) => onChange && onChange(e.target.value)}
+          required={required}
+          disabled={disabled}
+          className={cx(INNER_CLASS, "appearance-none pr-6", value ? "text-fg" : "text-subtle")}
+        >
+          {placeholder && (
+            <option value="" disabled>
+              {placeholder}
             </option>
-          );
-        })}
-      </select>
-      <span style={{ color: "var(--accent)", display: "flex", pointerEvents: "none" }}>
-        <IconChevronDown size={18} />
-      </span>
+          )}
+          {options.map((o) => {
+            const v = typeof o === "object" ? o.value : o;
+            const l = typeof o === "object" ? o.label : o;
+            return (
+              <option key={v} value={v}>
+                {l}
+              </option>
+            );
+          })}
+        </select>
+        <span className="pointer-events-none absolute right-2.5 flex text-subtle">
+          <IconChevronDown size={14} />
+        </span>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 interface SearchableSelectProps {
   label?: string;
@@ -621,7 +433,6 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   onChange,
   options,
   placeholder,
-  required,
 }) => {
   const [isOpen, setIsOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
@@ -637,125 +448,59 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredOptions = options.filter((opt) =>
-    opt.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredOptions = options.filter((opt) => opt.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div ref={containerRef} style={{ display: "flex", flexDirection: "column", gap: 8, position: "relative", minWidth: 0 }}>
-      {label && (
-        <label
-          style={{
-            fontSize: 13.5,
-            fontWeight: 600,
-            color: "var(--text)",
-            letterSpacing: "-0.005em",
-          }}
-        >
-          {label}
-        </label>
-      )}
-      <div
+    <div ref={containerRef} className="relative flex min-w-0 flex-col gap-1">
+      {label && <span className={LABEL_CLASS}>{label}</span>}
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
         onClick={() => setIsOpen(!isOpen)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          height: 54,
-          padding: "0 18px",
-          background: "var(--surface)",
-          border: "1.5px solid var(--border)",
-          borderRadius: 14,
-          cursor: "pointer",
-          position: "relative",
-          justifyContent: "space-between",
-        }}
+        className={cx(BOX_CLASS, "w-full cursor-pointer justify-between text-left")}
       >
-        <span
-          style={{
-            fontSize: 15,
-            color: value ? "var(--text)" : "var(--text-3)",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {value || placeholder || "Selecione..."}
+        <span className={cx("truncate", value ? "text-fg" : "text-subtle")}>{value || placeholder || "Selecione..."}</span>
+        <span className="pointer-events-none flex text-subtle">
+          <IconChevronDown size={14} />
         </span>
-        <span style={{ color: "var(--accent)", display: "flex", pointerEvents: "none" }}>
-          <IconChevronDown size={18} />
-        </span>
-      </div>
+      </button>
 
       {isOpen && (
-        <div
-          style={{
-            position: "absolute",
-            top: "100%",
-            left: 0,
-            right: 0,
-            marginTop: 4,
-            background: "var(--surface)",
-            border: "1.5px solid var(--border)",
-            borderRadius: 14,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            zIndex: 1000,
-            maxHeight: 250,
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
-        >
+        <div className="absolute inset-x-0 top-full z-[1000] mt-1 flex max-h-64 flex-col overflow-hidden rounded-card border border-border-strong bg-surface shadow-[var(--shadow)]">
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar..."
-            style={{
-              padding: "12px 14px",
-              border: 0,
-              borderBottom: "1px solid var(--border)",
-              outline: "none",
-              background: "var(--surface-2)",
-              fontSize: 14,
-              fontFamily: "inherit",
-              color: "var(--text)",
-            }}
+            aria-label="Buscar na lista"
+            className="min-h-8 border-0 border-b border-border bg-sunken px-2.5 py-1.5 text-fg outline-none placeholder:text-subtle focus-visible:outline-none"
             onClick={(e) => e.stopPropagation()}
             autoFocus
           />
-          <div style={{ overflowY: "auto", flex: 1 }}>
+          <div role="listbox" className="flex-1 overflow-y-auto">
             {filteredOptions.length > 0 ? (
               filteredOptions.map((opt) => (
                 <div
                   key={opt}
+                  role="option"
+                  aria-selected={value === opt}
                   onClick={(e) => {
                     e.stopPropagation();
                     onChange && onChange(opt);
                     setIsOpen(false);
                     setSearch("");
                   }}
-                  style={{
-                    padding: "12px 14px",
-                    fontSize: 14.5,
-                    cursor: "pointer",
-                    background: value === opt ? "var(--accent-bg)" : "transparent",
-                    color: value === opt ? "var(--accent)" : "var(--text)",
-                    transition: "background 0.15s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (value !== opt) e.currentTarget.style.background = "var(--surface-2)";
-                  }}
-                  onMouseLeave={(e) => {
-                    if (value !== opt) e.currentTarget.style.background = "transparent";
-                  }}
+                  className={cx(
+                    "cursor-pointer px-2.5 py-2 transition-colors duration-150",
+                    value === opt ? "bg-primary-soft text-primary" : "text-fg hover:bg-sunken",
+                  )}
                 >
                   {opt}
                 </div>
               ))
             ) : (
-              <div style={{ padding: "14px", fontSize: 13.5, color: "var(--text-3)", textAlign: "center" }}>
-                Nenhum resultado
-              </div>
+              <div className="p-3 text-center text-[13px] text-subtle">Nenhum resultado</div>
             )}
           </div>
         </div>
@@ -772,49 +517,28 @@ interface TextareaProps {
   rows?: number;
 }
 
-export const Textarea: React.FC<TextareaProps> = ({
-  label,
-  value,
-  onChange,
-  placeholder,
-  rows = 4,
-}) => (
-  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-    {label && (
-      <label
-        style={{
-          fontSize: 13.5,
-          fontWeight: 600,
-          color: "var(--text)",
-          letterSpacing: "-0.005em",
-        }}
-      >
-        {label}
-      </label>
-    )}
-    <textarea
-      value={value || ""}
-      onChange={(e) => onChange && onChange(e.target.value)}
-      placeholder={placeholder}
-      rows={rows}
-      style={{
-        padding: "16px 18px",
-        background: "var(--surface)",
-        border: "1.5px solid var(--border)",
-        borderRadius: 14,
-        resize: "none",
-        fontFamily: "inherit",
-        fontSize: 15,
-        color: "var(--text)",
-        outline: "none",
-        letterSpacing: "-0.005em",
-        lineHeight: 1.5,
-      }}
-    />
-  </div>
-);
+export const Textarea: React.FC<TextareaProps> = ({ label, value, onChange, placeholder, rows = 4 }) => {
+  const uid = React.useId();
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      {label && (
+        <label htmlFor={uid} className={LABEL_CLASS}>
+          {label}
+        </label>
+      )}
+      <textarea
+        id={uid}
+        value={value || ""}
+        onChange={(e) => onChange && onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        className="resize-y rounded-control border border-border-strong bg-surface px-2.5 py-2 leading-normal text-fg placeholder:text-subtle focus:border-primary focus:outline-2 focus:-outline-offset-1 focus:outline-primary"
+      />
+    </div>
+  );
+};
 
-// ─── Search bar (matches reference style) ──────────────────────
+// ─── Search bar ────────────────────────────────────────────────
 interface SearchInputProps {
   value: string;
   onChange: (v: string) => void;
@@ -826,40 +550,20 @@ export const SearchInput: React.FC<SearchInputProps> = ({
   onChange,
   placeholder = "Buscar por nome ou cidade",
 }) => (
-  <div
-    style={{
-      display: "flex",
-      alignItems: "center",
-      gap: 12,
-      height: 52,
-      padding: "0 18px",
-      background: "var(--surface)",
-      border: "1.5px solid var(--border)",
-      borderRadius: 14,
-      color: "var(--accent)",
-    }}
-  >
-    <IconSearch size={20} />
+  <label className={cx(BOX_CLASS, "text-subtle")}>
+    <IconSearch size={15} />
+    <span className="sr-only">{placeholder}</span>
     <input
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      style={{
-        flex: 1,
-        border: 0,
-        outline: "none",
-        background: "transparent",
-        fontFamily: "inherit",
-        fontSize: 15,
-        color: "var(--text)",
-        letterSpacing: "-0.005em",
-      }}
+      className={INNER_CLASS}
     />
-  </div>
+  </label>
 );
 
-// ─── Status filter pills (blue solid when active) ──────────────
+// ─── Status filter chips ───────────────────────────────────────
 interface StatusFilterRowProps {
   value: string;
   onChange: (key: string) => void;
@@ -871,41 +575,10 @@ export const StatusFilterRow: React.FC<StatusFilterRowProps> = ({ value, onChang
     ...STATUS_ORDER.map((k) => ({ key: k, label: STATUS[k].shortLabel || STATUS[k].label })),
   ];
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 10,
-        overflowX: "auto",
-        paddingBottom: 4,
-        scrollbarWidth: "none",
-      }}
-      className="no-scrollbar"
-    >
-      {items.map((it) => {
-        const active = value === it.key;
-        return (
-          <button
-            key={it.key}
-            onClick={() => onChange(it.key)}
-            style={{
-              padding: "11px 22px",
-              borderRadius: 999,
-              background: active ? "var(--accent)" : "var(--surface)",
-              color: active ? "#fff" : "var(--text)",
-              border: `1.5px solid ${active ? "var(--accent)" : "var(--border)"}`,
-              fontSize: 14,
-              fontWeight: 600,
-              letterSpacing: "-0.005em",
-              whiteSpace: "nowrap",
-              cursor: "pointer",
-              flexShrink: 0,
-              fontFamily: "inherit",
-            }}
-          >
-            {it.label}
-          </button>
-        );
-      })}
+    <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+      {items.map((it) => (
+        <Chip key={it.key} label={it.label} pressed={value === it.key} onClick={() => onChange(it.key)} />
+      ))}
     </div>
   );
 };
@@ -921,32 +594,21 @@ interface TenantChipProps {
 
 export const TenantChip: React.FC<TenantChipProps> = ({
   tenantName,
-  tenantColor = "#2D7FF9",
+  tenantColor = "var(--primary)",
   tenantSigla = "AD",
   onClick,
   size = "md",
 }) => {
   const dims =
     size === "sm"
-      ? { h: 28, fs: 11.5, pad: "0 10px 0 6px", dot: 18 }
-      : { h: 32, fs: 12.5, pad: "0 12px 0 6px", dot: 22 };
+      ? { h: 24, fs: 12, pad: "0 10px 0 4px", dot: 18 }
+      : { h: 28, fs: 13, pad: "0 12px 0 4px", dot: 20 };
   return (
     <button
       onClick={onClick}
       type="button"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 8,
-        height: dims.h,
-        padding: dims.pad,
-        background: "var(--surface)",
-        border: "1px solid var(--border)",
-        borderRadius: 999,
-        color: "var(--text)",
-        fontFamily: "inherit",
-        cursor: onClick ? "pointer" : "default",
-      }}
+      className="inline-flex items-center gap-2 rounded-[14px] border border-border bg-surface text-fg"
+      style={{ height: dims.h, padding: dims.pad, cursor: onClick ? "pointer" : "default" }}
     >
       <span
         style={{
@@ -954,7 +616,7 @@ export const TenantChip: React.FC<TenantChipProps> = ({
           height: dims.dot,
           borderRadius: "50%",
           background: tenantColor,
-          color: "#fff",
+          color: "var(--primary-fg)",
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
@@ -964,9 +626,7 @@ export const TenantChip: React.FC<TenantChipProps> = ({
       >
         {tenantSigla}
       </span>
-      <span style={{ fontSize: dims.fs, fontWeight: 600, letterSpacing: "-0.005em" }}>
-        {tenantName}
-      </span>
+      <span style={{ fontSize: dims.fs, fontWeight: 600 }}>{tenantName}</span>
     </button>
   );
 };
@@ -981,35 +641,24 @@ interface StatProps {
 }
 
 export const Stat: React.FC<StatProps> = ({ label, value, unit, sub, accent }) => (
-  <Card padding={18} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-    <div
-      style={{
-        fontSize: 12.5,
-        color: "var(--text-2)",
-        fontWeight: 500,
-        letterSpacing: "-0.005em",
-      }}
-    >
-      {label}
-    </div>
-    <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+  <Card padding={16} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+    <div className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted">{label}</div>
+    <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
       <div
+        className="font-mono"
         style={{
           fontSize: 28,
-          fontWeight: 700,
-          color: accent || "var(--text)",
-          letterSpacing: "-0.03em",
-          lineHeight: 1,
+          fontWeight: 500,
+          color: accent || "var(--fg)",
+          lineHeight: 1.1,
           fontVariantNumeric: "tabular-nums",
         }}
       >
         {value}
       </div>
-      {unit && (
-        <div style={{ fontSize: 13, color: "var(--text-2)", fontWeight: 500 }}>{unit}</div>
-      )}
+      {unit && <div style={{ fontSize: 12, color: "var(--muted)" }}>{unit}</div>}
     </div>
-    {sub && <div style={{ fontSize: 12, color: "var(--text-3)" }}>{sub}</div>}
+    {sub && <div style={{ fontSize: 12, color: "var(--subtle)" }}>{sub}</div>}
   </Card>
 );
 
@@ -1020,85 +669,53 @@ interface SectionTitleProps {
 }
 
 export const SectionTitle: React.FC<SectionTitleProps> = ({ children, action }) => (
-  <div
-    style={{
-      display: "flex",
-      alignItems: "baseline",
-      justifyContent: "space-between",
-      padding: "4px 4px 12px",
-    }}
-  >
-    <span
-      style={{
-        fontSize: 16,
-        fontWeight: 700,
-        color: "var(--text)",
-        letterSpacing: "-0.015em",
-      }}
-    >
-      {children}
-    </span>
+  <div className="flex items-baseline justify-between px-1 pb-3 pt-1">
+    <span className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted">{children}</span>
     {action}
   </div>
 );
 
-// ─── Status stepper (cadastro analysis) ─────────────────────────
+// ─── Status stepper ────────────────────────────────────────────
 interface StatusStepperProps {
   steps: Array<{ label: string; icon: React.ReactElement }>;
   current: number;
 }
 
 export const StatusStepper: React.FC<StatusStepperProps> = ({ steps, current }) => (
-  <div
-    style={{
-      display: "flex",
-      alignItems: "flex-start",
-      justifyContent: "space-between",
-      gap: 4,
-      padding: "0 8px",
-    }}
-  >
+  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 4, padding: "0 8px" }}>
     {steps.map((step, i) => {
       const isCurrent = i === current;
       const isDone = i < current;
       const isFuture = i > current;
-      const bg = isDone ? "#22C55E" : isCurrent ? "var(--accent)" : "var(--surface-2)";
-      const fg = isFuture ? "var(--text-3)" : "#fff";
+      const bg = isDone ? "var(--success)" : isCurrent ? "var(--primary)" : "var(--sunken)";
+      const fg = isFuture ? "var(--subtle)" : isDone ? "var(--bg)" : "var(--primary-fg)";
       return (
         <React.Fragment key={step.label}>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 8,
-              flex: "0 0 auto",
-              minWidth: 60,
-            }}
-          >
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, flex: "0 0 auto", minWidth: 60 }}>
             <div
               style={{
-                width: 44,
-                height: 44,
+                width: 36,
+                height: 36,
                 borderRadius: "50%",
                 background: bg,
                 color: fg,
-                border: isFuture ? "1.5px solid var(--border-strong)" : "0",
+                border: isFuture ? "1px solid var(--border-strong)" : "0",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                boxShadow: isCurrent ? "0 0 0 6px rgba(45,127,249,0.12)" : "none",
+                boxShadow: isCurrent ? "0 0 0 4px var(--primary-soft)" : "none",
               }}
             >
-              {React.cloneElement(step.icon as React.ReactElement<{ size?: number }>, { size: 20 })}
+              {React.cloneElement(step.icon as React.ReactElement<{ size?: number }>, { size: 18 })}
             </div>
             <span
+              className="font-mono"
               style={{
                 fontSize: 10.5,
-                fontWeight: 700,
-                letterSpacing: "0.05em",
+                fontWeight: 500,
+                letterSpacing: "0.1em",
                 textTransform: "uppercase",
-                color: isCurrent ? "var(--accent)" : isDone ? "var(--text)" : "var(--text-3)",
+                color: isCurrent ? "var(--primary)" : isDone ? "var(--fg)" : "var(--subtle)",
               }}
             >
               {step.label}
@@ -1109,8 +726,8 @@ export const StatusStepper: React.FC<StatusStepperProps> = ({ steps, current }) 
               style={{
                 flex: 1,
                 height: 2,
-                marginTop: 21,
-                background: i < current ? "#22C55E" : "var(--border)",
+                marginTop: 17,
+                background: i < current ? "var(--success)" : "var(--border)",
                 borderRadius: 1,
               }}
             />
@@ -1129,29 +746,16 @@ interface InfoBannerProps {
 
 export const InfoBanner: React.FC<InfoBannerProps> = ({ icon, children }) => (
   <div
+    className="flex gap-3 rounded-card px-4 py-3"
     style={{
-      display: "flex",
-      gap: 12,
-      padding: "14px 16px",
-      background: "var(--accent-bg)",
-      borderRadius: 14,
-      border: "1px solid rgba(45,127,249,0.18)",
+      background: "var(--primary-soft)",
+      border: "1px solid color-mix(in srgb, var(--primary) 24%, transparent)",
     }}
   >
-    <span style={{ flexShrink: 0, color: "var(--accent)", display: "flex", paddingTop: 1 }}>
-      {icon || <IconHelpCircle size={20} />}
+    <span style={{ flexShrink: 0, color: "var(--primary)", display: "flex", paddingTop: 1 }}>
+      {icon || <IconHelpCircle size={18} />}
     </span>
-    <div
-      style={{
-        flex: 1,
-        fontSize: 13.5,
-        lineHeight: 1.5,
-        color: "var(--text)",
-        letterSpacing: "-0.005em",
-      }}
-    >
-      {children}
-    </div>
+    <div style={{ flex: 1, fontSize: 13, lineHeight: 1.5, color: "var(--fg)" }}>{children}</div>
   </div>
 );
 
@@ -1179,7 +783,7 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
 }) => (
   <div
     style={{
-      padding: lift ? "4px 22px 14px" : "0 22px 14px",
+      padding: lift ? "4px 20px 12px" : "0 20px 12px",
       display: "flex",
       alignItems: "center",
       gap: 12,
@@ -1191,31 +795,18 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
         icon={<IconArrowLeft />}
         onClick={onBack}
         variant="flat"
-        size={40}
+        size={32}
+        aria-label="Voltar"
         style={{ marginLeft: -8 }}
       />
     )}
     <div style={{ flex: 1, minWidth: 0 }}>
-      <h1
-        style={{
-          margin: 0,
-          fontSize: 22,
-          fontWeight: 700,
-          letterSpacing: "-0.025em",
-          color: "var(--text)",
-          lineHeight: 1.15,
-        }}
-      >
+      <h1 className="font-display" style={{ margin: 0, fontSize: 22, fontWeight: 500, letterSpacing: "-0.03em", lineHeight: 1.15 }}>
         {title}
       </h1>
       {tenantName && (
         <div style={{ marginTop: 6 }}>
-          <TenantChip
-            tenantName={tenantName}
-            tenantColor={tenantColor}
-            tenantSigla={tenantSigla}
-            size="sm"
-          />
+          <TenantChip tenantName={tenantName} tenantColor={tenantColor} tenantSigla={tenantSigla} size="sm" />
         </div>
       )}
     </div>

@@ -23,7 +23,6 @@ COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/supabase ./supabase
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/postcss.config.mjs ./postcss.config.mjs
-COPY --from=builder /app/tailwind.config.js ./tailwind.config.js
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 EXPOSE 3000
 CMD ["sh", "-c", "npm run migrate && npm run db:seed && npm run start"]
