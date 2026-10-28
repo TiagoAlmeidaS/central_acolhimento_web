@@ -1,21 +1,39 @@
 "use client";
 
-import React, { useState } from "react";
-import Link from "next/link";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BrandMark, IconArrowLeft, IconCheck, IconChevronRight } from "@/ui/v2-components/icons";
-import { Button, Card, InfoBanner, Input } from "@/ui/v2-components/ui";
+import { Button, Icon, Input, cx } from "@/ui/atalaia";
+import { AuthHeading, AuthLink, AuthNotice, AuthShell, AuthSummary } from "@/ui/auth";
+import { OnboardingSteps } from "@/ui/auth/onboarding-steps";
 
 const TENANT_COLORS = [
-  "#2D7FF9",
-  "#10B981",
-  "#F59E0B",
-  "#7C3AED",
-  "#EC4899",
-  "#6366F1",
-];
+  { value: "#2D7FF9", name: "Azul" },
+  { value: "#10B981", name: "Verde" },
+  { value: "#F59E0B", name: "Âmbar" },
+  { value: "#7C3AED", name: "Violeta" },
+  { value: "#EC4899", name: "Rosa" },
+  { value: "#6366F1", name: "Índigo" },
+] as const;
 
-const STEP_TITLES = ["Acesso", "Contato", "Central", "Revisao"] as const;
+/** Passos do onboarding. Os campos do cadastro original foram agrupados em Igreja e Você. */
+const STEPS = ["Igreja", "Você (coordenação)", "Revisar e criar"] as const;
+const LAST_STEP = STEPS.length - 1;
+
+type FormState = {
+  tenantName: string;
+  city: string;
+  state: string;
+  sigla: string;
+  color: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  password: string;
+  confirmPassword: string;
+};
+
+type FieldErrors = Partial<Record<keyof FormState, string>>;
 
 function siglaFrom(nome: string): string {
   const words = nome.trim().split(/\s+/).filter(Boolean);
@@ -24,81 +42,92 @@ function siglaFrom(nome: string): string {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
+/** Validacao por passo: as mesmas regras do cadastro original, agora campo a campo. */
+function validateStep(step: number, form: FormState): FieldErrors {
+  const errors: FieldErrors = {};
+
+  if (step === 0) {
+    if (!form.tenantName.trim()) errors.tenantName = "Informe o nome da igreja.";
+    if (!form.city.trim()) errors.city = "Informe a cidade.";
+    if (!form.state.trim()) errors.state = "Informe a UF.";
+    if (!form.sigla) errors.sigla = "Informe uma sigla para identificar a central.";
+  }
+
+  if (step === 1) {
+    if (!form.firstName.trim()) errors.firstName = "Informe seu nome.";
+    if (!form.lastName.trim()) errors.lastName = "Informe seu sobrenome.";
+    if (!form.email.trim()) errors.email = "Informe o e-mail principal.";
+    else if (!/^\S+@\S+\.\S+$/.test(form.email.trim()))
+      errors.email = "Informe um e-mail válido, como voce@igreja.org.br.";
+    if (!form.phone.trim()) errors.phone = "Informe um telefone principal para contato da central.";
+    if (!form.password) errors.password = "Crie uma senha de acesso.";
+    else if (form.password.length < 8) errors.password = "A senha precisa ter pelo menos 8 caracteres.";
+    if (!form.confirmPassword) errors.confirmPassword = "Repita a senha.";
+    else if (form.password !== form.confirmPassword) errors.confirmPassword = "As senhas não conferem.";
+  }
+
+  return errors;
+}
+
 export function CoordinatorSignupForm() {
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<FormState>({
     tenantName: "",
     city: "",
     state: "",
+    sigla: "",
+    color: TENANT_COLORS[0].value,
     firstName: "",
     lastName: "",
     email: "",
     phone: "",
     password: "",
     confirmPassword: "",
-    sigla: "",
-    color: TENANT_COLORS[0],
   });
+  const [siglaTouched, setSiglaTouched] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const didMount = useRef(false);
 
-  const update = (key: keyof typeof form) => (value: string) => {
+  // Ao trocar de passo, o foco vai para o titulo (leitor de tela anuncia o passo novo).
+  useEffect(() => {
+    if (!didMount.current) {
+      didMount.current = true;
+      return;
+    }
+    headingRef.current?.focus();
+  }, [step]);
+
+  const update = (key: keyof FormState) => (value: string) => {
+    const derivesSigla = key === "tenantName" && !siglaTouched && value.trim() !== "";
+    setErrors((current) => {
+      if (!current[key] && !(derivesSigla && current.sigla)) return current;
+      return { ...current, [key]: undefined, ...(derivesSigla ? { sigla: undefined } : {}) };
+    });
     setForm((current) => {
       const next = { ...current, [key]: value };
-      if (key === "tenantName" && !current.sigla) {
-        next.sigla = siglaFrom(value);
+      if (key === "tenantName" && !siglaTouched) {
+        next.sigla = value.trim() ? siglaFrom(value) : "";
       }
       return next;
     });
   };
 
-  function handleNextStep() {
+  function goTo(target: number) {
     setError(null);
-
-    if (step === 0) {
-      if (!form.firstName || !form.lastName || !form.email || !form.password || !form.confirmPassword) {
-        setError("Preencha todos os campos obrigatorios para criar o acesso.");
-        return;
-      }
-
-      if (form.password.length < 8) {
-        setError("A senha precisa ter pelo menos 8 caracteres.");
-        return;
-      }
-
-      if (form.password !== form.confirmPassword) {
-        setError("As senhas nao conferem.");
-        return;
-      }
-    }
-
-    if (step === 1 && !form.phone) {
-      setError("Informe um telefone principal para contato da central.");
-      return;
-    }
-
-    if (step === 2) {
-      if (!form.tenantName || !form.city || !form.state) {
-        setError("Preencha os dados principais da central.");
-        return;
-      }
-
-      if (!form.sigla) {
-        setError("Informe uma sigla para identificar a central.");
-        return;
-      }
-    }
-
-    setStep((current) => Math.min(current + 1, STEP_TITLES.length - 1));
+    setErrors({});
+    setStep(target);
   }
 
-  function handlePrevStep() {
-    setError(null);
-    setStep((current) => Math.max(current - 1, 0));
+  function focusFirstInvalid(found: FieldErrors) {
+    const first = (Object.keys(found) as Array<keyof FormState>).find((key) => found[key]);
+    if (first) requestAnimationFrame(() => document.getElementById(`onb-${first}`)?.focus());
   }
 
-  async function handleSubmit() {
+  async function submit() {
     setError(null);
     setSubmitting(true);
 
@@ -122,7 +151,7 @@ export function CoordinatorSignupForm() {
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => ({}))) as { error?: string };
-        setError(payload.error ?? "Nao foi possivel criar o acesso da coordenacao.");
+        setError(payload.error ?? "Não foi possível criar o acesso da coordenação.");
         setSubmitting(false);
         return;
       }
@@ -134,337 +163,296 @@ export function CoordinatorSignupForm() {
     }
   }
 
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (submitting) return;
+    setError(null);
+
+    if (step < LAST_STEP) {
+      const found = validateStep(step, form);
+      setErrors(found);
+      if (Object.values(found).some(Boolean)) {
+        focusFirstInvalid(found);
+        return;
+      }
+      setStep(step + 1);
+      return;
+    }
+
+    // Antes de enviar, revalida tudo: o usuario pode ter voltado e apagado algo.
+    for (const s of [0, 1]) {
+      const found = validateStep(s, form);
+      if (Object.values(found).some(Boolean)) {
+        setErrors(found);
+        setStep(s);
+        focusFirstInvalid(found);
+        return;
+      }
+    }
+    void submit();
+  }
+
+  const isLast = step === LAST_STEP;
+
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        minHeight: "100vh",
-        background: "var(--bg)",
-        padding: "32px 20px",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
+    <AuthShell
+      width="wide"
+      side={<OnboardingSteps steps={STEPS} current={step} />}
+      footer={
+        <p>
+          Já tem uma central? <AuthLink href="/login">Entrar</AuthLink>
+        </p>
+      }
     >
-      <div style={{ width: "100%", maxWidth: 460, display: "flex", flexDirection: "column", gap: 24 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-          {step > 0 ? (
-            <button
-              type="button"
-              onClick={handlePrevStep}
-              style={{
-                background: "transparent",
-                border: 0,
-                color: "var(--text-2)",
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: 0,
-              }}
-            >
-              <IconArrowLeft size={16} />
-              Voltar
-            </button>
-          ) : (
-            <Link
-              href="/login"
-              style={{
-                color: "var(--text-2)",
-                fontSize: 14,
-                fontWeight: 600,
-                textDecoration: "none",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <IconArrowLeft size={16} />
-              Login
-            </Link>
-          )}
-
-          <span style={{ fontSize: 13, color: "var(--text-3)", fontWeight: 700 }}>
-            Etapa {step + 1} de {STEP_TITLES.length}
-          </span>
-        </div>
-
-        <div style={{ display: "flex", gap: 6 }}>
-          {STEP_TITLES.map((_, index) => (
-            <div
-              key={index}
-              style={{
-                flex: 1,
-                height: 4,
-                borderRadius: 999,
-                background: index <= step ? "var(--accent)" : "var(--border)",
-              }}
+      <form onSubmit={handleSubmit} noValidate className="grid gap-[18px]">
+        {step === 0 ? (
+          <>
+            <AuthHeading
+              size="lg"
+              headingRef={headingRef}
+              eyebrow={`Passo 1 de ${STEPS.length}`}
+              title="Qual igreja vai usar a central?"
+              lead="Esses dados identificam a central. Você pode ajustar depois, em Ajustes."
             />
-          ))}
-        </div>
-
-        <Card padding={28}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, textAlign: "center" }}>
-              <BrandMark size={64} />
-              <div>
-                <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "var(--text)" }}>
-                  Criar central
-                </h1>
-                <p style={{ margin: "8px 0 0", fontSize: 14, color: "var(--text-2)", lineHeight: 1.5 }}>
-                  Cadastre a coordenacao responsavel e prepare a primeira central para operar no monolito.
-                </p>
-              </div>
-            </div>
-
-            <div>
-              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "var(--text)" }}>
-                {STEP_TITLES[step]}
-              </h2>
-              <p style={{ margin: "6px 0 0", fontSize: 14, color: "var(--text-2)" }}>
-                {step === 0 && "Defina as credenciais iniciais da coordenacao."}
-                {step === 1 && "Informe o telefone principal para contato operacional da central."}
-                {step === 2 && "Configure a identificacao da cidade e a apresentacao visual da central."}
-                {step === 3 && "Revise os dados antes de concluir o cadastro."}
-              </p>
-            </div>
-
-            {step === 1 ? (
-              <InfoBanner>
-                Este numero sera usado como contato principal da coordenacao. Nao existe validacao por SMS ou WhatsApp
-                nesta etapa.
-              </InfoBanner>
-            ) : null}
-
-            {error ? (
-              <div
-                style={{
-                  padding: "12px 16px",
-                  borderRadius: 12,
-                  background: "var(--status-urgente-bg)",
-                  color: "var(--status-urgente)",
-                  fontSize: 13,
-                  fontWeight: 600,
-                }}
-              >
-                {error}
-              </div>
-            ) : null}
-
-            {step === 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                  <div style={{ flex: "1 1 160px" }}>
-                    <Input
-                      label="Nome"
-                      value={form.firstName}
-                      onChange={update("firstName")}
-                      placeholder="Ex: Daniel"
-                      required
-                    />
-                  </div>
-                  <div style={{ flex: "1 1 160px" }}>
-                    <Input
-                      label="Sobrenome"
-                      value={form.lastName}
-                      onChange={update("lastName")}
-                      placeholder="Ex: Almeida"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <Input
-                  label="E-mail principal"
-                  type="email"
-                  value={form.email}
-                  onChange={update("email")}
-                  placeholder="voce@igreja.org"
-                  required
-                />
-
-                <Input
-                  label="Senha de acesso"
-                  type="password"
-                  value={form.password}
-                  onChange={update("password")}
-                  placeholder="Minimo de 8 caracteres"
-                  required
-                />
-
-                <Input
-                  label="Confirmar senha"
-                  type="password"
-                  value={form.confirmPassword}
-                  onChange={update("confirmPassword")}
-                  placeholder="Repita a senha"
-                  required
-                />
-              </div>
-            ) : null}
-
-            {step === 1 ? (
+            <Input
+              id="onb-tenantName"
+              label="Nome da igreja"
+              value={form.tenantName}
+              onChange={(event) => update("tenantName")(event.target.value)}
+              placeholder="Ex.: Igreja Central Adrianópolis"
+              autoComplete="organization"
+              required
+              error={errors.tenantName}
+            />
+            <div className="grid grid-cols-[minmax(0,1fr)_88px] items-start gap-3">
               <Input
+                id="onb-city"
+                label="Cidade"
+                value={form.city}
+                onChange={(event) => update("city")(event.target.value)}
+                placeholder="Ex.: Manaus"
+                autoComplete="address-level2"
+                required
+                error={errors.city}
+              />
+              <Input
+                id="onb-state"
+                label="UF"
+                value={form.state}
+                onChange={(event) => update("state")(event.target.value.toUpperCase().slice(0, 2))}
+                placeholder="AM"
+                maxLength={2}
+                autoComplete="address-level1"
+                required
+                error={errors.state}
+              />
+            </div>
+            <Input
+              id="onb-sigla"
+              label="Sigla"
+              value={form.sigla}
+              onChange={(event) => {
+                setSiglaTouched(true);
+                update("sigla")(event.target.value.toUpperCase().slice(0, 3));
+              }}
+              placeholder="CA"
+              hint="Até 3 letras. Aparece na identificação visual da central."
+              required
+              error={errors.sigla}
+              wrapperClassName="max-w-[280px]"
+            />
+            <div className="grid gap-1">
+              <span id="onb-color-label" className="text-xs font-semibold text-muted">
+                Cor principal
+              </span>
+              <div role="radiogroup" aria-labelledby="onb-color-label" className="flex flex-wrap gap-2.5">
+                {TENANT_COLORS.map((color) => {
+                  const selected = form.color === color.value;
+                  return (
+                    <button
+                      key={color.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      aria-label={color.name}
+                      title={color.name}
+                      onClick={() => update("color")(color.value)}
+                      style={{ background: color.value }}
+                      className={cx(
+                        "grid size-8 cursor-pointer place-items-center rounded-full border-0 text-white transition-shadow duration-150 max-[560px]:size-9",
+                        selected && "shadow-[0_0_0_2px_var(--bg),0_0_0_4px_var(--fg)]",
+                      )}
+                    >
+                      {selected ? <Icon name="check" size={15} /> : null}
+                    </button>
+                  );
+                })}
+              </div>
+              <small className="text-xs text-subtle">A cor que acompanha a sigla da sua central.</small>
+            </div>
+          </>
+        ) : null}
+
+        {step === 1 ? (
+          <>
+            <AuthHeading
+              size="lg"
+              headingRef={headingRef}
+              eyebrow={`Passo 2 de ${STEPS.length}`}
+              title="Quem coordena o acolhimento?"
+              lead="A coordenação vê todos os contatos da igreja e gerencia os cuidadores."
+            />
+            <div className="grid items-start gap-3 min-[560px]:grid-cols-2">
+              <Input
+                id="onb-firstName"
+                label="Nome"
+                value={form.firstName}
+                onChange={(event) => update("firstName")(event.target.value)}
+                placeholder="Ex.: Daniel"
+                autoComplete="given-name"
+                required
+                error={errors.firstName}
+              />
+              <Input
+                id="onb-lastName"
+                label="Sobrenome"
+                value={form.lastName}
+                onChange={(event) => update("lastName")(event.target.value)}
+                placeholder="Ex.: Almeida"
+                autoComplete="family-name"
+                required
+                error={errors.lastName}
+              />
+            </div>
+            <div className="grid items-start gap-3 min-[560px]:grid-cols-2">
+              <Input
+                id="onb-email"
+                label="E-mail principal"
+                type="email"
+                value={form.email}
+                onChange={(event) => update("email")(event.target.value)}
+                placeholder="voce@igreja.org.br"
+                autoComplete="email"
+                required
+                error={errors.email}
+              />
+              <Input
+                id="onb-phone"
                 label="Telefone principal"
                 type="tel"
+                inputMode="tel"
                 value={form.phone}
-                onChange={update("phone")}
+                onChange={(event) => update("phone")(event.target.value)}
                 placeholder="+55 11 99999-9999"
-                hint="Use o telefone que a central pretende divulgar para atendimento e alinhamento."
+                autoComplete="tel"
+                hint="Contato da coordenação. Não enviamos código por SMS ou WhatsApp."
                 required
+                error={errors.phone}
               />
-            ) : null}
+            </div>
+            <div className="grid items-start gap-3 min-[560px]:grid-cols-2">
+              <Input
+                id="onb-password"
+                label="Senha de acesso"
+                type="password"
+                value={form.password}
+                onChange={(event) => update("password")(event.target.value)}
+                placeholder="Mínimo de 8 caracteres"
+                autoComplete="new-password"
+                required
+                error={errors.password}
+              />
+              <Input
+                id="onb-confirmPassword"
+                label="Confirmar senha"
+                type="password"
+                value={form.confirmPassword}
+                onChange={(event) => update("confirmPassword")(event.target.value)}
+                placeholder="Repita a senha"
+                autoComplete="new-password"
+                required
+                error={errors.confirmPassword}
+              />
+            </div>
+          </>
+        ) : null}
 
-            {step === 2 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                <Input
-                  label="Nome da central"
-                  value={form.tenantName}
-                  onChange={update("tenantName")}
-                  placeholder="Ex: Central Adrianopolis"
-                  required
-                />
-
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                  <div style={{ flex: "2 1 200px" }}>
-                    <Input
-                      label="Cidade"
-                      value={form.city}
-                      onChange={update("city")}
-                      placeholder="Ex: Manaus"
-                      required
-                    />
-                  </div>
-                  <div style={{ flex: "1 1 90px" }}>
-                    <Input
-                      label="UF"
-                      value={form.state}
-                      onChange={(value) => update("state")(value.toUpperCase().slice(0, 2))}
-                      placeholder="AM"
-                      maxLength={2}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <Input
-                  label="Sigla"
-                  value={form.sigla}
-                  onChange={(value) => update("sigla")(value.toUpperCase().slice(0, 3))}
-                  placeholder="CA"
-                  hint="A sigla aparece na identificacao visual da central."
-                  required
-                />
-
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <label style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text)" }}>Cor principal</label>
-                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                    {TENANT_COLORS.map((color) => {
-                      const selected = form.color === color;
-                      return (
-                        <button
-                          key={color}
-                          type="button"
-                          onClick={() => update("color")(color)}
-                          aria-label={`Selecionar cor ${color}`}
-                          style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: "50%",
-                            border: "none",
-                            background: color,
-                            cursor: "pointer",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            boxShadow: selected ? `0 0 0 3px var(--surface), 0 0 0 5px ${color}` : "none",
-                          }}
+        {step === 2 ? (
+          <>
+            <AuthHeading
+              size="lg"
+              headingRef={headingRef}
+              eyebrow={`Passo 3 de ${STEPS.length}`}
+              title="Confira e crie a central"
+              lead="Tudo certo? Ao criar, você volta para o login e entra com o e-mail e a senha da coordenação."
+            />
+            <AuthSummary
+              items={[
+                {
+                  label: "Igreja",
+                  value: (
+                    <span className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="flex min-w-0 items-center gap-2.5">
+                        <span
+                          aria-hidden="true"
+                          style={{ background: form.color }}
+                          className="grid size-7 shrink-0 place-items-center rounded-full font-mono text-[11px] font-medium text-white"
                         >
-                          {selected ? <IconCheck size={16} style={{ color: "#fff" }} /> : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            {step === 3 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                <div
-                  style={{
-                    padding: 16,
-                    background: "var(--surface-2)",
-                    borderRadius: 14,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 12,
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, paddingBottom: 8, borderBottom: "1px solid var(--border)" }}>
-                    <span style={{ fontSize: 13, color: "var(--text-3)" }}>Coordenacao</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", textAlign: "right" }}>
-                      {form.firstName} {form.lastName}
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, paddingBottom: 8, borderBottom: "1px solid var(--border)" }}>
-                    <span style={{ fontSize: 13, color: "var(--text-3)" }}>Contato</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", textAlign: "right" }}>
-                      {form.phone}
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, paddingBottom: 8, borderBottom: "1px solid var(--border)" }}>
-                    <span style={{ fontSize: 13, color: "var(--text-3)" }}>E-mail</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", textAlign: "right" }}>
-                      {form.email}
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, paddingBottom: 8, borderBottom: "1px solid var(--border)" }}>
-                    <span style={{ fontSize: 13, color: "var(--text-3)" }}>Central</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", textAlign: "right" }}>
-                      {form.tenantName} ({form.city} - {form.state})
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-                    <span style={{ fontSize: 13, color: "var(--text-3)" }}>Identidade</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: "50%",
-                          background: form.color,
-                          color: "#fff",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 11,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {form.sigla}
+                          {form.sigla}
+                        </span>
+                        <span className="min-w-0">
+                          <strong className="font-medium">{form.tenantName}</strong>
+                          <span className="block text-xs text-muted">
+                            {form.city} - {form.state} · sigla {form.sigla}
+                          </span>
+                        </span>
                       </span>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>Sigla e cor definidas</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : null}
+                      <Button size="sm" variant="ghost" onClick={() => goTo(0)}>
+                        Editar<span className="sr-only"> igreja</span>
+                      </Button>
+                    </span>
+                  ),
+                },
+                {
+                  label: "Coordenação",
+                  value: (
+                    <span className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="min-w-0">
+                        <strong className="font-medium">
+                          {form.firstName} {form.lastName}
+                        </strong>
+                        <span className="block text-xs text-muted">{form.email}</span>
+                      </span>
+                      <Button size="sm" variant="ghost" onClick={() => goTo(1)}>
+                        Editar<span className="sr-only"> coordenação</span>
+                      </Button>
+                    </span>
+                  ),
+                },
+                { label: "Telefone", value: form.phone },
+                { label: "Senha", value: "Definida (oculta por segurança)" },
+              ]}
+            />
+          </>
+        ) : null}
 
-            {step < STEP_TITLES.length - 1 ? (
-              <Button onClick={handleNextStep} variant="primary" full iconRight={<IconChevronRight />}>
-                Avancar
-              </Button>
-            ) : (
-              <Button onClick={handleSubmit} variant="primary" full disabled={submitting}>
-                {submitting ? "Finalizando cadastro..." : "Ativar central"}
-              </Button>
-            )}
-          </div>
-        </Card>
-      </div>
-    </div>
+        {error ? <AuthNotice tone="danger">{error}</AuthNotice> : null}
+
+        <div className="mt-2 flex justify-between gap-2">
+          {step === 0 ? (
+            <Button href="/login" variant="ghost">
+              Voltar ao login
+            </Button>
+          ) : (
+            <Button variant="ghost" onClick={() => goTo(step - 1)} disabled={submitting}>
+              Voltar
+            </Button>
+          )}
+          <Button type="submit" variant="primary" loading={submitting}>
+            {isLast ? (submitting ? "Criando a central…" : "Criar a central") : "Continuar"}
+          </Button>
+        </div>
+      </form>
+    </AuthShell>
   );
 }
