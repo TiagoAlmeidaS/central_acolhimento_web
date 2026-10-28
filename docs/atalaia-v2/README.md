@@ -61,6 +61,18 @@ Leia `design-ref/atalaia-v2/DESIGN.md`, `style.css` (app) e `landing.css` (landi
 | A5 | App do cuidador (painel mobile, contatos, acompanhamentos, perfil) | `atalaia-v2/cuidador` | A1 |
 | A6 | Demais telas da coordenação (assistidos, acompanhamentos, saídas, encontros/TCI, igreja, cidades, perfil) | `atalaia-v2/coord-gestao` | A1 |
 
+### Status da consolidação (28/10/2026)
+
+A1–A6 mescladas em `release/atalaia-v2`. `tsc`, `eslint src`, `vitest` (114 testes) e `next build` verdes.
+
+Pendências conhecidas:
+- **Avisar a coordenação** (registro do cuidador): sem backend próprio; hoje marca o assistido como urgente via `PUT /api/members/:id`.
+- **Assumir responsabilidade** (cuidador): `listSeeds` filtra por `caregiverId`, então contatos sem cuidador não chegam ao cuidador — exige mudança no servidor.
+- **Contatos da coordenação** carregam todos os contatos filtrados (com foto) de uma vez para quadro/mapa; a paginação de servidor deixou de ser usada.
+- **Recusar cadastro pendente** e **registrar contato com data**: sem API.
+- Estados com dados reais (grupos de saída, sessões TCI, chamada) e convites válidos não foram vistos renderizados — só vazios/estado em memória.
+- Script de tema (`next/script beforeInteractive`) gera aviso no console na página 404 do convite.
+
 ### Regras para quem implementa
 
 - **Não alterar** APIs, `src/server/**`, `src/auth/**`, repositórios, migrations ou contratos — é uma remodelagem visual e de fluxo sobre os dados reais existentes.
