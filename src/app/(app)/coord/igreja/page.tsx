@@ -4,6 +4,7 @@ import { listAccessibleTenantIds } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
 import { listMembers, listTenants } from "@/server/repositories/mvp-repository";
 import { listChurchMeetingTypes, listChurchMemberships, listChurchOccurrences } from "@/server/repositories/church-repository";
+import { PageContainer } from "@/ui/atalaia";
 import { ChurchManager } from "@/ui/mvp/church-manager";
 
 export default async function ChurchPage() {
@@ -20,12 +21,14 @@ export default async function ChurchPage() {
   ]);
 
   return (
-    <ChurchManager
-      tenants={tenants}
-      members={members}
-      churchMembers={churchMembers}
-      meetingTypes={meetingTypes}
-      occurrences={occurrences}
-    />
+    <PageContainer>
+      <ChurchManager
+        tenants={tenants}
+        members={members}
+        churchMembers={churchMembers}
+        meetingTypes={meetingTypes}
+        occurrences={occurrences}
+      />
+    </PageContainer>
   );
 }

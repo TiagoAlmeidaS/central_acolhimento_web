@@ -1,13 +1,19 @@
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
-import type { CSSProperties } from "react";
 import type { Member, SpiritualTemperature } from "@/server/domain/mvp";
-import { listCaregivers, listMembers, listMembersPage, listTenants } from "@/server/repositories/mvp-repository";
+import { listCaregivers, listFollowups, listMembers, listTenants } from "@/server/repositories/mvp-repository";
+import { listChurchAttendance, listChurchOccurrences } from "@/server/repositories/church-repository";
 import { listAccessibleTenantIds } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
-import { MemberList } from "@/ui/mvp/member-list";
-import { filterMembers, normalizePage, normalizePageSize, type MemberListingFilters } from "@/lib/listing-filters";
+import { PageContainer } from "@/ui/atalaia";
+import { MemberList, type MemberDrawerRequest } from "@/ui/mvp/member-list";
+import {
+  filterMembers,
+  normalizePage,
+  normalizePageSize,
+  paginateItems,
+  type MemberListingFilters,
+} from "@/lib/listing-filters";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -17,41 +23,47 @@ function firstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function buildPageHref(basePath: string, searchParams: Record<string, string | string[] | undefined>, nextPage: number) {
+function buildExportHref(searchParams: Record<string, string | string[] | undefined>) {
   const params = new URLSearchParams();
   for (const [key, rawValue] of Object.entries(searchParams)) {
     const value = firstValue(rawValue);
-    if (!value || key === "page") continue;
+    if (!value || ["page", "novo", "editar", "ver", "needs"].includes(key)) continue;
     params.set(key, value);
   }
-  params.set("page", String(nextPage));
-  return `${basePath}?${params.toString()}`;
-}
-
-function buildSearchHref(basePath: string, searchParams: Record<string, string | string[] | undefined>, ignoredKeys: string[] = []) {
-  const params = new URLSearchParams();
-  for (const [key, rawValue] of Object.entries(searchParams)) {
-    const value = firstValue(rawValue);
-    if (!value || ignoredKeys.includes(key)) continue;
-    params.set(key, value);
-  }
-
   const query = params.toString();
-  return query ? `${basePath}?${query}` : basePath;
+  return query ? `/api/members/export?${query}` : "/api/members/export";
 }
 
-const STATUS_LABELS: Record<Member["status"], string> = {
-  new: "Novo",
-  in_progress: "Em acompanhamento",
-  consolidated: "Consolidado",
-  inactive: "Inativo",
-};
+const MEMBER_STATUSES: Member["status"][] = ["new", "in_progress", "consolidated", "inactive"];
 
-const TEMPERATURE_LABELS: Record<SpiritualTemperature, string> = {
-  cold: "Frio",
-  warm: "Morno",
-  hot: "Quente",
-};
+/**
+ * Assistidos que faltaram nas 3 últimas reuniões com chamada fechada da sua localidade.
+ * Se a chamada não estiver disponível, devolve vazio: o chip "Precisa de alguém" segue com os outros motivos.
+ */
+async function findMembersAbsentLastThree(tenantIds: string[]) {
+  const absent = new Set<string>();
+  try {
+    const occurrences = await listChurchOccurrences({ tenantIds });
+    for (const tenantId of tenantIds) {
+      const closed = occurrences
+        .filter((item) => item.tenantId === tenantId && item.status !== "cancelled" && item.attendanceClosedAt)
+        .sort((a, b) => b.occursOn.localeCompare(a.occursOn))
+        .slice(0, 3);
+      if (closed.length < 3) continue;
+
+      const records = await Promise.all(closed.map((occurrence) => listChurchAttendance(occurrence.id, { tenantId })));
+      const sets = records.map(
+        (list) => new Set(list.filter((record) => record.status === "absent").map((record) => record.memberId)),
+      );
+      for (const memberId of sets[0]) {
+        if (sets.every((set) => set.has(memberId))) absent.add(memberId);
+      }
+    }
+  } catch (error) {
+    console.error("members_absent_last_three_failed", error);
+  }
+  return absent;
+}
 
 export default async function MembersPage({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams;
@@ -78,214 +90,84 @@ export default async function MembersPage({ searchParams }: PageProps) {
     status: (firstValue(resolvedSearchParams.status) as Member["status"] | "") ?? "",
     spiritualTemperature: (firstValue(resolvedSearchParams.spiritualTemperature) as SpiritualTemperature | "") ?? "",
   };
+  const needsOnly = firstValue(resolvedSearchParams.needs) === "1";
 
-  const effectiveScope = filters.tenantId
-    ? { tenantId: filters.tenantId }
-    : { tenantIds: accessibleTenantIds };
-  const [filteredForSummary, paginated] = await Promise.all([
-    listMembers(effectiveScope).then((items) => filterMembers(items, filters)),
-    listMembersPage(effectiveScope, filters, { page, pageSize }),
+  const effectiveScope = filters.tenantId ? { tenantId: filters.tenantId } : { tenantIds: accessibleTenantIds };
+  const [members, followups] = await Promise.all([
+    listMembers(effectiveScope),
+    listFollowups({ tenantIds: accessibleTenantIds }),
   ]);
 
+  const filtered = filterMembers(members, filters);
+  const withoutStatus = filterMembers(members, { ...filters, status: "" });
+  const statusCounts = Object.fromEntries(
+    MEMBER_STATUSES.map((status) => [status, withoutStatus.filter((m) => m.status === status).length]),
+  ) as Record<Member["status"], number>;
+
+  // "Precisa de alguém": urgente, sem cuidador, ação atrasada ou faltou às 3 últimas reuniões.
+  const absentLastThree = await findMembersAbsentLastThree(
+    filters.tenantId ? [filters.tenantId] : accessibleTenantIds,
+  );
+  const latestFollowup = new Map<string, (typeof followups)[number]>();
+  for (const followup of followups) {
+    const current = latestFollowup.get(followup.memberId);
+    if (!current || new Date(followup.occurredAt) > new Date(current.occurredAt)) {
+      latestFollowup.set(followup.memberId, followup);
+    }
+  }
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const needsReasons: Record<string, string[]> = {};
+  for (const member of filtered) {
+    if (member.status === "inactive") continue;
+    const reasons: string[] = [];
+    if (member.isUrgent) reasons.push("Urgente");
+    if (!member.caregiverId) reasons.push("Sem cuidador");
+    const nextAction = latestFollowup.get(member.id)?.nextActionAt;
+    if (nextAction && new Date(nextAction) < startOfToday) reasons.push("Ação atrasada");
+    if (absentLastThree.has(member.id)) reasons.push("Faltou 3 reuniões");
+    if (reasons.length > 0) needsReasons[member.id] = reasons;
+  }
+
+  const listed = (needsOnly ? filtered.filter((member) => needsReasons[member.id]) : filtered).sort((a, b) =>
+    (b.createdAt ?? "").localeCompare(a.createdAt ?? ""),
+  );
+  const paginated = paginateItems(listed, page, pageSize);
+
+  // Gaveta aberta por link: /coord/membros?novo=1 | ?editar=ID | ?ver=ID
+  const editId = firstValue(resolvedSearchParams.editar);
+  const viewId = firstValue(resolvedSearchParams.ver);
+  const focusId = editId ?? viewId;
+  const focusMember = focusId ? (members.find((member) => member.id === focusId) ?? null) : null;
+  let initialDrawer: MemberDrawerRequest | null = null;
+  if (editId && focusMember) initialDrawer = { kind: "edit", memberId: focusMember.id };
+  else if (viewId && focusMember) initialDrawer = { kind: "view", memberId: focusMember.id };
+  else if (firstValue(resolvedSearchParams.novo)) initialDrawer = { kind: "new" };
+
+  const visibleIds = new Set(paginated.items.map((member) => member.id));
+  if (focusMember) visibleIds.add(focusMember.id);
+
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", padding: "0 0 32px" }}>
-      <div
-        style={{
-          padding: "24px 16px 20px",
-          borderBottom: "1px solid var(--border)",
-          background: "var(--surface)",
-          marginBottom: 24,
+    <PageContainer>
+      <MemberList
+        members={paginated.items}
+        focusMember={focusMember}
+        tenants={tenants}
+        caregivers={caregivers}
+        followups={followups.filter((followup) => visibleIds.has(followup.memberId))}
+        filters={filters}
+        statusCounts={statusCounts}
+        needsReasons={needsReasons}
+        needsOnly={needsOnly}
+        pagination={{
+          page: paginated.page,
+          totalPages: paginated.totalPages,
+          totalItems: paginated.totalItems,
+          pageSize: paginated.pageSize,
         }}
-      >
-        <p
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            color: "var(--accent)",
-            marginBottom: 6,
-          }}
-        >
-          Coordenacao · Acolhimento
-        </p>
-        <h1
-          style={{
-            margin: 0,
-            fontSize: 28,
-            fontWeight: 800,
-            letterSpacing: "-0.03em",
-            color: "var(--text)",
-            lineHeight: 1.1,
-          }}
-        >
-          Membros
-        </h1>
-        <p style={{ marginTop: 8, fontSize: 14, color: "var(--text-2)", maxWidth: 640, lineHeight: 1.5 }}>
-          Lista operacional dos membros acompanhados, com filtros e acoes principais fora do formulario.
-        </p>
-      </div>
-
-      <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 24 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
-          {(Object.keys(STATUS_LABELS) as Member["status"][]).map((key) => (
-            <div
-              key={key}
-              style={{
-                padding: "16px",
-                borderRadius: 14,
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                boxShadow: "var(--shadow-card)",
-              }}
-            >
-              <div style={{ fontSize: 11, color: "var(--text-2)", fontWeight: 600, marginBottom: 6 }}>{STATUS_LABELS[key]}</div>
-              <div style={{ fontSize: 24, fontWeight: 800, lineHeight: 1, color: "var(--text)" }}>
-                {filteredForSummary.filter((member) => member.status === key).length}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <section
-          style={{
-            padding: "16px",
-            borderRadius: 16,
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            boxShadow: "var(--shadow-card)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Filtros</div>
-              <div style={{ fontSize: 12.5, color: "var(--text-3)" }}>Nome, cidade, localidade, cuidador, data, descricao e status.</div>
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <Link href={buildSearchHref("/api/members/export", resolvedSearchParams, ["page"])} style={secondaryLinkStyle}>
-                Exportar CSV
-              </Link>
-              <Link
-                href="/coord/membros/novo"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  minHeight: 42,
-                  padding: "0 16px",
-                  borderRadius: 12,
-                  background: "var(--accent)",
-                  color: "#fff",
-                  textDecoration: "none",
-                  fontSize: 13.5,
-                  fontWeight: 700,
-                }}
-              >
-                Novo membro
-              </Link>
-            </div>
-          </div>
-
-          <form method="get" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-            <input name="name" defaultValue={filters.name ?? ""} placeholder="Nome" style={inputStyle} />
-            <input name="city" defaultValue={filters.city ?? ""} placeholder="Cidade" style={inputStyle} />
-            <select name="tenantId" defaultValue={filters.tenantId ?? ""} style={inputStyle}>
-              <option value="">Todas as localidades</option>
-              {tenants.map((tenant) => (
-                <option key={tenant.id} value={tenant.id}>
-                  {tenant.name}
-                </option>
-              ))}
-            </select>
-            <select name="caregiverId" defaultValue={filters.caregiverId ?? ""} style={inputStyle}>
-              <option value="">Todos os cuidadores</option>
-              {caregivers.map((caregiver) => (
-                <option key={caregiver.id} value={caregiver.id}>
-                  {caregiver.name}
-                </option>
-              ))}
-            </select>
-            <select name="status" defaultValue={filters.status ?? ""} style={inputStyle}>
-              <option value="">Todos os status</option>
-              {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <select name="spiritualTemperature" defaultValue={filters.spiritualTemperature ?? ""} style={inputStyle}>
-              <option value="">Todas as temperaturas</option>
-              {Object.entries(TEMPERATURE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <input name="dateFrom" type="date" defaultValue={filters.dateFrom ?? ""} style={inputStyle} />
-            <input name="dateTo" type="date" defaultValue={filters.dateTo ?? ""} style={inputStyle} />
-            <input name="description" defaultValue={filters.description ?? ""} placeholder="Descricao / observacao" style={inputStyle} />
-            <input type="hidden" name="pageSize" value={String(pageSize)} />
-            <div style={{ display: "flex", gap: 8, gridColumn: "1 / -1" }}>
-              <button type="submit" style={primaryButtonStyle}>Aplicar filtros</button>
-              <Link href="/coord/membros" style={secondaryLinkStyle}>Limpar</Link>
-            </div>
-          </form>
-        </section>
-
-        <MemberList members={paginated.items} tenants={tenants} caregivers={caregivers} />
-
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 13, color: "var(--text-3)" }}>
-            Pagina {paginated.page} de {paginated.totalPages} · {paginated.totalItems} resultado(s)
-          </span>
-          <div style={{ display: "flex", gap: 8 }}>
-            {paginated.page > 1 ? <Link href={buildPageHref("/coord/membros", resolvedSearchParams, paginated.page - 1)} style={secondaryLinkStyle}>Anterior</Link> : null}
-            {paginated.page < paginated.totalPages ? <Link href={buildPageHref("/coord/membros", resolvedSearchParams, paginated.page + 1)} style={secondaryLinkStyle}>Proxima</Link> : null}
-          </div>
-        </div>
-      </div>
-    </div>
+        exportHref={buildExportHref(resolvedSearchParams)}
+        initialDrawer={initialDrawer}
+      />
+    </PageContainer>
   );
 }
-
-const inputStyle: CSSProperties = {
-  height: 46,
-  padding: "0 14px",
-  borderRadius: 12,
-  border: "1px solid var(--border)",
-  background: "var(--surface)",
-  color: "var(--text)",
-  fontFamily: "inherit",
-  fontSize: 14,
-};
-
-const primaryButtonStyle: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  minHeight: 42,
-  padding: "0 16px",
-  borderRadius: 12,
-  border: 0,
-  background: "var(--accent)",
-  color: "#fff",
-  fontFamily: "inherit",
-  fontSize: 13.5,
-  fontWeight: 700,
-  cursor: "pointer",
-};
-
-const secondaryLinkStyle: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  minHeight: 42,
-  padding: "0 16px",
-  borderRadius: 12,
-  border: "1px solid var(--border)",
-  background: "var(--surface)",
-  color: "var(--text)",
-  textDecoration: "none",
-  fontSize: 13.5,
-  fontWeight: 600,
-};

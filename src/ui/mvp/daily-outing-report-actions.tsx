@@ -1,7 +1,6 @@
 "use client";
 
-import { Button } from "@/ui/v2-components/ui";
-import { IconDoc } from "@/ui/v2-components/icons";
+import { Button } from "@/ui/atalaia";
 
 export function DailyOutingReportActions({ tenantId, version }: { tenantId: string; version: string }) {
   function printReport() {
@@ -11,7 +10,7 @@ export function DailyOutingReportActions({ tenantId, version }: { tenantId: stri
 
   return (
     <div className="report-actions">
-      <Button type="button" variant="primary" size="md" icon={<IconDoc />} onClick={printReport}>
+      <Button type="button" variant="primary" icon="doc" onClick={printReport}>
         Imprimir / salvar PDF
       </Button>
     </div>

@@ -1,12 +1,27 @@
 export const dynamic = "force-dynamic";
 
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { isValidDateOnly } from "@/server/domain/daily-outing-report";
 import { listAccessibleTenantIds, resolveTenantIdForUserAccess } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
 import { getDailyOutingReport } from "@/server/repositories/daily-outing-report-repository";
 import { listTenants } from "@/server/repositories/mvp-repository";
-import { Card } from "@/ui/v2-components/ui";
+import {
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  EmptyState,
+  Input,
+  PageContainer,
+  PageHeader,
+  Select,
+  Stat,
+  Table,
+  Td,
+  Th,
+  Tr,
+} from "@/ui/atalaia";
 import { DashboardMap } from "@/ui/mvp/dashboard-map";
 import { DailyOutingReportActions } from "@/ui/mvp/daily-outing-report-actions";
 
@@ -51,101 +66,217 @@ export default async function DailyOutingReportPage({ searchParams }: Props) {
   const openHouses = report.contacts.filter((contact) => contact.openHouse);
   const mappedHouses = openHouses.filter((contact) => contact.latitude !== null && contact.longitude !== null);
   const unmappedHouses = openHouses.filter((contact) => contact.latitude === null || contact.longitude === null);
+  const period = dateTo !== date ? "neste período" : "nesta data";
 
   return (
-    <main className="daily-outing-report" style={{ padding: "28px 24px 48px", maxWidth: 1180, margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
+    <PageContainer className="daily-outing-report grid gap-4">
       <style>{printStyles}</style>
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
-        <div>
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Central de Acolhimento</p>
-          <h1 style={{ margin: "6px 0 0", fontSize: 30, color: "var(--text)", letterSpacing: "-0.03em" }}>Relatorio diario de saidas</h1>
-          <p style={{ margin: "7px 0 0", color: "var(--text-2)", fontSize: 14 }}>
-            {tenant.name} · {tenant.city}/{tenant.state} · {report.dateTo !== report.date ? `${formatDate(report.date)} a ${formatDate(report.dateTo)}` : formatDate(report.date)}
-          </p>
-          <p style={{ margin: "4px 0 0", color: "var(--text-3)", fontSize: 11.5 }}>
-            Versao {report.version} · Gerado em {formatInstant(report.generatedAt)} · {report.timezone}
-          </p>
-        </div>
-        <DailyOutingReportActions tenantId={report.tenant.id} version={report.version} />
-      </header>
+      <PageHeader
+        className="mb-0"
+        title="Relatório de saídas"
+        subtitle={
+          <>
+            {tenant.name} · {tenant.city}/{tenant.state} ·{" "}
+            {report.dateTo !== report.date ? `${formatDate(report.date)} a ${formatDate(report.dateTo)}` : formatDate(report.date)}
+            <span className="mt-1 block font-mono text-[11px] text-subtle">
+              {report.version} · gerado em {formatInstant(report.generatedAt)} · {report.timezone}
+            </span>
+          </>
+        }
+        action={<DailyOutingReportActions tenantId={report.tenant.id} version={report.version} />}
+      />
 
-      <form method="get" className="report-controls" style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "end", padding: 16, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14 }}>
-        <label style={labelStyle}>De<input name="date" type="date" defaultValue={date} style={inputStyle} /></label>
-        <label style={labelStyle}>Ate<input name="dateTo" type="date" defaultValue={dateTo} style={inputStyle} /></label>
-        <label style={labelStyle}>Localidade<select name="tenantId" defaultValue={tenantId} style={inputStyle}>{tenants.map((item) => <option key={item.id} value={item.id}>{item.name} - {item.city}/{item.state}</option>)}</select></label>
-        <button type="submit" style={filterButtonStyle}>Atualizar relatorio</button>
+      <form method="get" className="report-controls flex flex-wrap items-end gap-3 rounded-card border border-border bg-surface p-4">
+        <Input name="date" label="De" type="date" defaultValue={date} wrapperClassName="min-w-[150px]" />
+        <Input name="dateTo" label="Até" type="date" defaultValue={dateTo} wrapperClassName="min-w-[150px]" />
+        <Select
+          name="tenantId"
+          label="Localidade"
+          defaultValue={tenantId}
+          wrapperClassName="min-w-[220px]"
+          options={tenants.map((item) => ({ value: item.id, label: `${item.name} - ${item.city}/${item.state}` }))}
+        />
+        <Button type="submit">Atualizar relatório</Button>
       </form>
 
-      <section className="report-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
-        <Metric label="Saidas realizadas" value={report.totals.completedOutings} />
-        <Metric label="Participacoes" value={report.totals.participations} />
-        <Metric label="Novos contatos" value={report.totals.newContacts} accent />
-        <Metric label="Adolescentes" value={report.totals.adolescents} />
-        <Metric label="Casas abertas" value={report.totals.openHouses} />
-        <Metric label="Sem localizacao" value={report.totals.openHousesWithoutCoordinates} />
+      <section className="report-grid grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3" aria-label="Totais">
+        <Stat label="Saídas realizadas" value={report.totals.completedOutings} />
+        <Stat label="Participações" value={report.totals.participations} />
+        <Stat label="Novos contatos" value={report.totals.newContacts} />
+        <Stat label="Adolescentes" value={report.totals.adolescents} />
+        <Stat label="Casas abertas" value={report.totals.openHouses} />
+        <Stat
+          label="Sem localização"
+          value={report.totals.openHousesWithoutCoordinates}
+          tone={report.totals.openHousesWithoutCoordinates > 0 ? "alert" : "default"}
+        />
       </section>
 
       {report.totals.completedOutings === 0 ? (
-        <Card padding={28}><div role="status" style={{ textAlign: "center", color: "var(--text-3)" }}>Nenhuma saida concluida {dateTo !== date ? "neste periodo" : "nesta data"}.</div></Card>
+        <EmptyState
+          title={`Nenhuma saída concluída ${period}.`}
+          reason="O relatório conta só saídas confirmadas e marcadas como concluídas."
+          hint={<>Em Saídas, abra a saída confirmada e use &quot;Concluir execução&quot;.</>}
+          action={<Button href="/coord/saidas">Ir para saídas</Button>}
+        />
       ) : (
         <>
-          <ReportSection title="Resultado por tipo de saida">
-            <div style={{ overflowX: "auto" }}><table style={tableStyle}><thead><tr><Th>Tipo</Th><Th>Saidas</Th><Th>Participacoes</Th><Th>Contatos</Th><Th>Adolescentes</Th><Th>Casas abertas</Th></tr></thead><tbody>{report.byType.map((item) => <tr key={item.outingTypeId ?? "unclassified"}><Td strong>{item.name}</Td><Td>{item.outings}</Td><Td>{item.participations}</Td><Td>{item.newContacts}</Td><Td>{item.adolescents}</Td><Td>{item.openHouses}</Td></tr>)}</tbody></table></div>
+          <ReportSection title="Resultado por tipo de saída">
+            <Table caption="Resultado por tipo de saída">
+              <thead>
+                <tr>
+                  <Th>Tipo</Th>
+                  <Th>Saídas</Th>
+                  <Th>Participações</Th>
+                  <Th>Contatos</Th>
+                  <Th>Adolescentes</Th>
+                  <Th>Casas abertas</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.byType.map((item) => (
+                  <Tr key={item.outingTypeId ?? "unclassified"}>
+                    <Td className="font-medium">{item.name}</Td>
+                    <Td className="font-mono">{item.outings}</Td>
+                    <Td className="font-mono">{item.participations}</Td>
+                    <Td className="font-mono">{item.newContacts}</Td>
+                    <Td className="font-mono">{item.adolescents}</Td>
+                    <Td className="font-mono">{item.openHouses}</Td>
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
           </ReportSection>
 
-          <ReportSection title="Saidas realizadas">
-            <div style={{ overflowX: "auto" }}><table style={tableStyle}><thead><tr><Th>Saida</Th><Th>Tipo</Th><Th>Concluida em</Th><Th>Participacoes</Th><Th>Novos contatos</Th></tr></thead><tbody>{report.outings.map((outing) => <tr key={outing.id}><Td strong>{outing.name}</Td><Td>{outing.typeName}</Td><Td>{formatInstant(outing.completedAt)}</Td><Td>{outing.participationCount}</Td><Td>{outing.newContactCount}</Td></tr>)}</tbody></table></div>
+          <ReportSection title="Saídas realizadas">
+            <Table caption="Saídas realizadas">
+              <thead>
+                <tr>
+                  <Th>Saída</Th>
+                  <Th>Tipo</Th>
+                  <Th>Concluída em</Th>
+                  <Th>Participações</Th>
+                  <Th>Novos contatos</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.outings.map((outing) => (
+                  <Tr key={outing.id}>
+                    <Td className="font-medium">{outing.name}</Td>
+                    <Td>{outing.typeName}</Td>
+                    <Td className="font-mono">{formatInstant(outing.completedAt)}</Td>
+                    <Td className="font-mono">{outing.participationCount}</Td>
+                    <Td className="font-mono">{outing.newContactCount}</Td>
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
           </ReportSection>
 
           <ReportSection title="Novos contatos gerados">
-            {report.contacts.length === 0 ? <p style={emptyStyle}>Nenhum novo contato registrado {dateTo !== date ? "neste periodo" : "nesta data"}.</p> : <div style={{ overflowX: "auto" }}><table style={tableStyle}><thead><tr><Th>Nome</Th><Th>Idade</Th><Th>Faixa</Th><Th>Saida</Th><Th>Tipo</Th><Th>Casa aberta</Th></tr></thead><tbody>{report.contacts.map((contact) => <tr key={contact.id}><Td strong>{contact.name}</Td><Td>{contact.age ?? "Nao informada"}</Td><Td>{contact.ageGroup === "adolescent" ? "Adolescente" : contact.ageGroup === "unknown" ? "Nao informada" : "Outra idade"}</Td><Td>{contact.outingName ?? <span style={{ color: "var(--text-3)" }}>Sem saida</span>}</Td><Td>{contact.outingTypeName ?? <span style={{ color: "var(--text-3)" }}>—</span>}</Td><Td>{contact.openHouse ? "Sim" : "Nao"}</Td></tr>)}</tbody></table></div>}
+            {report.contacts.length === 0 ? (
+              <p className="px-4 pb-4 text-muted">Nenhum novo contato registrado {period}.</p>
+            ) : (
+              <Table caption="Novos contatos gerados">
+                <thead>
+                  <tr>
+                    <Th>Nome</Th>
+                    <Th>Idade</Th>
+                    <Th>Faixa</Th>
+                    <Th>Saída</Th>
+                    <Th>Tipo</Th>
+                    <Th>Casa aberta</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.contacts.map((contact) => (
+                    <Tr key={contact.id}>
+                      <Td className="font-medium">{contact.name}</Td>
+                      <Td className="font-mono">{contact.age ?? "Não informada"}</Td>
+                      <Td>
+                        {contact.ageGroup === "adolescent" ? "Adolescente" : contact.ageGroup === "unknown" ? "Não informada" : "Outra idade"}
+                      </Td>
+                      <Td>{contact.outingName ?? <span className="text-muted">Sem saída</span>}</Td>
+                      <Td>{contact.outingTypeName ?? <span className="text-muted">—</span>}</Td>
+                      <Td>{contact.openHouse ? "Sim" : "Não"}</Td>
+                    </Tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
           </ReportSection>
 
           <section className="report-section">
-            {mappedHouses.length > 0 ? <DashboardMap title="Mapa das casas abertas" description={`${mappedHouses.length} casa(s) com coordenadas nesta data.`} showLegend={false} items={mappedHouses.map((contact) => ({ id: contact.id, name: contact.name, city: contact.city, address: contact.address, status: "novo", caregiver: null, lastContact: contact.outingName ?? "Contato do dia", latitude: contact.latitude as number, longitude: contact.longitude as number, age: contact.age }))} /> : <Card padding={24}><h2 style={sectionTitleStyle}>Mapa das casas abertas</h2><p style={emptyStyle}>Nenhuma casa aberta com coordenadas nesta data.</p></Card>}
+            {mappedHouses.length > 0 ? (
+              <DashboardMap
+                title="Mapa das casas abertas"
+                description={`${mappedHouses.length} casa(s) com coordenadas ${period}.`}
+                showLegend={false}
+                items={mappedHouses.map((contact) => ({
+                  id: contact.id,
+                  name: contact.name,
+                  city: contact.city,
+                  address: contact.address,
+                  status: "novo",
+                  caregiver: null,
+                  lastContact: contact.outingName ?? "Contato do dia",
+                  latitude: contact.latitude as number,
+                  longitude: contact.longitude as number,
+                  age: contact.age,
+                }))}
+              />
+            ) : (
+              <Card>
+                <CardHeader title="Mapa das casas abertas" />
+                <CardBody>
+                  <p className="text-muted">Nenhuma casa aberta com coordenadas {period}.</p>
+                </CardBody>
+              </Card>
+            )}
           </section>
 
-          {unmappedHouses.length > 0 ? <ReportSection title="Casas abertas sem localizacao no mapa"><ul style={{ margin: 0, paddingLeft: 20 }}>{unmappedHouses.map((contact) => <li key={contact.id} style={{ marginBottom: 6 }}>{contact.name} · {contact.address || contact.city || "Endereco nao informado"}</li>)}</ul></ReportSection> : null}
+          {unmappedHouses.length > 0 ? (
+            <Card className="report-section">
+              <CardHeader title="Casas abertas sem localização no mapa" />
+              <CardBody>
+                <ul className="m-0 grid list-disc gap-1.5 pl-5">
+                  {unmappedHouses.map((contact) => (
+                    <li key={contact.id}>
+                      {contact.name} · {contact.address || contact.city || "Endereço não informado"}
+                    </li>
+                  ))}
+                </ul>
+              </CardBody>
+            </Card>
+          ) : null}
         </>
       )}
 
-      <footer style={{ paddingTop: 12, borderTop: "1px solid var(--border)", color: "var(--text-3)", fontSize: 11.5, lineHeight: 1.5 }}>
-        Documento restrito a coordenacao. Contagens de casas abertas representam contatos que disponibilizaram uma casa e nao domicilios deduplicados.
+      <footer className="border-t border-border pt-3 text-[11.5px] leading-normal text-subtle">
+        Documento restrito à coordenação. As contagens de casas abertas representam contatos que disponibilizaram uma casa e não
+        domicílios deduplicados.
       </footer>
-    </main>
+    </PageContainer>
   );
 }
 
-function Metric({ label, value, accent = false }: { label: string; value: number; accent?: boolean }) {
-  return <Card padding={16}><div style={{ color: "var(--text-3)", fontSize: 11.5, fontWeight: 700 }}>{label}</div><div style={{ marginTop: 8, fontSize: 28, fontWeight: 850, color: accent ? "var(--accent)" : "var(--text)" }}>{value}</div></Card>;
-}
-
 function ReportSection({ title, children }: { title: string; children: ReactNode }) {
-  return <Card padding={20}><h2 style={sectionTitleStyle}>{title}</h2>{children}</Card>;
+  return (
+    <Card className="report-section">
+      <CardHeader title={title} />
+      <div className="pt-2">{children}</div>
+    </Card>
+  );
 }
-function Th({ children }: { children: ReactNode }) { return <th style={{ textAlign: "left", padding: "10px 12px", borderBottom: "1px solid var(--border)", fontSize: 11, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{children}</th>; }
-function Td({ children, strong = false }: { children: ReactNode; strong?: boolean }) { return <td style={{ padding: "11px 12px", borderBottom: "1px solid var(--border)", fontSize: 13, color: "var(--text)", fontWeight: strong ? 700 : 400 }}>{children}</td>; }
 
-const labelStyle: CSSProperties = { display: "flex", flexDirection: "column", gap: 6, color: "var(--text-2)", fontSize: 12, fontWeight: 700 };
-const inputStyle: CSSProperties = { minWidth: 190, height: 42, border: "1px solid var(--border)", borderRadius: 10, background: "var(--surface)", color: "var(--text)", padding: "0 12px", fontFamily: "inherit" };
-const filterButtonStyle: CSSProperties = { height: 42, padding: "0 16px", border: 0, borderRadius: 10, background: "var(--accent)", color: "#fff", fontWeight: 800, cursor: "pointer" };
-const tableStyle: CSSProperties = { width: "100%", borderCollapse: "collapse", minWidth: 640 };
-const sectionTitleStyle: CSSProperties = { margin: "0 0 14px", fontSize: 17, color: "var(--text)", letterSpacing: "-0.015em" };
-const emptyStyle: CSSProperties = { margin: 0, color: "var(--text-3)", fontSize: 13 };
 const printStyles = `
   @page { size: A4 portrait; margin: 12mm; }
-  @media screen and (max-width: 1199px) {
-    body aside { display: none !important; }
-    .daily-outing-report { padding: 20px 14px 36px !important; }
-    .report-controls { flex-direction: column !important; align-items: stretch !important; }
-    .report-controls label { width: 100% !important; }
-    .report-controls input, .report-controls select, .report-controls button { min-width: 0 !important; width: 100% !important; }
-  }
   @media print {
-    body { background: #fff !important; }
-    aside, .report-actions, .report-controls { display: none !important; }
-    .daily-outing-report { max-width: none !important; padding: 0 !important; color: #111 !important; }
-    .report-section, .report-grid > * { break-inside: avoid; box-shadow: none !important; }
+    html, body { background: #fff !important; }
+    aside, nav, .report-actions, .report-controls { display: none !important; }
+    .daily-outing-report { max-width: none !important; padding: 0 !important; }
+    .daily-outing-report * { background: transparent !important; color: #111 !important; border-color: #bbb !important; box-shadow: none !important; }
+    .report-section, .report-grid > * { break-inside: avoid; }
     .leaflet-control-container { display: none !important; }
   }
 `;

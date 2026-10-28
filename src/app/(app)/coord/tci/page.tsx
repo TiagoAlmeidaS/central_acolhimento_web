@@ -4,6 +4,7 @@ import { listAccessibleTenantIds } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
 import { listCaregivers, listTenants } from "@/server/repositories/mvp-repository";
 import { listTciChambers, listTciSessions } from "@/server/repositories/tci-repository";
+import { PageContainer } from "@/ui/atalaia";
 import { TciManager } from "@/ui/mvp/tci-manager";
 
 function getCurrentWeekStart() {
@@ -26,5 +27,9 @@ export default async function TciPage() {
     listTciSessions({ tenantIds: accessibleTenantIds }, { weekStart }),
   ]);
 
-  return <TciManager tenants={tenants} caregivers={caregivers} chambers={chambers} sessions={sessions} initialWeekStart={weekStart} />;
+  return (
+    <PageContainer>
+      <TciManager tenants={tenants} caregivers={caregivers} chambers={chambers} sessions={sessions} initialWeekStart={weekStart} />
+    </PageContainer>
+  );
 }

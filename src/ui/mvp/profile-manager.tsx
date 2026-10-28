@@ -3,38 +3,51 @@
 import { startTransition, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { UserProfileView } from "@/server/domain/mvp";
-import { Button, Card, Input, SectionTitle } from "@/ui/v2-components/ui";
-import { IconCheck, IconLock, IconPhone, IconUser } from "@/ui/v2-components/icons";
+import { Button, Card, CardBody, CardHeader, Drawer, Input, PageHeader, Pill, cx, useToast } from "@/ui/atalaia";
+import { FormError, FormGrid, Kv, SettingRow, readApiError, useResetOnOpen } from "@/ui/gestao";
+
+const emptyPasswordForm = { currentPassword: "", newPassword: "", confirmPassword: "" };
 
 export function ProfileManager({
   initialProfile,
   homePath,
+  contained = true,
 }: Readonly<{
   initialProfile: UserProfileView;
   homePath: string;
+  /**
+   * Aplica a coluna de 920px com respiro lateral próprio (uso padrão, ex.: tela do cuidador).
+   * Quem já envolve a página em `PageContainer` passa `contained={false}`.
+   */
+  contained?: boolean;
 }>) {
   const router = useRouter();
+  const { toast } = useToast();
   const [profile, setProfile] = useState(initialProfile);
   const [form, setForm] = useState({
     firstName: initialProfile.firstName,
     lastName: initialProfile.lastName,
     phone: initialProfile.phone,
   });
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [passwordForm, setPasswordForm] = useState(emptyPasswordForm);
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+
+  useResetOnOpen(passwordOpen, () => {
+    setPasswordForm(emptyPasswordForm);
+    setPasswordError(null);
+  });
+
+  const dirty =
+    form.firstName !== profile.firstName || form.lastName !== profile.lastName || form.phone !== profile.phone;
 
   async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSavingProfile(true);
-    setError(null);
-    setSuccess(null);
+    setProfileError(null);
 
     const response = await fetch("/api/profile", {
       method: "PUT",
@@ -49,8 +62,7 @@ export function ProfileManager({
     setSavingProfile(false);
 
     if (!response.ok) {
-      const payload = (await response.json().catch(() => ({}))) as { error?: string };
-      setError(payload.error ?? "Nao foi possivel salvar o perfil.");
+      setProfileError(await readApiError(response, "Não foi possível salvar o perfil."));
       return;
     }
 
@@ -61,22 +73,20 @@ export function ProfileManager({
       lastName: nextProfile.lastName,
       phone: nextProfile.phone,
     });
-    setSuccess("Perfil atualizado.");
+    toast("Perfil atualizado.");
     startTransition(() => router.refresh());
   }
 
   async function handleChangePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSavingPassword(true);
-    setError(null);
-    setSuccess(null);
+    setPasswordError(null);
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setSavingPassword(false);
-      setError("A confirmacao da nova senha nao confere.");
+      setPasswordError("A confirmação da nova senha não confere.");
       return;
     }
 
+    setSavingPassword(true);
     const response = await fetch("/api/profile/password", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -85,109 +95,167 @@ export function ProfileManager({
         newPassword: passwordForm.newPassword,
       }),
     });
-
     setSavingPassword(false);
 
     if (!response.ok) {
-      const payload = (await response.json().catch(() => ({}))) as { error?: string };
-      setError(payload.error ?? "Nao foi possivel atualizar a senha.");
+      setPasswordError(await readApiError(response, "Não foi possível atualizar a senha."));
       return;
     }
 
-    setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-    setSuccess("Senha atualizada.");
+    toast("Senha atualizada.");
+    setPasswordOpen(false);
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20, padding: "24px 16px 32px", maxWidth: 920, margin: "0 auto" }}>
-      <div>
-        <p style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--accent)" }}>
-          Conta · Perfil
-        </p>
-        <h1 style={{ margin: "6px 0 0", fontSize: 28, fontWeight: 800, color: "var(--text)", letterSpacing: "-0.03em" }}>
-          Meu perfil
-        </h1>
-        <p style={{ margin: "8px 0 0", fontSize: 14, color: "var(--text-2)", lineHeight: 1.5 }}>
-          Atualize seus dados pessoais e gerencie o acesso da conta no contexto atual.
-        </p>
-      </div>
+    <div className={cx("grid gap-4", contained ? "mx-auto w-full max-w-[920px] px-4 pb-16 pt-6" : "max-w-[920px]")}>
+      <PageHeader
+        className="mb-1"
+        title="Meu perfil"
+        subtitle="Seus dados de contato e acesso à conta."
+        secondary={<Button onClick={() => router.push(homePath)}>Voltar ao painel</Button>}
+      />
 
-      {error ? <Banner tone="error">{error}</Banner> : null}
-      {success ? <Banner tone="success">{success}</Banner> : null}
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
-        <Card padding={20}>
-          <SectionTitle>Dados pessoais</SectionTitle>
-          <form onSubmit={handleSaveProfile} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <Input label="Nome" value={form.firstName} onChange={(value) => setForm((current) => ({ ...current, firstName: value }))} icon={<IconUser />} required />
-            <Input label="Sobrenome" value={form.lastName} onChange={(value) => setForm((current) => ({ ...current, lastName: value }))} icon={<IconUser />} required />
-            <Input label="Email" value={profile.email} onChange={() => undefined} type="email" disabled />
-            <Input label="Telefone" value={form.phone} onChange={(value) => setForm((current) => ({ ...current, phone: value }))} icon={<IconPhone />} required />
-            <Button type="submit" variant="primary" size="md" disabled={savingProfile} icon={<IconCheck />} full>
-              {savingProfile ? "Salvando..." : "Salvar alteracoes"}
-            </Button>
-          </form>
-        </Card>
-
-        <Card padding={20}>
-          <SectionTitle>Contexto atual</SectionTitle>
-          <Info label="Nome completo" value={profile.fullName} />
-          <Info label="Localidade" value={profile.tenantName} />
-          <Info label="Cidade / Estado" value={`${profile.tenantCity} - ${profile.tenantState}`} />
-          <Info label="Perfil" value={profile.role === "coordinator" ? "Coordenacao" : "Cuidador"} />
-          <Info label="Conta" value={profile.active ? "Ativa" : "Inativa"} />
-          <div style={{ marginTop: 16 }}>
-            <Button type="button" variant="secondary" size="md" onClick={() => router.push(homePath)} full>
-              Voltar ao painel
-            </Button>
+      <Card>
+        <form onSubmit={handleSaveProfile}>
+          <CardHeader title="Dados pessoais" />
+          <SettingRow title="Nome" text="Como a coordenação e os assistidos veem você.">
+            <FormGrid>
+              <Input
+                aria-label="Nome"
+                value={form.firstName}
+                onChange={(event) => setForm((current) => ({ ...current, firstName: event.target.value }))}
+                required
+              />
+              <Input
+                aria-label="Sobrenome"
+                value={form.lastName}
+                onChange={(event) => setForm((current) => ({ ...current, lastName: event.target.value }))}
+                required
+              />
+            </FormGrid>
+          </SettingRow>
+          <SettingRow title="Telefone" text="Usado nos avisos e no resumo diário.">
+            <Input
+              aria-label="Telefone"
+              value={form.phone}
+              inputMode="tel"
+              onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
+              required
+            />
+          </SettingRow>
+          <SettingRow title="E-mail" text="É o seu acesso. Para trocar, fale com a coordenação.">
+            <Input aria-label="E-mail" type="email" value={profile.email} readOnly />
+          </SettingRow>
+          <div className="grid gap-2 border-t border-border p-4">
+            <FormError>{profileError}</FormError>
+            <div className="flex justify-end">
+              <Button variant="primary" type="submit" loading={savingProfile} disabled={!dirty}>
+                Salvar alterações
+              </Button>
+            </div>
           </div>
-        </Card>
-      </div>
+        </form>
+      </Card>
+
+      <Card>
+        <CardHeader title="Contexto atual" />
+        <CardBody>
+          <Kv
+            items={[
+              { label: "Nome completo", value: profile.fullName },
+              { label: "Localidade", value: profile.tenantName },
+              { label: "Cidade / Estado", value: `${profile.tenantCity} - ${profile.tenantState}` },
+              { label: "Perfil", value: profile.role === "coordinator" ? "Coordenação" : "Cuidador" },
+              {
+                label: "Conta",
+                value: <Pill tone={profile.active ? "success" : "muted"}>{profile.active ? "Ativa" : "Inativa"}</Pill>,
+              },
+            ]}
+          />
+        </CardBody>
+      </Card>
 
       {profile.caregiver ? (
-        <Card padding={20}>
-          <SectionTitle>Dados operacionais do cuidador</SectionTitle>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-            <Info label="Nome operacional" value={profile.caregiver.name} />
-            <Info label="Telefone operacional" value={profile.caregiver.phone || "Sem telefone"} />
-            <Info label="Email operacional" value={profile.caregiver.email ?? "Sem email"} />
-            <Info label="Membros ativos" value={String(profile.caregiver.activeMembers)} />
-            <Info label="Status operacional" value={profile.caregiver.active ? "Ativo" : "Inativo"} />
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <Info label="Observacoes operacionais" value={profile.caregiver.notes || "Sem observacoes"} />
-          </div>
+        <Card>
+          <CardHeader title="Dados operacionais do cuidador" />
+          <CardBody>
+            <Kv
+              items={[
+                { label: "Nome operacional", value: profile.caregiver.name },
+                { label: "Telefone", value: profile.caregiver.phone || "Sem telefone" },
+                { label: "E-mail", value: profile.caregiver.email ?? "Sem e-mail" },
+                { label: "Assistidos ativos", value: <span className="font-mono">{profile.caregiver.activeMembers}</span> },
+                {
+                  label: "Situação",
+                  value: (
+                    <Pill tone={profile.caregiver.active ? "success" : "muted"}>
+                      {profile.caregiver.active ? "Ativo" : "Inativo"}
+                    </Pill>
+                  ),
+                },
+                { label: "Observações", value: profile.caregiver.notes || "Sem observações" },
+              ]}
+            />
+          </CardBody>
         </Card>
       ) : null}
 
-      <Card padding={20}>
-        <SectionTitle>Seguranca</SectionTitle>
-        <form onSubmit={handleChangePassword} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <Input label="Senha atual" type="password" value={passwordForm.currentPassword} onChange={(value) => setPasswordForm((current) => ({ ...current, currentPassword: value }))} icon={<IconLock />} required />
-          <Input label="Nova senha" type="password" value={passwordForm.newPassword} onChange={(value) => setPasswordForm((current) => ({ ...current, newPassword: value }))} icon={<IconLock />} required />
-          <Input label="Confirmar nova senha" type="password" value={passwordForm.confirmPassword} onChange={(value) => setPasswordForm((current) => ({ ...current, confirmPassword: value }))} icon={<IconLock />} required />
-          <Button type="submit" variant="primary" size="md" disabled={savingPassword} full>
-            {savingPassword ? "Atualizando..." : "Atualizar senha"}
-          </Button>
-        </form>
+      <Card>
+        <CardHeader title="Segurança" />
+        <SettingRow title="Senha" text="Troque a senha de vez em quando e não a repita em outros sites.">
+          <div>
+            <Button icon="lock" onClick={() => setPasswordOpen(true)}>
+              Alterar senha
+            </Button>
+          </div>
+        </SettingRow>
       </Card>
-    </div>
-  );
-}
 
-function Banner({ children, tone }: Readonly<{ children: string; tone: "error" | "success" }>) {
-  const style = tone === "error"
-    ? { background: "#FFF1F2", border: "1px solid #FECDD3", color: "#E11D48" }
-    : { background: "#F0FDF4", border: "1px solid #BBF7D0", color: "#15803D" };
-
-  return <div style={{ ...style, padding: "12px 16px", borderRadius: 12, fontSize: 13, fontWeight: 600 }}>{children}</div>;
-}
-
-function Info({ label, value }: Readonly<{ label: string; value: string }>) {
-  return (
-    <div style={{ padding: "12px 14px", borderRadius: 14, border: "1px solid var(--border)", background: "var(--surface-2)" }}>
-      <div style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>{value}</div>
+      <Drawer
+        open={passwordOpen}
+        onClose={() => setPasswordOpen(false)}
+        title="Alterar senha"
+        subtitle="Informe a senha atual e escolha uma nova."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setPasswordOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="primary" type="submit" form="password-form" loading={savingPassword}>
+              Atualizar senha
+            </Button>
+          </>
+        }
+      >
+        <form id="password-form" onSubmit={handleChangePassword} className="grid gap-4">
+          <Input
+            label="Senha atual"
+            type="password"
+            autoComplete="current-password"
+            value={passwordForm.currentPassword}
+            onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))}
+            required
+            data-autofocus
+          />
+          <Input
+            label="Nova senha"
+            type="password"
+            autoComplete="new-password"
+            value={passwordForm.newPassword}
+            onChange={(event) => setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))}
+            required
+          />
+          <Input
+            label="Confirmar nova senha"
+            type="password"
+            autoComplete="new-password"
+            value={passwordForm.confirmPassword}
+            onChange={(event) => setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+            required
+          />
+          <FormError>{passwordError}</FormError>
+        </form>
+      </Drawer>
     </div>
   );
 }

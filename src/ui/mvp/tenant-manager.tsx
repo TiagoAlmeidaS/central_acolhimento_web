@@ -1,23 +1,11 @@
 "use client";
 
-import { startTransition, useMemo, useState } from "react";
+import { startTransition, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { Tenant } from "@/server/domain/mvp";
-import {
-  Card,
-  Button,
-  Input,
-  Select,
-  SectionTitle,
-  SearchableSelect,
-} from "@/ui/v2-components/ui";
-import {
-  IconBuilding,
-  IconMapPin,
-  IconUser,
-  IconCheck,
-  IconPlus,
-} from "@/ui/v2-components/icons";
+import { Button, Card, CardHeader, Drawer, EmptyState, Input, Pill, Table, Td, Th, Tr, useToast } from "@/ui/atalaia";
+import { FormError, FormGrid, Notice, Switch, plural, readApiError, useResetOnOpen } from "@/ui/gestao";
+import { SearchableSelect } from "@/ui/v2-components/ui";
 import { ESTADOS_BRASIL, getCidadesByEstado } from "@/lib/br-locations";
 
 const emptyForm = {
@@ -30,36 +18,40 @@ const emptyForm = {
 
 export function TenantManager({ tenants }: Readonly<{ tenants: Tenant[] }>) {
   const router = useRouter();
+  const { toast } = useToast();
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Tenant | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+
+  useResetOnOpen(drawerOpen, () => {
+    setForm(
+      editing
+        ? {
+            name: editing.name,
+            city: editing.city,
+            state: editing.state,
+            coordinator: editing.coordinator ?? "",
+            status: editing.status,
+          }
+        : emptyForm,
+    );
+    setSubmitting(false);
+    setError(null);
+  });
 
   /** Cidades filtradas pelo estado selecionado no formulário. */
-  const cidadesDisponiveis = useMemo(
-    () => getCidadesByEstado(form.state),
-    [form.state]
-  );
+  const cidadesDisponiveis = useMemo(() => getCidadesByEstado(form.state), [form.state]);
 
   function openCreate() {
     setEditing(null);
-    setForm(emptyForm);
-    setError(null);
-    setSuccess(false);
+    setDrawerOpen(true);
   }
 
   function openEdit(tenant: Tenant) {
     setEditing(tenant);
-    setForm({
-      name: tenant.name,
-      city: tenant.city,
-      state: tenant.state,
-      coordinator: tenant.coordinator ?? "",
-      status: tenant.status,
-    });
-    setError(null);
-    setSuccess(false);
+    setDrawerOpen(true);
   }
 
   function handleEstadoChange(novoEstado: string) {
@@ -71,17 +63,13 @@ export function TenantManager({ tenants }: Readonly<{ tenants: Tenant[] }>) {
     }));
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
-    setSuccess(false);
 
-    const url = editing ? `/api/tenants/${editing.id}` : "/api/tenants";
-    const method = editing ? "PUT" : "POST";
-
-    const response = await fetch(url, {
-      method,
+    const response = await fetch(editing ? `/api/tenants/${editing.id}` : "/api/tenants", {
+      method: editing ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: form.name,
@@ -92,49 +80,105 @@ export function TenantManager({ tenants }: Readonly<{ tenants: Tenant[] }>) {
       }),
     });
 
+    setSubmitting(false);
     if (!response.ok) {
-      const payload = (await response.json().catch(() => ({}))) as { error?: string };
-      setError(payload.error ?? "Não foi possível salvar a localidade.");
-      setSubmitting(false);
+      setError(await readApiError(response, "Não foi possível salvar a localidade."));
       return;
     }
 
-    setSuccess(true);
-    openCreate();
-    setSubmitting(false);
+    toast(editing ? "Localidade atualizada." : "Localidade criada.");
+    setDrawerOpen(false);
     startTransition(() => router.refresh());
   }
 
+  const createButton = (
+    <Button variant="primary" size="sm" icon="plus" onClick={openCreate}>
+      Nova localidade
+    </Button>
+  );
+
   return (
-    <div style={{ display: "grid", gap: 24, gridTemplateColumns: "1fr 1fr" }}>
-      {/* ── Form panel ── */}
-      <Card padding={28}>
-        <SectionTitle>
-          {editing ? "Editar localidade" : "Nova localidade"}
-        </SectionTitle>
-        <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 24, marginTop: -8 }}>
-          Cada localidade representa uma unidade operacional da Central.
-        </p>
+    <>
+      <Card>
+        <CardHeader
+          title="Igrejas da rede"
+          meta={tenants.length > 0 ? `${plural(tenants.length, "localidade", "localidades")} · dados isolados` : undefined}
+          action={createButton}
+        />
+        <div className="pt-2">
+          {tenants.length === 0 ? (
+            <div className="px-4 pb-4">
+              <EmptyState
+                title="Nenhuma localidade cadastrada."
+                reason="Cada localidade é uma unidade operacional da central, com contatos, cuidadores e assistidos próprios."
+                hint={<>Use &quot;Nova localidade&quot; para cadastrar a primeira.</>}
+              />
+            </div>
+          ) : (
+            <Table caption="Igrejas da rede">
+              <thead>
+                <tr>
+                  <Th>Igreja</Th>
+                  <Th>Cidade</Th>
+                  <Th>Coordenação</Th>
+                  <Th>Situação</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {tenants.map((tenant) => (
+                  <Tr key={tenant.id} onActivate={() => openEdit(tenant)} aria-label={`Editar ${tenant.name}`}>
+                    <Td className="font-medium">{tenant.name}</Td>
+                    <Td>
+                      {tenant.city}/{tenant.state}
+                    </Td>
+                    <Td>{tenant.coordinator || <span className="text-muted">—</span>}</Td>
+                    <Td>
+                      <Pill tone={tenant.status === "active" ? "success" : "muted"}>
+                        {tenant.status === "active" ? "Ativa" : "Inativa"}
+                      </Pill>
+                    </Td>
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
+        </div>
+      </Card>
 
-        <form style={{ display: "flex", flexDirection: "column", gap: 16 }} onSubmit={handleSubmit}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <Input
-              label="Nome da localidade"
-              value={form.name}
-              onChange={(v) => setForm((f) => ({ ...f, name: v }))}
-              placeholder="Ex: AD Curitiba"
-              icon={<IconBuilding />}
-              required
-            />
-            <Input
-              label="Coordenador"
-              value={form.coordinator}
-              onChange={(v) => setForm((f) => ({ ...f, coordinator: v }))}
-              placeholder="Nome do responsável"
-              icon={<IconUser />}
-            />
-
-            {/* Estado primeiro — filtra as cidades */}
+      <Drawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title={editing ? "Editar localidade" : "Nova localidade"}
+        subtitle={editing ? editing.name : "Cada localidade é uma unidade operacional da central."}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setDrawerOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="primary" type="submit" form="tenant-form" loading={submitting}>
+              {editing ? "Salvar localidade" : "Criar localidade"}
+            </Button>
+          </>
+        }
+      >
+        <form id="tenant-form" onSubmit={handleSubmit} className="grid gap-4">
+          <Input
+            label="Nome da igreja"
+            value={form.name}
+            onChange={(event) => setForm((f) => ({ ...f, name: event.target.value }))}
+            placeholder="Ex.: AD Curitiba"
+            hint="Aparece no topo do painel e nos links de cadastro."
+            required
+            data-autofocus
+          />
+          <Input
+            label="Coordenador"
+            value={form.coordinator}
+            onChange={(event) => setForm((f) => ({ ...f, coordinator: event.target.value }))}
+            placeholder="Nome do responsável"
+          />
+          <FormGrid>
+            {/* Estado primeiro: ele filtra as cidades */}
             <SearchableSelect
               label="Estado (UF)"
               value={form.state}
@@ -143,166 +187,24 @@ export function TenantManager({ tenants }: Readonly<{ tenants: Tenant[] }>) {
               placeholder="Selecione o estado"
               required
             />
-
-            {/* Cidade — filtrada pelo estado selecionado */}
             <SearchableSelect
-              label="Cidade da localidade"
+              label="Cidade"
               value={form.city}
               onChange={(v) => setForm((f) => ({ ...f, city: v }))}
               options={cidadesDisponiveis}
-              placeholder={
-                form.state ? "Selecione a cidade" : "Selecione o estado primeiro"
-              }
+              placeholder={form.state ? "Selecione a cidade" : "Selecione o estado primeiro"}
               required
             />
-          </div>
-
-          {/* Preview da localização */}
-          {form.city && form.state && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "10px 14px",
-                borderRadius: 10,
-                background: "var(--accent-bg)",
-                border: "1px solid rgba(45,127,249,0.2)",
-                fontSize: 13,
-                color: "var(--accent)",
-                fontWeight: 600,
-              }}
-            >
-              <IconMapPin size={14} color="var(--accent)" />
-              {form.city} · {form.state}
-            </div>
-          )}
-
-          <Select
-            label="Status"
-            value={form.status}
-            onChange={(v) => setForm((f) => ({ ...f, status: v as "active" | "inactive" }))}
-            options={[
-              { value: "active", label: "Ativa" },
-              { value: "inactive", label: "Inativa" },
-            ]}
+          </FormGrid>
+          <Switch
+            checked={form.status === "active"}
+            onChange={(event) => setForm((f) => ({ ...f, status: event.target.checked ? "active" : "inactive" }))}
+            label={form.status === "active" ? "Central ativa" : "Central inativa"}
           />
-
-          {error && (
-            <div style={{
-              padding: "12px 16px",
-              borderRadius: 12,
-              background: "#FFF1F2",
-              border: "1px solid #FECDD3",
-              fontSize: 13,
-              color: "#E11D48",
-            }}>
-              {error}
-            </div>
-          )}
-
-          {success && (
-            <div style={{
-              padding: "12px 16px",
-              borderRadius: 12,
-              background: "#F0FDF4",
-              border: "1px solid #BBF7D0",
-              fontSize: 13,
-              color: "#15803D",
-              display: "flex", alignItems: "center", gap: 8,
-            }}>
-              <IconCheck size={16} /> Localidade salva com sucesso!
-            </div>
-          )}
-
-          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-            <Button
-              type="submit"
-              variant="primary"
-              size="md"
-              disabled={submitting}
-              icon={<IconPlus />}
-            >
-              {submitting ? "Salvando..." : editing ? "Salvar localidade" : "Criar localidade"}
-            </Button>
-            {editing && (
-              <Button type="button" variant="secondary" size="md" onClick={openCreate}>
-                Cancelar
-              </Button>
-            )}
-          </div>
+          <Notice>Desativar bloqueia o acesso dos cuidadores sem apagar nenhum dado.</Notice>
+          <FormError>{error}</FormError>
         </form>
-      </Card>
-
-      {/* ── List panel ── */}
-      <Card padding={28}>
-        <SectionTitle>Localidades cadastradas</SectionTitle>
-        <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 20, marginTop: -8 }}>
-          Clique para editar dados de cada unidade.
-        </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {tenants.length === 0 && (
-            <p style={{ fontSize: 13, color: "var(--text-3)", textAlign: "center", padding: "32px 0" }}>
-              Nenhuma localidade cadastrada ainda.
-            </p>
-          )}
-          {tenants.map((tenant) => (
-            <button
-              key={tenant.id}
-              type="button"
-              onClick={() => openEdit(tenant)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-                padding: "14px 18px",
-                borderRadius: 14,
-                background: editing?.id === tenant.id ? "var(--accent-bg)" : "var(--surface-2)",
-                border: editing?.id === tenant.id
-                  ? "1.5px solid var(--accent)"
-                  : "1.5px solid var(--border)",
-                cursor: "pointer",
-                textAlign: "left",
-                fontFamily: "inherit",
-                transition: "border-color .15s, background .15s",
-              }}
-            >
-              <div>
-                <div style={{
-                  fontSize: 14.5,
-                  fontWeight: 700,
-                  color: "var(--text)",
-                  letterSpacing: "-0.01em",
-                }}>
-                  {tenant.name}
-                </div>
-                <div style={{
-                  fontSize: 12.5,
-                  color: "var(--text-2)",
-                  marginTop: 2,
-                  display: "flex", alignItems: "center", gap: 4,
-                }}>
-                  <IconMapPin size={12} color="var(--accent)" />
-                  {tenant.city} – {tenant.state}
-                </div>
-              </div>
-              <span style={{
-                fontSize: 11.5,
-                fontWeight: 700,
-                color: tenant.status === "active" ? "#16A34A" : "var(--text-3)",
-                background: tenant.status === "active" ? "#F0FDF4" : "var(--surface)",
-                border: `1px solid ${tenant.status === "active" ? "#BBF7D0" : "var(--border)"}`,
-                padding: "4px 10px",
-                borderRadius: 999,
-                whiteSpace: "nowrap",
-              }}>
-                {tenant.status === "active" ? "Ativa" : "Inativa"}
-              </span>
-            </button>
-          ))}
-        </div>
-      </Card>
-    </div>
+      </Drawer>
+    </>
   );
 }
