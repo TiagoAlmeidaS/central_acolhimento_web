@@ -18,7 +18,7 @@ export function EmptyState({ title, reason, hint, action, className }: EmptyStat
   return (
     <div
       className={cx(
-        "grid content-start justify-items-start gap-2rounded-card border border-dashed border-border-strong p-7 text-muted",
+        "grid content-start justify-items-start gap-2 rounded-card border border-dashed border-border-strong p-7 text-muted",
         className,
       )}
     >
