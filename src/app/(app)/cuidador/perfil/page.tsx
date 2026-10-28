@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { requireServerAuthSession } from "@/server/auth/session";
 import { getUserProfile } from "@/server/repositories/profile-repository";
 import { MobileShell } from "@/ui/navigation/mobile-shell";
-import { ProfileManager } from "@/ui/mvp/profile-manager";
+import { CareProfile } from "@/ui/cuidador/care-profile";
 
 export default async function CaregiverProfilePage() {
   const session = await requireServerAuthSession("caregiver");
@@ -11,7 +11,7 @@ export default async function CaregiverProfilePage() {
 
   return (
     <MobileShell>
-      <ProfileManager initialProfile={profile} homePath="/cuidador" />
+      <CareProfile initialProfile={profile} />
     </MobileShell>
   );
 }
