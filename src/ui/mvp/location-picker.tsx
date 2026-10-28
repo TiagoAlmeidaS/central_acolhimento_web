@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Button, Icon } from "@/ui/atalaia";
+import { LEAFLET_THEME_CSS } from "@/ui/coord/leaflet-theme";
 
 export type LocationAddressFill = {
   street?: string;
@@ -68,16 +70,16 @@ function loadLeaflet(): Promise<void> {
   });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function getL(): any {
   return (window as unknown as Record<string, unknown>).L;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function makePinIcon(L: any) {
   return L.divIcon({
     className: "",
-    html: `<div style="width:20px;height:20px;background:#185FA5;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35)"></div>`,
+    html: `<div style="width:20px;height:20px;background:var(--primary);border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2.5px solid var(--surface);box-shadow:0 0 0 1px var(--border-strong)"></div>`,
     iconSize: [20, 20],
     iconAnchor: [10, 20],
   });
@@ -85,9 +87,9 @@ function makePinIcon(L: any) {
 
 export function LocationPicker({ latitude, longitude, onChange, onAddressFill }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const mapRef = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const markerRef = useRef<any>(null);
   const [ready, setReady] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
@@ -167,7 +169,7 @@ export function LocationPicker({ latitude, longitude, onChange, onAddressFill }:
       markerRef.current = marker;
     }
     map.setView([latitude, longitude], DEFAULT_ZOOM);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [latitude, longitude, ready]);
 
   function handleGPS() {
@@ -196,57 +198,50 @@ export function LocationPicker({ latitude, longitude, onChange, onAddressFill }:
   const hasCoords = latitude !== null && longitude !== null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button
-          type="button"
-          onClick={handleGPS}
-          disabled={gpsLoading}
-          style={{
-            display: "flex", alignItems: "center", gap: 6, height: 36, padding: "0 14px",
-            border: "1px solid var(--border)", borderRadius: 10, background: "var(--surface)",
-            color: "var(--text-2)", fontSize: 13, fontWeight: 600, cursor: gpsLoading ? "wait" : "pointer",
-            opacity: gpsLoading ? 0.7 : 1, fontFamily: "inherit",
-          }}
-        >
-          {gpsLoading ? "Obtendo localização..." : "📡 Usar minha localização"}
-        </button>
-        <button
-          type="button"
+    <div className="grid gap-2.5">
+      <style>{LEAFLET_THEME_CSS}</style>
+      <div className="flex flex-wrap gap-2">
+        <Button icon="pin" onClick={handleGPS} loading={gpsLoading}>
+          {gpsLoading ? "Obtendo localização..." : "Usar minha localização"}
+        </Button>
+        <Button
+          icon="map"
+          variant={pickMode ? "primary" : "neutral"}
+          aria-pressed={pickMode}
           onClick={() => setPickMode((v) => !v)}
-          style={{
-            display: "flex", alignItems: "center", gap: 6, height: 36, padding: "0 14px",
-            border: pickMode ? "1px solid var(--accent)" : "1px solid var(--border)",
-            borderRadius: 10, background: pickMode ? "var(--accent)" : "var(--surface)",
-            color: pickMode ? "#fff" : "var(--text-2)",
-            fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-          }}
         >
-          {pickMode ? "Cancelar seleção" : "🗺️ Escolher no mapa"}
-        </button>
+          {pickMode ? "Cancelar seleção" : "Escolher no mapa"}
+        </Button>
       </div>
 
-      {gpsError && <div style={{ fontSize: 12.5, color: "#B91C1C" }}>{gpsError}</div>}
+      {gpsError && (
+        <div role="alert" className="text-[13px] text-danger">
+          {gpsError}
+        </div>
+      )}
       {pickMode && (
-        <div style={{ fontSize: 12.5, color: "var(--accent)", fontWeight: 600 }}>
-          Clique em qualquer ponto do mapa para definir a localização
+        <div role="status" className="text-[13px] font-medium text-primary">
+          Clique em qualquer ponto do mapa para definir a localização.
         </div>
       )}
 
       <div
         ref={containerRef}
-        style={{
-          height: 210, borderRadius: 10, border: "1px solid var(--border)",
-          overflow: "hidden", background: "#e8f4f0",
-        }}
+        role="region"
+        aria-label="Mapa para escolher a localização"
+        className="atalaia-map z-0 h-[210px] overflow-hidden rounded-card border border-border bg-sunken"
       />
 
       {hasCoords ? (
-        <div style={{ padding: "8px 12px", borderRadius: 8, background: "#F0FDF4", border: "1px solid #BBF7D0", fontSize: 12.5, color: "#15803D" }}>
-          📍 {latitude!.toFixed(6)}, {longitude!.toFixed(6)} · Arraste o pin para ajustar
+        <div className="flex items-center gap-1.5 rounded-control bg-success-soft px-3 py-2 text-[13px] text-success">
+          <Icon name="pin" size={14} />
+          <span className="font-mono">
+            {latitude!.toFixed(6)}, {longitude!.toFixed(6)}
+          </span>
+          <span className="text-muted">· arraste o pin para ajustar</span>
         </div>
       ) : (
-        <div style={{ fontSize: 12, color: "var(--text-3)" }}>
+        <div className="text-xs text-muted">
           Use o GPS, escolha no mapa ou preencha o endereço para obter as coordenadas.
         </div>
       )}

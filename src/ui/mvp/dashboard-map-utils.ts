@@ -50,12 +50,12 @@ export function buildMapPopupContent(
     <div style="
       font-family: var(--font-sans), sans-serif;
       font-size: 13px;
-      color: #0F172A;
+      color: var(--fg);
       line-height: 1.4;
       padding: 2px;
       min-width: 180px;
     ">
-      <div style="font-weight: 800; font-size: 14.5px; color: #1E293B; margin-bottom: 4px;">
+      <div style="font-weight: 800; font-size: 14.5px; color: var(--fg); margin-bottom: 4px;">
         ${escapeHtml(item.name)}
       </div>
       <div style="
@@ -68,23 +68,23 @@ export function buildMapPopupContent(
         ● ${escapeHtml(options.statusLabel)}
       </div>
       <div style="margin-bottom: 2px;">
-        <strong style="color: #64748B;">Endereco:</strong> ${escapeHtml(item.address || "Sem endereco")}
+        <strong style="color: var(--muted);">Endereco:</strong> ${escapeHtml(item.address || "Sem endereco")}
       </div>
       ${
         ageLabel
-          ? `<div style="margin-bottom: 2px;"><strong style="color: #64748B;">Idade:</strong> ${escapeHtml(ageLabel)}</div>`
+          ? `<div style="margin-bottom: 2px;"><strong style="color: var(--muted);">Idade:</strong> ${escapeHtml(ageLabel)}</div>`
           : ""
       }
       ${
         birthDateLabel
-          ? `<div style="margin-bottom: 2px;"><strong style="color: #64748B;">Nascimento:</strong> ${escapeHtml(birthDateLabel)}</div>`
+          ? `<div style="margin-bottom: 2px;"><strong style="color: var(--muted);">Nascimento:</strong> ${escapeHtml(birthDateLabel)}</div>`
           : ""
       }
       <div style="margin-bottom: 2px;">
-        <strong style="color: #64748B;">Cuidador:</strong> ${escapeHtml(item.caregiver || "Nao atribuido")}
+        <strong style="color: var(--muted);">Cuidador:</strong> ${escapeHtml(item.caregiver || "Nao atribuido")}
       </div>
       <div>
-        <strong style="color: #64748B;">Ultimo contato:</strong> ${escapeHtml(item.lastContact || "Nenhum registrado")}
+        <strong style="color: var(--muted);">Ultimo contato:</strong> ${escapeHtml(item.lastContact || "Nenhum registrado")}
       </div>
     </div>
   `;
