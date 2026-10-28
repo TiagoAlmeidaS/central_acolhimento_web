@@ -1,5 +1,11 @@
 import { getCaregiverSignupChannelByToken } from "@/server/repositories/signup-channel-repository";
+import { CaregiverLinkNotFound } from "@/ui/auth/caregiver-entry";
 import { CaregiverSignupChannelRegisterForm } from "@/ui/mvp/caregiver-signup-channel-register-form";
+
+export const metadata = {
+  title: "Cadastro de cuidador — Atalaia",
+  description: "Crie seu acesso de cuidador pelo link da coordenação da sua igreja.",
+};
 
 type SignupChannelPageProps = {
   params: Promise<{ token: string }>;
@@ -10,13 +16,7 @@ export default async function CaregiverSignupChannelPage({ params }: SignupChann
   const channel = await getCaregiverSignupChannelByToken(token);
 
   if (!channel) {
-    return (
-      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24 }}>
-        <div style={{ maxWidth: 420, textAlign: "center", color: "var(--text-2)" }}>
-          Canal de cadastro nao encontrado.
-        </div>
-      </div>
-    );
+    return <CaregiverLinkNotFound kind="canal" />;
   }
 
   return <CaregiverSignupChannelRegisterForm channel={channel} />;
