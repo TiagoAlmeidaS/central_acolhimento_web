@@ -4,6 +4,7 @@ import { listAccessibleTenantIds } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
 import { listCaregivers, listMembers, listTenants } from "@/server/repositories/mvp-repository";
 import { listOutings, listOutingTypes } from "@/server/repositories/outing-repository";
+import { PageContainer } from "@/ui/atalaia";
 import { OutingManager } from "@/ui/mvp/outing-manager";
 
 export default async function OutingsPage() {
@@ -17,5 +18,9 @@ export default async function OutingsPage() {
     listMembers({ tenantIds: accessibleTenantIds }),
   ]);
 
-  return <OutingManager outings={outings} outingTypes={outingTypes} tenants={tenants} caregivers={caregivers} members={members} />;
+  return (
+    <PageContainer>
+      <OutingManager outings={outings} outingTypes={outingTypes} tenants={tenants} caregivers={caregivers} members={members} />
+    </PageContainer>
+  );
 }
