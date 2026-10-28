@@ -5,67 +5,35 @@ import { useRouter } from "next/navigation";
 import type { CaregiverInvitation, Tenant } from "@/server/domain/mvp";
 import { sortInvitationsByCreatedAt } from "@/ui/mvp/caregiver-invitation-utils";
 import {
-  Card,
   Button,
-  Select,
+  Card,
+  CardBody,
+  CardHeader,
+  Drawer,
+  EmptyState,
+  Eyebrow,
   Input,
-  SectionTitle,
-  StatusPill,
-} from "@/ui/v2-components/ui";
-import {
-  IconMapPin,
-  IconCheck,
-  IconPlus,
-  IconSend,
-  IconPhone,
-  IconX,
-} from "@/ui/v2-components/icons";
+  Pill,
+  Select,
+  Table,
+  Td,
+  Th,
+  Tr,
+  type PillTone,
+  useToast,
+} from "@/ui/atalaia";
+import { CopyButton } from "@/ui/coord/copy-button";
 
 const defaultExpiresInDays = 7;
 
-// ── tiny copy-to-clipboard icon button ──────────────────────────
-function CopyBtn({ link, label = "Copiar link" }: { link: string; label?: string }) {
-  const [copied, setCopied] = useState(false);
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    } catch {
-      /* noop */
-    }
-  }
-  return (
-    <button
-      type="button"
-      onClick={handleCopy}
-      style={{
-        display: "inline-flex", alignItems: "center", gap: 6,
-        padding: "7px 14px", borderRadius: 999,
-        background: copied ? "#F0FDF4" : "var(--surface-2)",
-        border: `1px solid ${copied ? "#BBF7D0" : "var(--border)"}`,
-        color: copied ? "#15803D" : "var(--text)",
-        fontSize: 12.5, fontWeight: 600, cursor: "pointer",
-        fontFamily: "inherit", transition: "all .15s",
-      }}
-    >
-      {copied ? <IconCheck size={13} /> : <IconSend size={13} />}
-      {copied ? "Copiado!" : label}
-    </button>
-  );
-}
-
-// ── invitation status pill ───────────────────────────────────────
-const INVITE_STATUS: Record<
-  CaregiverInvitation["status"],
-  { label: string; fg: string; bg: string }
-> = {
-  pending: { label: "Pendente", fg: "#C2410C", bg: "#FFEDD5" },
-  accepted: { label: "Aceito", fg: "#15803D", bg: "#DCFCE7" },
-  expired: { label: "Expirado", fg: "#71717A", bg: "#F4F4F5" },
-  revoked: { label: "Revogado", fg: "#E11D48", bg: "#FFE4E6" },
+const INVITE_STATUS: Record<CaregiverInvitation["status"], { label: string; tone: PillTone }> = {
+  pending: { label: "Pendente", tone: "warning" },
+  accepted: { label: "Aceito", tone: "success" },
+  expired: { label: "Expirado", tone: "muted" },
+  revoked: { label: "Revogado", tone: "danger" },
 };
 
+/** Convites por link: gerar num drawer, acompanhar na tabela. */
 export function CaregiverInvitationManager({
   tenants,
   invitations,
@@ -74,6 +42,8 @@ export function CaregiverInvitationManager({
   invitations: CaregiverInvitation[];
 }>) {
   const router = useRouter();
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
   const [tenantId, setTenantId] = useState(tenants[0]?.id ?? "");
   const [email, setEmail] = useState("");
   const [expiresInDays, setExpiresInDays] = useState(String(defaultExpiresInDays));
@@ -82,10 +52,9 @@ export function CaregiverInvitationManager({
   const [error, setError] = useState<string | null>(null);
   const [latestLink, setLatestLink] = useState<string | null>(null);
 
-  const sortedInvitations = useMemo(
-    () => sortInvitationsByCreatedAt(invitations),
-    [invitations]
-  );
+  const sortedInvitations = useMemo(() => sortInvitationsByCreatedAt(invitations), [invitations]);
+  const tenantById = new Map(tenants.map((tenant) => [tenant.id, tenant]));
+  const pendingCount = invitations.filter((invitation) => invitation.status === "pending").length;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -115,184 +84,152 @@ export function CaregiverInvitationManager({
     setEmail("");
     setExpiresInDays(String(defaultExpiresInDays));
     setSubmitting(false);
+    setOpen(false);
+    toast("Convite gerado. Copie o link e envie.");
     startTransition(() => router.refresh());
   }
 
   return (
-    <div style={{ display: "grid", gap: 24, gridTemplateColumns: "1fr 1fr" }}>
-      {/* ── Form panel ── */}
-      <Card padding={28}>
-        <SectionTitle>Convidar cuidador</SectionTitle>
-        <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 24, marginTop: -8 }}>
-          Gere um link por localidade para que cada cuidador finalize o próprio cadastro.
-        </p>
+    <>
+      <Card aria-labelledby="invites-heading">
+        <CardHeader
+          id="invites-heading"
+          title="Convites de cuidadores"
+          meta={pendingCount > 0 ? `${pendingCount} pendente(s)` : undefined}
+          action={
+            <Button variant="primary" size="sm" icon="plus" onClick={() => setOpen(true)} disabled={tenants.length === 0}>
+              Gerar convite
+            </Button>
+          }
+        />
+        <CardBody className="grid gap-3">
+          <p className="text-[13px] text-muted">
+            Gere um link por localidade para que cada cuidador finalize o próprio cadastro.
+          </p>
 
-        <form style={{ display: "flex", flexDirection: "column", gap: 16 }} onSubmit={handleSubmit}>
-          <Select
-            label="Localidade"
-            value={tenantId}
-            onChange={setTenantId}
-            options={tenants.map((t) => ({ value: t.id, label: t.name }))}
-            placeholder="Selecione a localidade"
-            required
-          />
-
-          <Input
-            label="E-mail do cuidador"
-            type="email"
-            value={email}
-            onChange={setEmail}
-            placeholder="opcional — trava o convite a um e-mail"
-            icon={<IconPhone />}
-          />
-
-          <Select
-            label="Função (Permissão)"
-            value={role}
-            onChange={(v) => setRole(v as "caregiver" | "coordinator")}
-            options={[
-              { value: "caregiver", label: "Cuidador (Acesso restrito)" },
-              { value: "coordinator", label: "Coordenador (Acesso total)" },
-            ]}
-          />
-
-          <Select
-            label="Validade do link"
-            value={expiresInDays}
-            onChange={setExpiresInDays}
-            options={[
-              { value: "3", label: "3 dias" },
-              { value: "7", label: "7 dias" },
-              { value: "14", label: "14 dias" },
-            ]}
-          />
-
-          {error && (
-            <div style={{
-              padding: "12px 16px", borderRadius: 12,
-              background: "#FFF1F2", border: "1px solid #FECDD3",
-              fontSize: 13, color: "#E11D48",
-              display: "flex", alignItems: "center", gap: 8,
-            }}>
-              <IconX size={14} /> {error}
-            </div>
-          )}
-
-          <Button
-            type="submit"
-            variant="primary"
-            size="md"
-            disabled={submitting || !tenantId}
-            icon={<IconPlus />}
-          >
-            {submitting ? "Gerando..." : "Gerar link de convite"}
-          </Button>
-        </form>
-
-        {/* Latest generated link */}
-        {latestLink && (
-          <div style={{
-            marginTop: 20,
-            padding: "16px 18px",
-            borderRadius: 14,
-            background: "var(--accent-bg)",
-            border: "1px solid rgba(45,127,249,0.2)",
-          }}>
-            <div style={{
-              fontSize: 11.5, fontWeight: 700,
-              letterSpacing: "0.06em", textTransform: "uppercase",
-              color: "var(--accent)", marginBottom: 8,
-            }}>
-              Último link gerado
-            </div>
-            <p style={{
-              fontSize: 12.5, color: "var(--text)",
-              wordBreak: "break-all", lineHeight: 1.5, marginBottom: 12,
-            }}>
-              {latestLink}
-            </p>
-            <CopyBtn link={latestLink} />
-          </div>
-        )}
-      </Card>
-
-      {/* ── List panel ── */}
-      <Card padding={28}>
-        <SectionTitle>Convites recentes</SectionTitle>
-        <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 20, marginTop: -8 }}>
-          Acompanhe os convites pendentes e os cuidadores já integrados.
-        </p>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {sortedInvitations.length === 0 && (
-            <p style={{ fontSize: 13, color: "var(--text-3)", textAlign: "center", padding: "32px 0" }}>
-              Nenhum convite criado ainda.
-            </p>
-          )}
-          {sortedInvitations.map((inv) => {
-            const tenant = tenants.find((t) => t.id === inv.tenantId);
-            const st = INVITE_STATUS[inv.status] ?? INVITE_STATUS.pending;
-            return (
-              <div
-                key={inv.id}
-                style={{
-                  padding: "14px 18px",
-                  borderRadius: 14,
-                  background: "var(--surface-2)",
-                  border: "1px solid var(--border)",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 14.5, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 6 }}>
-                      {tenant?.name ?? "Localidade"}
-                      <span style={{
-                        background: inv.role === "coordinator" ? "#F5F3FF" : "#F0F9FF",
-                        color: inv.role === "coordinator" ? "#7C3AED" : "#0369A1",
-                        fontSize: 9.5, fontWeight: 700, padding: "1px 5px", borderRadius: 4,
-                        border: `1px solid ${inv.role === "coordinator" ? "#DDD6FE" : "#BAE6FD"}`
-                      }}>
-                        {inv.role === "coordinator" ? "Coordenador" : "Cuidador"}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: 12.5, color: "var(--text-2)", marginTop: 2 }}>
-                      {inv.email ?? "Convite aberto (sem e-mail fixo)"}
-                    </div>
-                  </div>
-                  <span style={{
-                    padding: "4px 10px", borderRadius: 999,
-                    background: st.bg, color: st.fg,
-                    fontSize: 11.5, fontWeight: 700, whiteSpace: "nowrap",
-                  }}>
-                    {st.label}
-                  </span>
-                </div>
-
-                <div style={{
-                  marginTop: 10,
-                  fontSize: 12, color: "var(--text-3)",
-                  display: "flex", gap: 16, flexWrap: "wrap",
-                }}>
-                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <IconMapPin size={12} color="var(--accent)" />
-                    Expira {new Date(inv.expiresAt).toLocaleDateString("pt-BR")}
-                  </span>
-                  {inv.acceptedAt && (
-                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <IconCheck size={12} color="#16A34A" />
-                      Aceito em {new Date(inv.acceptedAt).toLocaleDateString("pt-BR")}
-                    </span>
-                  )}
-                </div>
-
-                <div style={{ marginTop: 12 }}>
-                  <CopyBtn link={inv.inviteUrl} />
-                </div>
+          {latestLink ? (
+            <div className="grid gap-2 rounded-card border border-primary bg-primary-soft px-3.5 py-3">
+              <Eyebrow className="text-primary">Último link gerado</Eyebrow>
+              <p className="break-all font-mono text-xs">{latestLink}</p>
+              <div>
+                <CopyButton link={latestLink} />
               </div>
-            );
-          })}
-        </div>
+            </div>
+          ) : null}
+
+          {sortedInvitations.length === 0 ? (
+            <EmptyState
+              title="Nenhum convite criado ainda."
+              reason="Convites levam a pessoa direto ao cadastro de cuidador da localidade escolhida."
+              hint="Use “Gerar convite” no topo deste cartão e envie o link por mensagem."
+            />
+          ) : (
+            <Table caption="Convites recentes" wrapperClassName="-mx-4">
+              <thead>
+                <tr>
+                  <Th>Localidade</Th>
+                  <Th>Função</Th>
+                  <Th>E-mail</Th>
+                  <Th>Validade</Th>
+                  <Th>Situação</Th>
+                  <Th>
+                    <span className="sr-only">Link</span>
+                  </Th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedInvitations.map((invitation) => {
+                  const status = INVITE_STATUS[invitation.status] ?? INVITE_STATUS.pending;
+                  return (
+                    <Tr key={invitation.id}>
+                      <Td className="font-semibold">{tenantById.get(invitation.tenantId)?.name ?? "Localidade"}</Td>
+                      <Td>
+                        <Pill tone={invitation.role === "coordinator" ? "primary" : "neutral"} dot={false}>
+                          {invitation.role === "coordinator" ? "Coordenador" : "Cuidador"}
+                        </Pill>
+                      </Td>
+                      <Td className="text-muted">{invitation.email ?? "Convite aberto"}</Td>
+                      <Td className="font-mono text-xs">
+                        {invitation.acceptedAt
+                          ? `Aceito em ${new Date(invitation.acceptedAt).toLocaleDateString("pt-BR")}`
+                          : `Expira ${new Date(invitation.expiresAt).toLocaleDateString("pt-BR")}`}
+                      </Td>
+                      <Td>
+                        <Pill tone={status.tone}>{status.label}</Pill>
+                      </Td>
+                      <Td className="text-right">
+                        <CopyButton link={invitation.inviteUrl} />
+                      </Td>
+                    </Tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          )}
+        </CardBody>
       </Card>
-    </div>
+
+      {open ? (
+        <Drawer
+          open
+          onClose={() => setOpen(false)}
+          title="Convidar cuidador"
+          subtitle="O link expira sozinho. Você escolhe a função e, se quiser, trava num e-mail."
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" form="invite-form" variant="primary" loading={submitting} disabled={!tenantId}>
+                Gerar link de convite
+              </Button>
+            </>
+          }
+        >
+          <form id="invite-form" className="grid gap-3.5" onSubmit={handleSubmit}>
+            <Select
+              label="Localidade"
+              data-autofocus=""
+              value={tenantId}
+              onChange={(event) => setTenantId(event.target.value)}
+              options={tenants.map((tenant) => ({ value: tenant.id, label: tenant.name }))}
+              placeholder="Selecione a localidade"
+              required
+            />
+            <Input
+              label="E-mail do cuidador"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="opcional — trava o convite a um e-mail"
+            />
+            <Select
+              label="Função (permissão)"
+              value={role}
+              onChange={(event) => setRole(event.target.value as "caregiver" | "coordinator")}
+              options={[
+                { value: "caregiver", label: "Cuidador (acesso restrito)" },
+                { value: "coordinator", label: "Coordenador (acesso total)" },
+              ]}
+            />
+            <Select
+              label="Validade do link"
+              value={expiresInDays}
+              onChange={(event) => setExpiresInDays(event.target.value)}
+              options={[
+                { value: "3", label: "3 dias" },
+                { value: "7", label: "7 dias" },
+                { value: "14", label: "14 dias" },
+              ]}
+            />
+            {error ? (
+              <p role="alert" className="rounded-control bg-danger-soft px-3 py-2 text-[13px] text-danger">
+                {error}
+              </p>
+            ) : null}
+          </form>
+        </Drawer>
+      ) : null}
+    </>
   );
 }

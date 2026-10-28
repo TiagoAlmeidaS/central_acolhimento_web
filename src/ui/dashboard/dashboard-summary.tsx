@@ -1,14 +1,12 @@
 import type { DashboardCard } from "@/server/domain/mvp";
+import { Stat } from "@/ui/atalaia";
 
+/** Linha de indicadores do resumo do painel (rotulo mono + numero + detalhe). */
 export function DashboardSummary({ cards }: Readonly<{ cards: DashboardCard[] }>) {
   return (
-    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4" aria-label="Resumo">
       {cards.map((card) => (
-        <article key={card.label} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-panel">
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-slate-400">{card.label}</p>
-          <p className="mt-4 text-4xl font-black tracking-tight text-slate-900">{card.value}</p>
-          <p className="mt-2 text-sm text-slate-500">{card.detail}</p>
-        </article>
+        <Stat key={card.label} label={card.label} value={card.value} note={card.detail} />
       ))}
     </section>
   );
