@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useMemo, useState, type FormEvent } from "react";
+import { startTransition, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type {
   ChurchAttendanceRecord,
@@ -12,8 +12,31 @@ import type {
   Tenant,
 } from "@/server/domain/mvp";
 import { formatPhone, normalizePhone } from "@/ui/mvp/contact-form-utils";
-import { Avatar, Button, Card, Input, SectionTitle, Select, Textarea } from "@/ui/v2-components/ui";
-import { IconCalendar, IconCheck, IconChurch, IconClock, IconPlus, IconSearch, IconUsers, IconX } from "@/ui/v2-components/icons";
+import {
+  Avatar,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  Chip,
+  Drawer,
+  EmptyState,
+  Input,
+  PageHeader,
+  Pill,
+  SearchInput,
+  Segmented,
+  Select,
+  Stat,
+  Table,
+  Tabs,
+  Td,
+  Textarea,
+  Th,
+  Tr,
+  useToast,
+} from "@/ui/atalaia";
+import { FormError, FormGrid, plural, readApiError, useResetOnOpen } from "@/ui/gestao";
 
 type Props = {
   tenants: Tenant[];
@@ -23,35 +46,44 @@ type Props = {
   occurrences: ChurchMeetingOccurrence[];
 };
 
+type Tab = "overview" | "members" | "meetings" | "attendance";
+type DrawerKind = "link" | "meetingType" | "occurrence" | null;
+
 const weekdays = [
   { value: "0", label: "Domingo" },
   { value: "1", label: "Segunda" },
-  { value: "2", label: "Terca" },
+  { value: "2", label: "Terça" },
   { value: "3", label: "Quarta" },
   { value: "4", label: "Quinta" },
   { value: "5", label: "Sexta" },
-  { value: "6", label: "Sabado" },
+  { value: "6", label: "Sábado" },
 ];
 
 const attendanceLabels: Record<ChurchAttendanceStatus, string> = {
-  unmarked: "Nao conferido",
+  unmarked: "Não conferido",
   present: "Presente",
   absent: "Ausente",
   justified: "Justificado",
 };
 
-const attendancePalette: Record<ChurchAttendanceStatus, { bg: string; fg: string; border: string }> = {
-  unmarked: { bg: "#F8FAFC", fg: "#64748B", border: "#CBD5E1" },
-  present: { bg: "#DCFCE7", fg: "#15803D", border: "#BBF7D0" },
-  absent: { bg: "#FEE2E2", fg: "#B91C1C", border: "#FECACA" },
-  justified: { bg: "#FEF3C7", fg: "#B45309", border: "#FDE68A" },
+const occurrenceStatusLabels: Record<ChurchMeetingOccurrence["status"], string> = {
+  scheduled: "Agendada",
+  completed: "Concluída",
+  cancelled: "Cancelada",
 };
 
 const pageSize = 8;
 
+function todayDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function ChurchManager({ tenants, members, churchMembers, meetingTypes, occurrences }: Readonly<Props>) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"overview" | "members" | "meetings" | "attendance">("overview");
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [drawer, setDrawer] = useState<DrawerKind>(null);
+  const [linkMode, setLinkMode] = useState<"existing" | "new">("existing");
   const [memberItems, setMemberItems] = useState(churchMembers);
   const [typeItems, setTypeItems] = useState(meetingTypes);
   const [occurrenceItems, setOccurrenceItems] = useState(occurrences);
@@ -60,14 +92,13 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
   const [search, setSearch] = useState("");
   const [memberFilters, setMemberFilters] = useState({ tenantId: "", status: "", query: "" });
   const [memberPage, setMemberPage] = useState(1);
-  const [meetingFilters, setMeetingFilters] = useState({ tenantId: "", recurrenceKind: "", query: "" });
+  const [meetingFilters, setMeetingFilters] = useState({ recurrenceKind: "", query: "" });
   const [typePage, setTypePage] = useState(1);
-  const [occurrenceFilters, setOccurrenceFilters] = useState({ tenantId: "", meetingTypeId: "", status: "", dateFrom: "", dateTo: "" });
+  const [occurrenceFilters, setOccurrenceFilters] = useState({ meetingTypeId: "", status: "" });
   const [occurrencePage, setOccurrencePage] = useState(1);
-  const [attendanceStatusFilter, setAttendanceStatusFilter] = useState("");
+  const [attendanceStatusFilter, setAttendanceStatusFilter] = useState<ChurchAttendanceStatus | "">("");
   const [attendancePage, setAttendancePage] = useState(1);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [membershipForm, setMembershipForm] = useState({
     tenantId: tenants[0]?.id ?? "",
@@ -87,28 +118,32 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
     tenantId: tenants[0]?.id ?? "",
     name: "",
     description: "",
-    color: "#2D7FF9",
+    color: "#f2b24c",
     recurrenceKind: "weekly" as "none" | "weekly",
     weekday: "4",
     startsAt: "19:30",
     endsAt: "",
-    recurrenceStartsOn: new Date().toISOString().slice(0, 10),
+    recurrenceStartsOn: todayDate(),
     recurrenceEndsOn: "",
     notes: "",
   });
   const [occurrenceForm, setOccurrenceForm] = useState({
     tenantId: tenants[0]?.id ?? "",
     meetingTypeId: "",
-    occursOn: new Date().toISOString().slice(0, 10),
+    occursOn: todayDate(),
     startsAt: "",
     endsAt: "",
     notes: "",
   });
 
+  useResetOnOpen(drawer !== null, () => setError(null));
+
   const activeChurchMembers = memberItems.filter((item) => item.status === "active");
-  const pendingCalls = occurrenceItems.filter((item) => item.status === "scheduled" && ((item.attendanceTotals?.unmarked ?? 0) > 0 || !item.attendanceClosedAt));
+  const pendingCalls = occurrenceItems.filter(
+    (item) => item.status === "scheduled" && ((item.attendanceTotals?.unmarked ?? 0) > 0 || !item.attendanceClosedAt),
+  );
   const nextOccurrence = occurrenceItems
-    .filter((item) => item.status === "scheduled" && item.occursOn >= new Date().toISOString().slice(0, 10))
+    .filter((item) => item.status === "scheduled" && item.occursOn >= todayDate())
     .sort((a, b) => a.occursOn.localeCompare(b.occursOn))[0];
 
   const tenantMembers = useMemo(() => {
@@ -119,42 +154,44 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
   }, [members, memberItems, membershipForm.tenantId]);
 
   const currentOccurrence = occurrenceItems.find((item) => item.id === selectedOccurrenceId) ?? occurrenceItems[0] ?? null;
-  const filteredAttendance = attendance.filter((item) => {
-    const matchesSearch = `${item.memberName ?? ""} ${item.memberPhone ?? ""}`.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = !attendanceStatusFilter || item.status === attendanceStatusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const attendanceSearchMatches = attendance.filter((item) =>
+    `${item.memberName ?? ""} ${item.memberPhone ?? ""}`.toLowerCase().includes(search.toLowerCase()),
+  );
+  const filteredAttendance = attendanceSearchMatches.filter(
+    (item) => !attendanceStatusFilter || item.status === attendanceStatusFilter,
+  );
   const pagedAttendance = paginate(filteredAttendance, attendancePage, pageSize);
-  const attendanceProgress = attendance.length
-    ? `${attendance.filter((item) => item.status !== "unmarked").length}/${attendance.length}`
-    : "0/0";
-  const filteredMemberships = useMemo(() => {
+  const unmarkedCount = attendance.filter((item) => item.status === "unmarked").length;
+  const markedCount = attendance.length - unmarkedCount;
+
+  const membershipsForCounts = useMemo(() => {
+    const query = memberFilters.query.toLowerCase();
     return memberItems.filter((membership) => {
       const matchesTenant = !memberFilters.tenantId || membership.tenantId === memberFilters.tenantId;
-      const matchesStatus = !memberFilters.status || membership.status === memberFilters.status;
-      const query = memberFilters.query.toLowerCase();
-      const matchesQuery = `${membership.memberName ?? ""} ${membership.memberPhone ?? ""} ${membership.memberCity ?? ""} ${membership.caregiverName ?? ""}`.toLowerCase().includes(query);
-      return matchesTenant && matchesStatus && matchesQuery;
+      const matchesQuery = `${membership.memberName ?? ""} ${membership.memberPhone ?? ""} ${membership.memberCity ?? ""} ${membership.caregiverName ?? ""}`
+        .toLowerCase()
+        .includes(query);
+      return matchesTenant && matchesQuery;
     });
-  }, [memberItems, memberFilters]);
+  }, [memberItems, memberFilters.tenantId, memberFilters.query]);
+  const filteredMemberships = membershipsForCounts.filter(
+    (membership) => !memberFilters.status || membership.status === memberFilters.status,
+  );
   const pagedMemberships = paginate(filteredMemberships, memberPage, pageSize);
+
   const filteredMeetingTypes = useMemo(() => {
     return typeItems.filter((type) => {
-      const matchesTenant = !meetingFilters.tenantId || type.tenantId === meetingFilters.tenantId;
       const matchesKind = !meetingFilters.recurrenceKind || type.recurrenceKind === meetingFilters.recurrenceKind;
       const matchesQuery = `${type.name} ${type.description} ${type.notes}`.toLowerCase().includes(meetingFilters.query.toLowerCase());
-      return matchesTenant && matchesKind && matchesQuery;
+      return matchesKind && matchesQuery;
     });
   }, [meetingFilters, typeItems]);
   const pagedMeetingTypes = paginate(filteredMeetingTypes, typePage, pageSize);
   const filteredOccurrences = useMemo(() => {
     return occurrenceItems.filter((occurrence) => {
-      const matchesTenant = !occurrenceFilters.tenantId || occurrence.tenantId === occurrenceFilters.tenantId;
       const matchesType = !occurrenceFilters.meetingTypeId || occurrence.meetingTypeId === occurrenceFilters.meetingTypeId;
       const matchesStatus = !occurrenceFilters.status || occurrence.status === occurrenceFilters.status;
-      const matchesFrom = !occurrenceFilters.dateFrom || occurrence.occursOn >= occurrenceFilters.dateFrom;
-      const matchesTo = !occurrenceFilters.dateTo || occurrence.occursOn <= occurrenceFilters.dateTo;
-      return matchesTenant && matchesType && matchesStatus && matchesFrom && matchesTo;
+      return matchesType && matchesStatus;
     });
   }, [occurrenceFilters, occurrenceItems]);
   const pagedOccurrences = paginate(filteredOccurrences, occurrencePage, pageSize);
@@ -173,15 +210,13 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
   async function submitJson<T>(url: string, options: RequestInit): Promise<T | null> {
     setSubmitting(true);
     setError(null);
-    setSuccess(null);
     const response = await fetch(url, {
       ...options,
       headers: { "Content-Type": "application/json", ...(options.headers ?? {}) },
     });
     setSubmitting(false);
     if (!response.ok) {
-      const payload = (await response.json().catch(() => ({}))) as { error?: string };
-      setError(payload.error ?? "Nao foi possivel concluir a acao.");
+      setError(await readApiError(response, "Não foi possível concluir a ação."));
       return null;
     }
     return (await response.json().catch(() => null)) as T;
@@ -195,7 +230,8 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
     });
     if (!created) return;
     setMembershipForm((current) => ({ ...current, memberId: "", notes: "" }));
-    setSuccess("Membro vinculado a Igreja.");
+    toast("Membro vinculado à Igreja.");
+    setDrawer(null);
     await reloadAll();
     startTransition(() => router.refresh());
   }
@@ -204,7 +240,7 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
     event.preventDefault();
     const normalizedPhone = normalizePhone(newMemberForm.phone);
     if (normalizedPhone && (normalizedPhone.length !== 11 || normalizedPhone[2] !== "9")) {
-      setError("Informe um WhatsApp valido com DDD, digito 9 e os 8 numeros restantes.");
+      setError("Informe um WhatsApp válido com DDD, dígito 9 e os 8 números restantes.");
       return;
     }
 
@@ -221,7 +257,8 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
     });
     if (!created) return;
     setNewMemberForm((current) => ({ ...current, name: "", phone: "", notes: "" }));
-    setSuccess("Pessoa cadastrada e vinculada a Igreja.");
+    toast("Pessoa cadastrada e vinculada à Igreja.");
+    setDrawer(null);
     await reloadAll();
     startTransition(() => router.refresh());
   }
@@ -233,7 +270,7 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
       body: JSON.stringify({ status: nextStatus, endedAt: nextStatus === "inactive" ? new Date().toISOString().slice(0, 10) : null }),
     });
     if (!updated) return;
-    setSuccess(nextStatus === "active" ? "Vinculo reativado." : "Vinculo inativado.");
+    toast(nextStatus === "active" ? "Vínculo reativado." : "Vínculo inativado.");
     await reloadAll();
   }
 
@@ -253,7 +290,8 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
     if (!created) return;
     setTypeForm((current) => ({ ...current, name: "", description: "", notes: "" }));
     setOccurrenceForm((current) => ({ ...current, meetingTypeId: created.id, tenantId: created.tenantId }));
-    setSuccess("Tipo de reuniao criado.");
+    toast("Tipo de reunião criado. Use Gerar 8 semanas para preparar as chamadas.");
+    setDrawer(null);
     await reloadAll();
   }
 
@@ -263,7 +301,7 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
       body: JSON.stringify({}),
     });
     if (!generated) return;
-    setSuccess(`${generated.length} ocorrencia(s) preparada(s).`);
+    toast(`${plural(generated.length, "ocorrência preparada", "ocorrências preparadas")}.`);
     await reloadAll();
   }
 
@@ -279,7 +317,8 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
     });
     if (!created) return;
     setSelectedOccurrenceId(created.id);
-    setSuccess("Ocorrencia criada.");
+    toast("Ocorrência criada.");
+    setDrawer(null);
     await reloadAll();
   }
 
@@ -300,7 +339,11 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
       body: JSON.stringify({ status, notes: record.notes }),
     });
     if (!updated) return;
-    setAttendance((current) => current.map((item) => (item.id === record.id ? { ...item, ...updated, memberName: record.memberName, memberPhone: record.memberPhone } : item)));
+    setAttendance((current) =>
+      current.map((item) =>
+        item.id === record.id ? { ...item, ...updated, memberName: record.memberName, memberPhone: record.memberPhone } : item,
+      ),
+    );
   }
 
   async function closeAttendance() {
@@ -310,456 +353,757 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
       body: JSON.stringify({}),
     });
     if (!closed) return;
-    setSuccess("Chamada fechada.");
+    toast("Chamada fechada.");
     await reloadAll();
   }
 
+  function goToTab(tab: Tab) {
+    setActiveTab(tab);
+    setError(null);
+  }
+
+  let headerAction: ReactNode = null;
+  let headerSecondary: ReactNode = null;
+  if (activeTab === "overview") {
+    headerAction = (
+      <Button variant="primary" icon="check" disabled={!nextOccurrence || submitting} onClick={() => nextOccurrence && openAttendance(nextOccurrence.id)}>
+        Fazer chamada
+      </Button>
+    );
+  } else if (activeTab === "members") {
+    headerAction = (
+      <Button variant="primary" icon="plus" onClick={() => setDrawer("link")} disabled={tenants.length === 0}>
+        Vincular membro
+      </Button>
+    );
+  } else if (activeTab === "meetings") {
+    headerAction = (
+      <Button variant="primary" icon="plus" onClick={() => setDrawer("meetingType")} disabled={tenants.length === 0}>
+        Novo tipo de reunião
+      </Button>
+    );
+    headerSecondary = (
+      <Button icon="plus" onClick={() => setDrawer("occurrence")} disabled={typeItems.length === 0}>
+        Ocorrência avulsa
+      </Button>
+    );
+  }
+
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", padding: "24px 16px 32px" }}>
-      <div style={{ maxWidth: 1220, margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
-        <header>
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--accent)" }}>
-            Coordenacao · Igreja
-          </p>
-          <h1 style={{ margin: "6px 0 0", fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em", color: "var(--text)" }}>
-            Igreja
-          </h1>
-          <p style={{ margin: "8px 0 0", fontSize: 14, color: "var(--text-2)", maxWidth: 720, lineHeight: 1.5 }}>
-            Membros que reunem com a localidade, tipos de reuniao e chamadas de presenca.
-          </p>
-        </header>
+    <div className="grid gap-4">
+      <PageHeader
+        title="Igreja"
+        subtitle="Quem reúne com a localidade, as reuniões e a chamada de presença."
+        action={headerAction}
+        secondary={headerSecondary}
+      />
 
-        {error ? <Banner tone="error">{error}</Banner> : null}
-        {success ? <Banner tone="success">{success}</Banner> : null}
+      <Tabs<Tab>
+        label="Igreja"
+        idPrefix="church"
+        value={activeTab}
+        onChange={goToTab}
+        tabs={[
+          { value: "overview", label: "Visão geral" },
+          { value: "members", label: "Membros", count: activeChurchMembers.length },
+          { value: "meetings", label: "Reuniões", count: typeItems.length },
+          { value: "attendance", label: "Chamada" },
+        ]}
+      />
 
-        <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
-          {[
-            ["overview", "Visao geral"],
-            ["members", "Membros"],
-            ["meetings", "Reunioes"],
-            ["attendance", "Presencas"],
-          ].map(([key, label]) => (
-            <button key={key} type="button" onClick={() => setActiveTab(key as typeof activeTab)} style={tabStyle(activeTab === key)}>
-              {label}
-            </button>
-          ))}
-        </div>
+      {drawer === null ? <FormError>{error}</FormError> : null}
 
+      <div role="tabpanel" id={`church-panel-${activeTab}`} aria-labelledby={`church-tab-${activeTab}`} className="grid gap-4">
         {activeTab === "overview" ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-            <Stat label="Membros ativos" value={activeChurchMembers.length} />
-            <Stat label="Tipos de reuniao" value={typeItems.length} />
-            <Stat label="Ocorrencias" value={occurrenceItems.length} />
-            <Stat label="Chamadas pendentes" value={pendingCalls.length} />
-            <Card padding={20} style={{ gridColumn: "1 / -1" }}>
-              <SectionTitle>Proxima reuniao</SectionTitle>
-              {nextOccurrence ? (
-                <OccurrenceRow occurrence={nextOccurrence} onOpenAttendance={() => openAttendance(nextOccurrence.id)} />
-              ) : (
-                <EmptyText>Nenhuma reuniao futura agendada.</EmptyText>
-              )}
-            </Card>
-          </div>
+          <>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
+              <Stat label="Membros ativos" value={activeChurchMembers.length} />
+              <Stat label="Tipos de reunião" value={typeItems.length} />
+              <Stat label="Ocorrências" value={occurrenceItems.length} />
+              <Stat
+                label="Chamadas pendentes"
+                value={pendingCalls.length}
+                tone={pendingCalls.length > 0 ? "alert" : "default"}
+                note={pendingCalls.length > 0 ? "a conferir" : undefined}
+              />
+            </div>
+            {typeItems.length === 0 ? (
+              <EmptyState
+                title="Nenhuma reunião cadastrada."
+                reason="Cadastre o culto, a célula ou a EBD para começar a marcar presença."
+                hint={<>Abra a aba Reuniões e use &quot;Novo tipo de reunião&quot;.</>}
+                action={
+                  <Button variant="primary" icon="plus" onClick={() => setDrawer("meetingType")} disabled={tenants.length === 0}>
+                    Novo tipo de reunião
+                  </Button>
+                }
+              />
+            ) : (
+              <Card>
+                <CardHeader title="Próxima reunião" />
+                <CardBody>
+                  {nextOccurrence ? (
+                    <OccurrenceRow occurrence={nextOccurrence} onOpenAttendance={() => openAttendance(nextOccurrence.id)} />
+                  ) : (
+                    <p className="text-muted">
+                      Nenhuma reunião futura agendada. Use Gerar 8 semanas num tipo semanal, na aba Reuniões.
+                    </p>
+                  )}
+                </CardBody>
+              </Card>
+            )}
+          </>
         ) : null}
 
         {activeTab === "members" ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
-            <Card padding={20}>
-              <SectionTitle>Adicionar membro existente</SectionTitle>
-              <form onSubmit={handleLinkMember} style={stackStyle}>
-                <Select label="Localidade" value={membershipForm.tenantId} onChange={(value) => setMembershipForm((current) => ({ ...current, tenantId: value, memberId: "" }))} options={tenants.map((tenant) => ({ value: tenant.id, label: tenant.name }))} required />
-                <Select label="Membro" value={membershipForm.memberId} onChange={(value) => setMembershipForm((current) => ({ ...current, memberId: value }))} options={tenantMembers.map((member) => ({ value: member.id, label: `${member.name}${member.phone ? ` · ${formatPhone(member.phone)}` : ""}` }))} placeholder="Selecione um membro" required />
-                <Input label="Reune desde" type="date" value={membershipForm.startedAt} onChange={(value) => setMembershipForm((current) => ({ ...current, startedAt: value }))} />
-                <Textarea label="Observacoes" value={membershipForm.notes} onChange={(value) => setMembershipForm((current) => ({ ...current, notes: value }))} rows={2} />
-                <Button type="submit" disabled={submitting} icon={<IconPlus />} full>Vincular a Igreja</Button>
-              </form>
-            </Card>
-
-            <Card padding={20}>
-              <SectionTitle>Cadastrar nova pessoa</SectionTitle>
-              <form onSubmit={handleRegisterMember} style={stackStyle}>
-                <Select label="Localidade" value={newMemberForm.tenantId} onChange={(value) => {
-                  const tenant = tenants.find((item) => item.id === value);
-                  setNewMemberForm((current) => ({ ...current, tenantId: value, city: tenant?.city ?? current.city }));
-                }} options={tenants.map((tenant) => ({ value: tenant.id, label: tenant.name }))} required />
-                <Input label="Nome" value={newMemberForm.name} onChange={(value) => setNewMemberForm((current) => ({ ...current, name: value }))} icon={<IconUsers />} required />
-                <Input
-                  label="WhatsApp"
-                  value={formatPhone(newMemberForm.phone)}
-                  onChange={(value) => setNewMemberForm((current) => ({ ...current, phone: normalizePhone(value) }))}
-                  placeholder="(00) 90000-0000"
-                  inputMode="numeric"
-                  hint="Use DDD + 9 + oito numeros."
-                />
-                <Input label="Cidade" value={newMemberForm.city} onChange={(value) => setNewMemberForm((current) => ({ ...current, city: value }))} />
-                <Input label="Reune desde" type="date" value={newMemberForm.startedAt} onChange={(value) => setNewMemberForm((current) => ({ ...current, startedAt: value }))} />
-                <Textarea label="Observacoes" value={newMemberForm.notes} onChange={(value) => setNewMemberForm((current) => ({ ...current, notes: value }))} rows={2} />
-                <Button type="submit" disabled={submitting} icon={<IconPlus />} full>Criar e vincular</Button>
-              </form>
-            </Card>
-
-            <Card padding={20} style={{ gridColumn: "1 / -1" }}>
-              <SectionTitle action={<span style={counterStyle}>{filteredMemberships.length} de {memberItems.length} vinculo(s)</span>}>Membros da Igreja</SectionTitle>
-              <div style={filterGridStyle}>
-                <Input
-                  placeholder="Buscar por nome, telefone, cidade ou cuidador"
-                  value={memberFilters.query}
-                  onChange={(value) => {
-                    setMemberFilters((current) => ({ ...current, query: value }));
-                    setMemberPage(1);
-                  }}
-                  icon={<IconSearch />}
-                />
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <SearchInput
+                label="Buscar membros da Igreja"
+                placeholder="Buscar por nome, telefone, cidade ou cuidador"
+                wrapperClassName="w-full min-[560px]:w-80"
+                value={memberFilters.query}
+                onChange={(event) => {
+                  setMemberFilters((current) => ({ ...current, query: event.target.value }));
+                  setMemberPage(1);
+                }}
+              />
+              {tenants.length > 1 ? (
                 <Select
+                  aria-label="Localidade"
+                  wrapperClassName="w-auto"
                   value={memberFilters.tenantId}
-                  onChange={(value) => {
-                    setMemberFilters((current) => ({ ...current, tenantId: value }));
+                  onChange={(event) => {
+                    setMemberFilters((current) => ({ ...current, tenantId: event.target.value }));
                     setMemberPage(1);
                   }}
                   options={[{ value: "", label: "Todas as localidades" }, ...tenants.map((tenant) => ({ value: tenant.id, label: tenant.name }))]}
                 />
-                <Select
-                  value={memberFilters.status}
-                  onChange={(value) => {
-                    setMemberFilters((current) => ({ ...current, status: value }));
+              ) : null}
+              {[
+                { value: "", label: "Todos", count: membershipsForCounts.length },
+                { value: "active", label: "Ativos", count: membershipsForCounts.filter((m) => m.status === "active").length },
+                { value: "inactive", label: "Inativos", count: membershipsForCounts.filter((m) => m.status === "inactive").length },
+              ].map((chip) => (
+                <Chip
+                  key={chip.value}
+                  label={chip.label}
+                  count={chip.count}
+                  pressed={memberFilters.status === chip.value}
+                  onClick={() => {
+                    setMemberFilters((current) => ({ ...current, status: chip.value }));
                     setMemberPage(1);
                   }}
-                  options={[
-                    { value: "", label: "Todos os status" },
-                    { value: "active", label: "Ativos" },
-                    { value: "inactive", label: "Inativos" },
-                  ]}
                 />
-              </div>
-              <div style={tableWrapStyle}>
-                <table style={tableStyle}>
+              ))}
+            </div>
+
+            {memberItems.length === 0 ? (
+              <EmptyState
+                title="Ninguém vinculado à Igreja ainda."
+                reason="Vincule assistidos que já reúnem com a localidade para acompanhar a presença deles."
+                hint={<>Use &quot;Vincular membro&quot; no topo da página.</>}
+              />
+            ) : filteredMemberships.length === 0 ? (
+              <EmptyState title="Ninguém com esses filtros." reason="Limpe a busca ou escolha outra situação." />
+            ) : (
+              <Card>
+                <CardHeader title="Membros da Igreja" meta={<span role="status">{plural(filteredMemberships.length, "vínculo", "vínculos")}</span>} />
+                <Table caption="Membros da Igreja" wrapperClassName="mt-2">
+                  <thead>
+                    <tr>
+                      <Th>Pessoa</Th>
+                      <Th>Situação</Th>
+                      <Th>
+                        <span className="sr-only">Ações</span>
+                      </Th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {pagedMemberships.items.map((membership) => (
-                      <tr key={membership.id} style={rowBorderStyle}>
-                        <td style={cellStyle}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            <Avatar name={membership.memberName ?? "Membro"} size={38} />
-                            <div>
-                              <div style={strongTextStyle}>{membership.memberName}</div>
-                              <div style={mutedTextStyle}>{[membership.memberPhone, membership.memberCity, membership.caregiverName].filter(Boolean).join(" · ")}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td style={cellStyle}><Badge tone={membership.status === "active" ? "success" : "neutral"}>{membership.status === "active" ? "Ativo" : "Inativo"}</Badge></td>
-                        <td style={cellStyle}>
-                          <Button type="button" variant="secondary" size="sm" onClick={() => toggleMembership(membership)}>
+                      <Tr key={membership.id}>
+                        <Td>
+                          <span className="flex items-center gap-2.5">
+                            <Avatar name={membership.memberName ?? "Membro"} size="sm" />
+                            <span>
+                              <span className="block font-medium">{membership.memberName}</span>
+                              <span className="block text-xs text-muted">
+                                {[membership.memberPhone, membership.memberCity, membership.caregiverName].filter(Boolean).join(" · ")}
+                              </span>
+                            </span>
+                          </span>
+                        </Td>
+                        <Td>
+                          <Pill tone={membership.status === "active" ? "success" : "muted"}>
+                            {membership.status === "active" ? "Ativo" : "Inativo"}
+                          </Pill>
+                        </Td>
+                        <Td className="text-right">
+                          <Button size="sm" disabled={submitting} onClick={() => toggleMembership(membership)}>
                             {membership.status === "active" ? "Inativar" : "Reativar"}
                           </Button>
-                        </td>
-                      </tr>
+                        </Td>
+                      </Tr>
                     ))}
                   </tbody>
-                </table>
-              </div>
-              {filteredMemberships.length === 0 ? <EmptyText>Nenhum membro encontrado com os filtros atuais.</EmptyText> : null}
-              <PaginationControls page={memberPage} totalPages={pagedMemberships.totalPages} totalItems={filteredMemberships.length} onPageChange={setMemberPage} />
-            </Card>
-          </div>
+                </Table>
+                <PaginationControls
+                  page={memberPage}
+                  totalPages={pagedMemberships.totalPages}
+                  totalItems={filteredMemberships.length}
+                  onPageChange={setMemberPage}
+                />
+              </Card>
+            )}
+          </>
         ) : null}
 
         {activeTab === "meetings" ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
-            <Card padding={20}>
-              <SectionTitle>Novo tipo de reuniao</SectionTitle>
-              <form onSubmit={handleCreateType} style={stackStyle}>
-                <Select label="Localidade" value={typeForm.tenantId} onChange={(value) => setTypeForm((current) => ({ ...current, tenantId: value }))} options={tenants.map((tenant) => ({ value: tenant.id, label: tenant.name }))} required />
-                <Input label="Nome" value={typeForm.name} onChange={(value) => setTypeForm((current) => ({ ...current, name: value }))} placeholder="TCI, Reuniao da Mesa..." icon={<IconChurch />} required />
-                <Textarea label="Descricao" value={typeForm.description} onChange={(value) => setTypeForm((current) => ({ ...current, description: value }))} rows={2} />
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <Select label="Recorrencia" value={typeForm.recurrenceKind} onChange={(value) => setTypeForm((current) => ({ ...current, recurrenceKind: value as "none" | "weekly" }))} options={[{ value: "weekly", label: "Semanal" }, { value: "none", label: "Avulsa" }]} />
-                  <Select label="Dia" value={typeForm.weekday} onChange={(value) => setTypeForm((current) => ({ ...current, weekday: value }))} options={weekdays} />
-                  <Input label="Inicio" type="time" value={typeForm.startsAt} onChange={(value) => setTypeForm((current) => ({ ...current, startsAt: value }))} icon={<IconClock />} />
-                  <Input label="Fim" type="time" value={typeForm.endsAt} onChange={(value) => setTypeForm((current) => ({ ...current, endsAt: value }))} />
-                  <Input label="Comeca em" type="date" value={typeForm.recurrenceStartsOn} onChange={(value) => setTypeForm((current) => ({ ...current, recurrenceStartsOn: value }))} />
-                  <Input label="Termina em" type="date" value={typeForm.recurrenceEndsOn} onChange={(value) => setTypeForm((current) => ({ ...current, recurrenceEndsOn: value }))} />
+          <>
+            {typeItems.length === 0 ? (
+              <EmptyState
+                title="Nenhum tipo de reunião ainda."
+                reason="Um tipo descreve uma reunião que se repete, como o culto de quinta. Com ele você prepara as chamadas das próximas semanas."
+                hint={<>Use &quot;Novo tipo de reunião&quot; no topo da página.</>}
+              />
+            ) : (
+              <>
+                <div className="flex flex-wrap items-center gap-2">
+                  <SearchInput
+                    label="Buscar tipo de reunião"
+                    placeholder="Buscar tipo de reunião"
+                    wrapperClassName="w-full min-[560px]:w-64"
+                    value={meetingFilters.query}
+                    onChange={(event) => {
+                      setMeetingFilters((current) => ({ ...current, query: event.target.value }));
+                      setTypePage(1);
+                    }}
+                  />
+                  {[
+                    { value: "", label: "Todas", count: typeItems.length },
+                    { value: "weekly", label: "Semanais", count: typeItems.filter((t) => t.recurrenceKind === "weekly").length },
+                    { value: "none", label: "Avulsas", count: typeItems.filter((t) => t.recurrenceKind === "none").length },
+                  ].map((chip) => (
+                    <Chip
+                      key={chip.value}
+                      label={chip.label}
+                      count={chip.count}
+                      pressed={meetingFilters.recurrenceKind === chip.value}
+                      onClick={() => {
+                        setMeetingFilters((current) => ({ ...current, recurrenceKind: chip.value }));
+                        setTypePage(1);
+                      }}
+                    />
+                  ))}
                 </div>
-                <Button type="submit" disabled={submitting} icon={<IconPlus />} full>Criar tipo</Button>
-              </form>
-            </Card>
-
-            <Card padding={20}>
-              <SectionTitle>Ocorrencia avulsa</SectionTitle>
-              <form onSubmit={handleCreateOccurrence} style={stackStyle}>
-                <Select label="Localidade" value={occurrenceForm.tenantId} onChange={(value) => setOccurrenceForm((current) => ({ ...current, tenantId: value, meetingTypeId: "" }))} options={tenants.map((tenant) => ({ value: tenant.id, label: tenant.name }))} required />
-                <Select label="Tipo" value={occurrenceForm.meetingTypeId} onChange={(value) => setOccurrenceForm((current) => ({ ...current, meetingTypeId: value }))} options={typeItems.filter((item) => item.tenantId === occurrenceForm.tenantId).map((item) => ({ value: item.id, label: item.name }))} placeholder="Selecione o tipo" required />
-                <Input label="Data" type="date" value={occurrenceForm.occursOn} onChange={(value) => setOccurrenceForm((current) => ({ ...current, occursOn: value }))} icon={<IconCalendar />} required />
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <Input label="Inicio" type="time" value={occurrenceForm.startsAt} onChange={(value) => setOccurrenceForm((current) => ({ ...current, startsAt: value }))} />
-                  <Input label="Fim" type="time" value={occurrenceForm.endsAt} onChange={(value) => setOccurrenceForm((current) => ({ ...current, endsAt: value }))} />
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
+                  {pagedMeetingTypes.items.map((type) => (
+                    <Card key={type.id}>
+                      <CardBody className="grid gap-2">
+                        <div className="flex items-center gap-2">
+                          <span aria-hidden="true" className="size-3 rounded-full" style={{ background: type.color }} />
+                          <b className="font-semibold">{type.name}</b>
+                        </div>
+                        <p className="text-xs text-muted">
+                          {type.recurrenceKind === "weekly" && type.weekday !== null
+                            ? `Semanal · ${weekdays[type.weekday]?.label ?? ""}`
+                            : "Avulsa"}
+                          {type.startsAt ? ` · ${type.startsAt}` : ""}
+                        </p>
+                        {type.recurrenceKind === "weekly" ? (
+                          <div>
+                            <Button size="sm" disabled={submitting} onClick={() => generateOccurrences(type.id)}>
+                              Gerar 8 semanas
+                            </Button>
+                          </div>
+                        ) : null}
+                      </CardBody>
+                    </Card>
+                  ))}
                 </div>
-                <Textarea label="Observacoes" value={occurrenceForm.notes} onChange={(value) => setOccurrenceForm((current) => ({ ...current, notes: value }))} rows={2} />
-                <Button type="submit" disabled={submitting} icon={<IconPlus />} full>Criar ocorrencia</Button>
-              </form>
-            </Card>
+                {filteredMeetingTypes.length === 0 ? (
+                  <EmptyState title="Nenhum tipo com esses filtros." reason="Limpe a busca ou escolha outra recorrência." />
+                ) : null}
+                <PaginationControls
+                  page={typePage}
+                  totalPages={pagedMeetingTypes.totalPages}
+                  totalItems={filteredMeetingTypes.length}
+                  onPageChange={setTypePage}
+                />
 
-            <Card padding={20} style={{ gridColumn: "1 / -1" }}>
-              <SectionTitle>Tipos e proximas ocorrencias</SectionTitle>
-              <div style={filterGridStyle}>
-                <Input
-                  placeholder="Buscar tipo de reuniao"
-                  value={meetingFilters.query}
-                  onChange={(value) => {
-                    setMeetingFilters((current) => ({ ...current, query: value }));
-                    setTypePage(1);
-                  }}
-                  icon={<IconSearch />}
-                />
-                <Select
-                  value={meetingFilters.tenantId}
-                  onChange={(value) => {
-                    setMeetingFilters((current) => ({ ...current, tenantId: value }));
-                    setTypePage(1);
-                  }}
-                  options={[{ value: "", label: "Todas as localidades" }, ...tenants.map((tenant) => ({ value: tenant.id, label: tenant.name }))]}
-                />
-                <Select
-                  value={meetingFilters.recurrenceKind}
-                  onChange={(value) => {
-                    setMeetingFilters((current) => ({ ...current, recurrenceKind: value }));
-                    setTypePage(1);
-                  }}
-                  options={[
-                    { value: "", label: "Todas as recorrencias" },
-                    { value: "weekly", label: "Semanais" },
-                    { value: "none", label: "Avulsas" },
-                  ]}
-                />
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
-                {pagedMeetingTypes.items.map((type) => (
-                  <div key={type.id} style={{ border: "1px solid var(--border)", borderRadius: 14, padding: 14, background: "var(--surface-2)" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ width: 12, height: 12, borderRadius: 99, background: type.color }} />
-                      <strong style={strongTextStyle}>{type.name}</strong>
+                <Card>
+                  <CardHeader title="Próximas ocorrências" meta={plural(filteredOccurrences.length, "ocorrência", "ocorrências")} />
+                  <CardBody className="grid gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Select
+                        aria-label="Tipo de reunião"
+                        wrapperClassName="w-auto"
+                        value={occurrenceFilters.meetingTypeId}
+                        onChange={(event) => {
+                          setOccurrenceFilters((current) => ({ ...current, meetingTypeId: event.target.value }));
+                          setOccurrencePage(1);
+                        }}
+                        options={[{ value: "", label: "Todos os tipos" }, ...typeItems.map((type) => ({ value: type.id, label: type.name }))]}
+                      />
+                      {[
+                        { value: "", label: "Todas" },
+                        { value: "scheduled", label: "Agendadas" },
+                        { value: "completed", label: "Concluídas" },
+                        { value: "cancelled", label: "Canceladas" },
+                      ].map((chip) => (
+                        <Chip
+                          key={chip.value}
+                          label={chip.label}
+                          pressed={occurrenceFilters.status === chip.value}
+                          onClick={() => {
+                            setOccurrenceFilters((current) => ({ ...current, status: chip.value }));
+                            setOccurrencePage(1);
+                          }}
+                        />
+                      ))}
                     </div>
-                    <div style={{ ...mutedTextStyle, marginTop: 6 }}>
-                      {type.recurrenceKind === "weekly" && type.weekday !== null ? `Semanal · ${weekdays[type.weekday]?.label ?? ""}` : "Avulsa"}
-                      {type.startsAt ? ` · ${type.startsAt}` : ""}
-                    </div>
-                    <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                      {type.recurrenceKind === "weekly" ? <Button type="button" variant="secondary" size="sm" onClick={() => generateOccurrences(type.id)}>Gerar 8 semanas</Button> : null}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {filteredMeetingTypes.length === 0 ? <EmptyText>Nenhum tipo encontrado com os filtros atuais.</EmptyText> : null}
-              <PaginationControls page={typePage} totalPages={pagedMeetingTypes.totalPages} totalItems={filteredMeetingTypes.length} onPageChange={setTypePage} />
-              <div style={{ height: 1, background: "var(--border)", margin: "18px 0" }} />
-              <div style={filterGridStyle}>
-                <Select
-                  value={occurrenceFilters.tenantId}
-                  onChange={(value) => {
-                    setOccurrenceFilters((current) => ({ ...current, tenantId: value, meetingTypeId: "" }));
-                    setOccurrencePage(1);
-                  }}
-                  options={[{ value: "", label: "Todas as localidades" }, ...tenants.map((tenant) => ({ value: tenant.id, label: tenant.name }))]}
-                />
-                <Select
-                  value={occurrenceFilters.meetingTypeId}
-                  onChange={(value) => {
-                    setOccurrenceFilters((current) => ({ ...current, meetingTypeId: value }));
-                    setOccurrencePage(1);
-                  }}
-                  options={[
-                    { value: "", label: "Todos os tipos" },
-                    ...typeItems
-                      .filter((type) => !occurrenceFilters.tenantId || type.tenantId === occurrenceFilters.tenantId)
-                      .map((type) => ({ value: type.id, label: type.name })),
-                  ]}
-                />
-                <Select
-                  value={occurrenceFilters.status}
-                  onChange={(value) => {
-                    setOccurrenceFilters((current) => ({ ...current, status: value }));
-                    setOccurrencePage(1);
-                  }}
-                  options={[
-                    { value: "", label: "Todos os status" },
-                    { value: "scheduled", label: "Agendadas" },
-                    { value: "completed", label: "Concluidas" },
-                    { value: "cancelled", label: "Canceladas" },
-                  ]}
-                />
-                <Input
-                  label="De"
-                  type="date"
-                  value={occurrenceFilters.dateFrom}
-                  onChange={(value) => {
-                    setOccurrenceFilters((current) => ({ ...current, dateFrom: value }));
-                    setOccurrencePage(1);
-                  }}
-                />
-                <Input
-                  label="Ate"
-                  type="date"
-                  value={occurrenceFilters.dateTo}
-                  onChange={(value) => {
-                    setOccurrenceFilters((current) => ({ ...current, dateTo: value }));
-                    setOccurrencePage(1);
-                  }}
-                />
-              </div>
-              <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-                {pagedOccurrences.items.map((occurrence) => (
-                  <OccurrenceRow key={occurrence.id} occurrence={occurrence} onOpenAttendance={() => openAttendance(occurrence.id)} />
-                ))}
-              </div>
-              {filteredOccurrences.length === 0 ? <EmptyText>Nenhuma ocorrencia encontrada com os filtros atuais.</EmptyText> : null}
-              <PaginationControls page={occurrencePage} totalPages={pagedOccurrences.totalPages} totalItems={filteredOccurrences.length} onPageChange={setOccurrencePage} />
-            </Card>
-          </div>
+                    {pagedOccurrences.items.length === 0 ? (
+                      <p className="text-muted">
+                        Nenhuma ocorrência ainda. Use Gerar 8 semanas num tipo semanal ou &quot;Ocorrência avulsa&quot;.
+                      </p>
+                    ) : (
+                      <div className="grid gap-2">
+                        {pagedOccurrences.items.map((occurrence) => (
+                          <OccurrenceRow key={occurrence.id} occurrence={occurrence} onOpenAttendance={() => openAttendance(occurrence.id)} />
+                        ))}
+                      </div>
+                    )}
+                    <PaginationControls
+                      page={occurrencePage}
+                      totalPages={pagedOccurrences.totalPages}
+                      totalItems={filteredOccurrences.length}
+                      onPageChange={setOccurrencePage}
+                    />
+                  </CardBody>
+                </Card>
+              </>
+            )}
+          </>
         ) : null}
 
         {activeTab === "attendance" ? (
-          <Card padding={20}>
-            <SectionTitle action={<span style={counterStyle}>Progresso {attendanceProgress}</span>}>Chamada</SectionTitle>
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(220px, 340px) 1fr", gap: 16 }}>
-              <div style={stackStyle}>
-                <Select label="Ocorrencia" value={currentOccurrence?.id ?? selectedOccurrenceId} onChange={(value) => openAttendance(value)} options={occurrenceItems.map((item) => ({ value: item.id, label: `${item.meetingTypeName ?? "Reuniao"} · ${formatDate(item.occursOn)}` }))} />
-                <Input
-                  placeholder="Buscar na chamada"
-                  value={search}
-                  onChange={(value) => {
-                    setSearch(value);
-                    setAttendancePage(1);
-                  }}
-                  icon={<IconSearch />}
+          <Card>
+            <CardHeader
+              title="Chamada"
+              meta={attendance.length > 0 ? <span className="font-mono">Progresso {markedCount}/{attendance.length}</span> : undefined}
+              action={
+                currentOccurrence && attendance.length > 0 ? (
+                  <Button variant="primary" icon="check" disabled={submitting || unmarkedCount > 0} onClick={closeAttendance}>
+                    Fechar chamada
+                  </Button>
+                ) : undefined
+              }
+            />
+            <CardBody className="grid gap-3">
+              {occurrenceItems.length === 0 ? (
+                <EmptyState
+                  title="Nenhuma ocorrência para a chamada."
+                  reason="A chamada é feita numa ocorrência de reunião. Prepare as próximas semanas num tipo semanal."
+                  hint={<>Na aba Reuniões, use &quot;Gerar 8 semanas&quot;.</>}
                 />
-                <Select
-                  value={attendanceStatusFilter}
-                  onChange={(value) => {
-                    setAttendanceStatusFilter(value);
-                    setAttendancePage(1);
-                  }}
-                  options={[
-                    { value: "", label: "Todas as marcacoes" },
-                    { value: "unmarked", label: "Nao conferidos" },
-                    { value: "present", label: "Presentes" },
-                    { value: "absent", label: "Ausentes" },
-                    { value: "justified", label: "Justificados" },
-                  ]}
-                />
-                {currentOccurrence ? <Button type="button" variant="primary" disabled={submitting || attendance.some((item) => item.status === "unmarked")} onClick={closeAttendance} icon={<IconCheck />} full>Fechar chamada</Button> : null}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {attendance.length === 0 ? <EmptyText>Selecione uma ocorrencia para abrir a chamada.</EmptyText> : null}
-                {pagedAttendance.items.map((record) => (
-                  <div key={record.id} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "center", padding: 12, border: "1px solid var(--border)", borderRadius: 14, background: "var(--surface-2)" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                      <Avatar name={record.memberName ?? "Membro"} size={36} />
-                      <div style={{ minWidth: 0 }}>
-                        <div style={strongTextStyle}>{record.memberName}</div>
-                        <div style={mutedTextStyle}>{record.memberPhone ?? "Sem telefone"} · {attendanceLabels[record.status]}</div>
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                      {(["present", "absent", "justified"] as ChurchAttendanceStatus[]).map((status) => (
-                        <button key={status} type="button" disabled={submitting} onClick={() => markAttendance(record, status)} style={attendanceButtonStyle(status, record.status === status)}>
-                          {attendanceLabels[status]}
-                        </button>
-                      ))}
-                      <button type="button" disabled={submitting} onClick={() => markAttendance(record, "unmarked")} style={attendanceButtonStyle("unmarked", record.status === "unmarked")}>
-                        Limpar
-                      </button>
-                    </div>
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Select
+                      aria-label="Ocorrência"
+                      wrapperClassName="min-w-[240px]"
+                      value={currentOccurrence?.id ?? selectedOccurrenceId}
+                      onChange={(event) => openAttendance(event.target.value)}
+                      options={occurrenceItems.map((item) => ({
+                        value: item.id,
+                        label: `${item.meetingTypeName ?? "Reunião"} · ${formatDate(item.occursOn)}`,
+                      }))}
+                    />
+                    <SearchInput
+                      label="Buscar na chamada"
+                      placeholder="Buscar na chamada"
+                      wrapperClassName="w-full min-[560px]:w-56"
+                      value={search}
+                      onChange={(event) => {
+                        setSearch(event.target.value);
+                        setAttendancePage(1);
+                      }}
+                    />
                   </div>
-                ))}
-                {attendance.length > 0 && filteredAttendance.length === 0 ? <EmptyText>Nenhuma pessoa encontrada na chamada com os filtros atuais.</EmptyText> : null}
-                <PaginationControls page={attendancePage} totalPages={pagedAttendance.totalPages} totalItems={filteredAttendance.length} onPageChange={setAttendancePage} />
-              </div>
-            </div>
+                  {attendance.length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Chip
+                        label="Não conferidos"
+                        count={unmarkedCount}
+                        tone="alert"
+                        pressed={attendanceStatusFilter === "unmarked"}
+                        onClick={() => {
+                          setAttendanceStatusFilter(attendanceStatusFilter === "unmarked" ? "" : "unmarked");
+                          setAttendancePage(1);
+                        }}
+                      />
+                      <span role="status" className="text-xs text-muted">
+                        {unmarkedCount > 0 ? `${plural(unmarkedCount, "pessoa falta", "pessoas faltam")} conferir para fechar a chamada` : "Todos conferidos"}
+                      </span>
+                      {(["", "present", "absent", "justified"] as const).map((status) => (
+                        <Chip
+                          key={status || "all"}
+                          label={status ? attendanceLabels[status] + "s" : "Todos"}
+                          count={status ? attendanceSearchMatches.filter((item) => item.status === status).length : attendanceSearchMatches.length}
+                          pressed={attendanceStatusFilter === status}
+                          onClick={() => {
+                            setAttendanceStatusFilter(status);
+                            setAttendancePage(1);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {attendance.length === 0 ? (
+                    <EmptyState
+                      title="Nenhuma chamada aberta."
+                      reason="Escolha uma ocorrência acima, ou use Fazer chamada na visão geral, para listar quem deveria estar presente."
+                    />
+                  ) : filteredAttendance.length === 0 ? (
+                    <p className="text-muted">Ninguém na chamada com os filtros atuais.</p>
+                  ) : (
+                    <ul className="m-0 grid list-none gap-2 p-0">
+                      {pagedAttendance.items.map((record) => (
+                        <li
+                          key={record.id}
+                          className="grid items-center gap-2 rounded-card border border-border bg-raised px-3 py-2.5 min-[720px]:grid-cols-[minmax(0,1fr)_auto]"
+                        >
+                          <span className="flex min-w-0 items-center gap-2.5">
+                            <Avatar name={record.memberName ?? "Membro"} size="sm" />
+                            <span className="min-w-0">
+                              <span className="block truncate font-medium">{record.memberName}</span>
+                              <span className="block text-xs text-muted">
+                                {record.memberPhone ?? "Sem telefone"} · {attendanceLabels[record.status]}
+                              </span>
+                            </span>
+                          </span>
+                          <Segmented<ChurchAttendanceStatus>
+                            label={`Presença de ${record.memberName ?? "membro"}`}
+                            value={record.status}
+                            onChange={(status) => markAttendance(record, status === record.status ? "unmarked" : status)}
+                            options={[
+                              { value: "present", label: "Presente" },
+                              { value: "absent", label: "Ausente" },
+                              { value: "justified", label: "Justificado" },
+                            ]}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <PaginationControls
+                    page={attendancePage}
+                    totalPages={pagedAttendance.totalPages}
+                    totalItems={filteredAttendance.length}
+                    onPageChange={setAttendancePage}
+                  />
+                </>
+              )}
+            </CardBody>
           </Card>
         ) : null}
       </div>
+
+      <Drawer
+        open={drawer === "link"}
+        onClose={() => setDrawer(null)}
+        title="Vincular membro"
+        subtitle="Quem reúne com a localidade entra na chamada."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setDrawer(null)}>
+              Cancelar
+            </Button>
+            <Button variant="primary" type="submit" form={linkMode === "existing" ? "link-existing-form" : "link-new-form"} loading={submitting}>
+              {linkMode === "existing" ? "Vincular à Igreja" : "Criar e vincular"}
+            </Button>
+          </>
+        }
+      >
+        <Segmented<"existing" | "new">
+          label="Origem da pessoa"
+          value={linkMode}
+          onChange={setLinkMode}
+          options={[
+            { value: "existing", label: "Já cadastrado" },
+            { value: "new", label: "Nova pessoa" },
+          ]}
+        />
+        {linkMode === "existing" ? (
+          <form id="link-existing-form" onSubmit={handleLinkMember} className="grid gap-4">
+            {tenants.length > 1 ? (
+              <Select
+                label="Localidade"
+                value={membershipForm.tenantId}
+                onChange={(event) => setMembershipForm((current) => ({ ...current, tenantId: event.target.value, memberId: "" }))}
+                options={tenants.map((tenant) => ({ value: tenant.id, label: tenant.name }))}
+                required
+              />
+            ) : null}
+            <Select
+              label="Assistido"
+              value={membershipForm.memberId}
+              onChange={(event) => setMembershipForm((current) => ({ ...current, memberId: event.target.value }))}
+              options={tenantMembers.map((member) => ({
+                value: member.id,
+                label: `${member.name}${member.phone ? ` · ${formatPhone(member.phone)}` : ""}`,
+              }))}
+              placeholder="Selecione um assistido"
+              required
+              data-autofocus
+            />
+            <Input
+              label="Reúne desde"
+              type="date"
+              value={membershipForm.startedAt}
+              onChange={(event) => setMembershipForm((current) => ({ ...current, startedAt: event.target.value }))}
+            />
+            <Textarea
+              label="Observações"
+              value={membershipForm.notes}
+              rows={2}
+              onChange={(event) => setMembershipForm((current) => ({ ...current, notes: event.target.value }))}
+            />
+            <FormError>{error}</FormError>
+          </form>
+        ) : (
+          <form id="link-new-form" onSubmit={handleRegisterMember} className="grid gap-4">
+            {tenants.length > 1 ? (
+              <Select
+                label="Localidade"
+                value={newMemberForm.tenantId}
+                onChange={(event) => {
+                  const tenant = tenants.find((item) => item.id === event.target.value);
+                  setNewMemberForm((current) => ({ ...current, tenantId: event.target.value, city: tenant?.city ?? current.city }));
+                }}
+                options={tenants.map((tenant) => ({ value: tenant.id, label: tenant.name }))}
+                required
+              />
+            ) : null}
+            <Input
+              label="Nome"
+              value={newMemberForm.name}
+              onChange={(event) => setNewMemberForm((current) => ({ ...current, name: event.target.value }))}
+              required
+              data-autofocus
+            />
+            <FormGrid>
+              <Input
+                label="WhatsApp"
+                value={formatPhone(newMemberForm.phone)}
+                onChange={(event) => setNewMemberForm((current) => ({ ...current, phone: normalizePhone(event.target.value) }))}
+                placeholder="(00) 90000-0000"
+                inputMode="tel"
+                hint="DDD + 9 + oito números."
+              />
+              <Input
+                label="Cidade"
+                value={newMemberForm.city}
+                onChange={(event) => setNewMemberForm((current) => ({ ...current, city: event.target.value }))}
+              />
+            </FormGrid>
+            <Input
+              label="Reúne desde"
+              type="date"
+              value={newMemberForm.startedAt}
+              onChange={(event) => setNewMemberForm((current) => ({ ...current, startedAt: event.target.value }))}
+            />
+            <Textarea
+              label="Observações"
+              value={newMemberForm.notes}
+              rows={2}
+              onChange={(event) => setNewMemberForm((current) => ({ ...current, notes: event.target.value }))}
+            />
+            <FormError>{error}</FormError>
+          </form>
+        )}
+      </Drawer>
+
+      <Drawer
+        open={drawer === "meetingType"}
+        onClose={() => setDrawer(null)}
+        title="Novo tipo de reunião"
+        subtitle="Uma reunião que se repete, como o culto de quinta."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setDrawer(null)}>
+              Cancelar
+            </Button>
+            <Button variant="primary" type="submit" form="meeting-type-form" loading={submitting}>
+              Criar tipo
+            </Button>
+          </>
+        }
+      >
+        <form id="meeting-type-form" onSubmit={handleCreateType} className="grid gap-4">
+          <Input
+            label="Nome"
+            value={typeForm.name}
+            onChange={(event) => setTypeForm((current) => ({ ...current, name: event.target.value }))}
+            placeholder="Culto de quinta, Célula, EBD…"
+            required
+            data-autofocus
+          />
+          {tenants.length > 1 ? (
+            <Select
+              label="Localidade"
+              value={typeForm.tenantId}
+              onChange={(event) => setTypeForm((current) => ({ ...current, tenantId: event.target.value }))}
+              options={tenants.map((tenant) => ({ value: tenant.id, label: tenant.name }))}
+              required
+            />
+          ) : null}
+          <Textarea
+            label="Descrição"
+            value={typeForm.description}
+            rows={2}
+            onChange={(event) => setTypeForm((current) => ({ ...current, description: event.target.value }))}
+          />
+          <FormGrid>
+            <Select
+              label="Recorrência"
+              value={typeForm.recurrenceKind}
+              onChange={(event) => setTypeForm((current) => ({ ...current, recurrenceKind: event.target.value as "none" | "weekly" }))}
+              options={[
+                { value: "weekly", label: "Semanal" },
+                { value: "none", label: "Avulsa" },
+              ]}
+            />
+            <Select
+              label="Dia"
+              value={typeForm.weekday}
+              disabled={typeForm.recurrenceKind !== "weekly"}
+              onChange={(event) => setTypeForm((current) => ({ ...current, weekday: event.target.value }))}
+              options={weekdays}
+            />
+            <Input
+              label="Início"
+              type="time"
+              value={typeForm.startsAt}
+              onChange={(event) => setTypeForm((current) => ({ ...current, startsAt: event.target.value }))}
+            />
+            <Input
+              label="Fim"
+              type="time"
+              value={typeForm.endsAt}
+              onChange={(event) => setTypeForm((current) => ({ ...current, endsAt: event.target.value }))}
+            />
+            <Input
+              label="Começa em"
+              type="date"
+              value={typeForm.recurrenceStartsOn}
+              onChange={(event) => setTypeForm((current) => ({ ...current, recurrenceStartsOn: event.target.value }))}
+            />
+            <Input
+              label="Termina em"
+              type="date"
+              value={typeForm.recurrenceEndsOn}
+              onChange={(event) => setTypeForm((current) => ({ ...current, recurrenceEndsOn: event.target.value }))}
+            />
+          </FormGrid>
+          <FormError>{error}</FormError>
+        </form>
+      </Drawer>
+
+      <Drawer
+        open={drawer === "occurrence"}
+        onClose={() => setDrawer(null)}
+        title="Ocorrência avulsa"
+        subtitle="Uma data específica de um tipo de reunião."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setDrawer(null)}>
+              Cancelar
+            </Button>
+            <Button variant="primary" type="submit" form="occurrence-form" loading={submitting}>
+              Criar ocorrência
+            </Button>
+          </>
+        }
+      >
+        <form id="occurrence-form" onSubmit={handleCreateOccurrence} className="grid gap-4">
+          {tenants.length > 1 ? (
+            <Select
+              label="Localidade"
+              value={occurrenceForm.tenantId}
+              onChange={(event) => setOccurrenceForm((current) => ({ ...current, tenantId: event.target.value, meetingTypeId: "" }))}
+              options={tenants.map((tenant) => ({ value: tenant.id, label: tenant.name }))}
+              required
+            />
+          ) : null}
+          <Select
+            label="Tipo"
+            value={occurrenceForm.meetingTypeId}
+            onChange={(event) => setOccurrenceForm((current) => ({ ...current, meetingTypeId: event.target.value }))}
+            options={typeItems.filter((item) => item.tenantId === occurrenceForm.tenantId).map((item) => ({ value: item.id, label: item.name }))}
+            placeholder="Selecione o tipo"
+            required
+            data-autofocus
+          />
+          <Input
+            label="Data"
+            type="date"
+            value={occurrenceForm.occursOn}
+            onChange={(event) => setOccurrenceForm((current) => ({ ...current, occursOn: event.target.value }))}
+            required
+          />
+          <FormGrid>
+            <Input
+              label="Início"
+              type="time"
+              value={occurrenceForm.startsAt}
+              onChange={(event) => setOccurrenceForm((current) => ({ ...current, startsAt: event.target.value }))}
+            />
+            <Input
+              label="Fim"
+              type="time"
+              value={occurrenceForm.endsAt}
+              onChange={(event) => setOccurrenceForm((current) => ({ ...current, endsAt: event.target.value }))}
+            />
+          </FormGrid>
+          <Textarea
+            label="Observações"
+            value={occurrenceForm.notes}
+            rows={2}
+            onChange={(event) => setOccurrenceForm((current) => ({ ...current, notes: event.target.value }))}
+          />
+          <FormError>{error}</FormError>
+        </form>
+      </Drawer>
     </div>
   );
 }
 
 function OccurrenceRow({ occurrence, onOpenAttendance }: Readonly<{ occurrence: ChurchMeetingOccurrence; onOpenAttendance: () => void }>) {
+  const tone = occurrence.status === "completed" ? "success" : occurrence.status === "cancelled" ? "muted" : "primary";
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: 14, border: "1px solid var(--border)", borderRadius: 14, background: "var(--surface-2)", flexWrap: "wrap" }}>
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-border bg-raised px-3.5 py-3">
       <div>
-        <div style={strongTextStyle}>{occurrence.meetingTypeName ?? "Reuniao"}</div>
-        <div style={mutedTextStyle}>{formatDate(occurrence.occursOn)}{occurrence.startsAt ? ` · ${occurrence.startsAt}` : ""}</div>
+        <b className="font-semibold">{occurrence.meetingTypeName ?? "Reunião"}</b>
+        <p className="text-xs text-muted">
+          {formatDate(occurrence.occursOn)}
+          {occurrence.startsAt ? ` · ${occurrence.startsAt}` : ""}
+        </p>
       </div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <Badge tone={occurrence.status === "completed" ? "success" : occurrence.status === "cancelled" ? "danger" : "info"}>{occurrence.status}</Badge>
-        <Button type="button" variant="secondary" size="sm" onClick={onOpenAttendance}>Fazer chamada</Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <Pill tone={tone}>{occurrenceStatusLabels[occurrence.status]}</Pill>
+        {occurrence.attendanceClosedAt ? <Pill tone="success">Chamada fechada</Pill> : null}
+        <Button size="sm" onClick={onOpenAttendance}>
+          Fazer chamada
+        </Button>
       </div>
     </div>
   );
-}
-
-function Stat({ label, value }: Readonly<{ label: string; value: number }>) {
-  return (
-    <Card padding={18}>
-      <div style={mutedTextStyle}>{label}</div>
-      <div style={{ marginTop: 8, fontSize: 28, fontWeight: 800, color: "var(--text)", lineHeight: 1 }}>{value}</div>
-    </Card>
-  );
-}
-
-function Banner({ children, tone }: Readonly<{ children: string; tone: "error" | "success" }>) {
-  return (
-    <div style={{ padding: "12px 16px", borderRadius: 12, fontSize: 13.5, fontWeight: 700, ...(tone === "error" ? { background: "#FFF1F2", border: "1px solid #FECDD3", color: "#E11D48" } : { background: "#F0FDF4", border: "1px solid #BBF7D0", color: "#15803D" }) }}>
-      {tone === "error" ? <IconX size={14} style={{ verticalAlign: -2, marginRight: 6 }} /> : <IconCheck size={14} style={{ verticalAlign: -2, marginRight: 6 }} />}
-      {children}
-    </div>
-  );
-}
-
-function Badge({ children, tone }: Readonly<{ children: string; tone: "success" | "neutral" | "info" | "danger" }>) {
-  const palette = {
-    success: { bg: "#DCFCE7", fg: "#15803D" },
-    neutral: { bg: "#E2E8F0", fg: "#475569" },
-    info: { bg: "#DBEAFE", fg: "#1D4ED8" },
-    danger: { bg: "#FEE2E2", fg: "#B91C1C" },
-  }[tone];
-  return <span style={{ padding: "5px 9px", borderRadius: 999, background: palette.bg, color: palette.fg, fontSize: 11.5, fontWeight: 800 }}>{children}</span>;
-}
-
-function EmptyText({ children }: Readonly<{ children: string }>) {
-  return <div style={{ padding: 18, borderRadius: 14, border: "1px dashed var(--border)", color: "var(--text-3)", fontSize: 13.5, textAlign: "center" }}>{children}</div>;
 }
 
 function formatDate(value: string) {
   return new Date(`${value}T00:00:00`).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" });
-}
-
-function tabStyle(active: boolean): React.CSSProperties {
-  return {
-    padding: "11px 16px",
-    borderRadius: 12,
-    border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
-    background: active ? "var(--accent)" : "var(--surface)",
-    color: active ? "#fff" : "var(--text)",
-    fontSize: 13.5,
-    fontWeight: 700,
-    fontFamily: "inherit",
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-  };
-}
-
-function attendanceButtonStyle(status: ChurchAttendanceStatus, active: boolean): React.CSSProperties {
-  const palette = attendancePalette[status];
-  return {
-    minHeight: 34,
-    padding: "0 10px",
-    borderRadius: 10,
-    border: `1px solid ${active ? palette.fg : palette.border}`,
-    background: active ? palette.bg : "var(--surface)",
-    color: active ? palette.fg : "var(--text-2)",
-    fontFamily: "inherit",
-    fontSize: 12,
-    fontWeight: 800,
-    cursor: "pointer",
-  };
 }
 
 function paginate<T>(items: T[], page: number, size: number) {
@@ -787,33 +1131,18 @@ function PaginationControls({
 
   const safePage = Math.min(Math.max(page, 1), totalPages);
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 14, flexWrap: "wrap" }}>
-      <span style={counterStyle}>
-        Pagina {safePage} de {totalPages} · {totalItems} resultado(s)
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
+      <span className="text-xs text-muted">
+        Página {safePage} de {totalPages} · {plural(totalItems, "resultado", "resultados")}
       </span>
-      <div style={{ display: "flex", gap: 8 }}>
-        <Button type="button" variant="secondary" size="sm" disabled={safePage <= 1} onClick={() => onPageChange(safePage - 1)}>
+      <div className="flex gap-2">
+        <Button size="sm" disabled={safePage <= 1} onClick={() => onPageChange(safePage - 1)}>
           Anterior
         </Button>
-        <Button type="button" variant="secondary" size="sm" disabled={safePage >= totalPages} onClick={() => onPageChange(safePage + 1)}>
-          Proxima
+        <Button size="sm" disabled={safePage >= totalPages} onClick={() => onPageChange(safePage + 1)}>
+          Próxima
         </Button>
       </div>
     </div>
   );
 }
-
-const stackStyle: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 12 };
-const filterGridStyle: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-  gap: 12,
-  marginBottom: 16,
-};
-const counterStyle: React.CSSProperties = { fontSize: 12, color: "var(--text-3)", fontWeight: 600 };
-const strongTextStyle: React.CSSProperties = { fontSize: 14, fontWeight: 800, color: "var(--text)", minWidth: 0 };
-const mutedTextStyle: React.CSSProperties = { fontSize: 12.5, color: "var(--text-2)", lineHeight: 1.45 };
-const tableWrapStyle: React.CSSProperties = { overflowX: "auto" };
-const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse" };
-const rowBorderStyle: React.CSSProperties = { borderBottom: "1px solid var(--border)" };
-const cellStyle: React.CSSProperties = { padding: "12px 10px", verticalAlign: "middle" };
