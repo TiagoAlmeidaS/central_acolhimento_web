@@ -82,7 +82,7 @@ export function Tabs<T extends string>({ tabs, value, onChange, label, idPrefix 
       role="tablist"
       aria-label={label}
       onKeyDown={onKeyDown}
-      className={cx("flex gap-1 overflow-x-auto border-b border-border", className)}
+      className={cx("flex gap-1 overflow-x-auto overflow-y-hidden border-b border-border", className)}
     >
       {tabs.map((tab, i) => {
         const selected = tab.value === value;
