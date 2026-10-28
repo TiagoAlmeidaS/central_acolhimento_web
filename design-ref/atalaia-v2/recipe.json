@@ -1,0 +1,20 @@
+{
+  "name": "Atalaia — direção v2 (Postman)",
+  "slug": "atalaia-v2",
+  "intent": "Refazer o Atalaia pelo método referência → extração → composição: estrutura, tipografia e movimento ambiente do Postman, espaçamento e degraus de superfície do Linear, identidade e conteúdo próprios de acolhimento pastoral.",
+  "references": ["reference/postman-home", "reference/linear-home"],
+  "select": {
+    "palette": "reference/postman-home",
+    "typography": "reference/postman-home",
+    "spacing": "reference/linear-home",
+    "layout": "reference/postman-home",
+    "motion": "reference/postman-home"
+  },
+  "motionEvidence": { "snapshot": 0, "animation": 3 },
+  "patterns": [
+    "ux-rule/uma-acao-primaria-por-contexto",
+    "ux-rule/precisa-de-alguem-primeiro",
+    "ux-rule/vazio-que-ensina-o-proximo-passo",
+    "ux-rule/ler-na-pagina-escrever-no-drawer"
+  ]
+}

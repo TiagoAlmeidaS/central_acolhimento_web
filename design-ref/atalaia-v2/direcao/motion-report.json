@@ -1,0 +1,173 @@
+{
+  "status": "passed",
+  "results": [
+    {
+      "motionId": "hero-frame-rise",
+      "viewport": 390,
+      "mode": "normal",
+      "status": "passed",
+      "checks": [
+        {
+          "name": "estado inicial",
+          "passed": true
+        },
+        {
+          "name": "estado final",
+          "passed": true
+        },
+        {
+          "name": "mudança intermediária observada",
+          "passed": true
+        },
+        {
+          "name": "duração, delay e easing observados",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "motionId": "modules-reveal",
+      "viewport": 390,
+      "mode": "normal",
+      "status": "passed",
+      "checks": [
+        {
+          "name": "estado inicial",
+          "passed": true
+        },
+        {
+          "name": "estado final",
+          "passed": true
+        },
+        {
+          "name": "mudança intermediária observada",
+          "passed": true
+        },
+        {
+          "name": "duração, delay e easing observados",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "motionId": "hero-frame-rise",
+      "viewport": 390,
+      "mode": "reduced",
+      "status": "passed",
+      "checks": [
+        {
+          "name": "estado estático reduced preservado",
+          "passed": true
+        },
+        {
+          "name": "sem animação ativa em reduced",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "motionId": "modules-reveal",
+      "viewport": 390,
+      "mode": "reduced",
+      "status": "passed",
+      "checks": [
+        {
+          "name": "estado estático reduced preservado",
+          "passed": true
+        },
+        {
+          "name": "sem animação ativa em reduced",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "motionId": "hero-frame-rise",
+      "viewport": 1440,
+      "mode": "normal",
+      "status": "passed",
+      "checks": [
+        {
+          "name": "estado inicial",
+          "passed": true
+        },
+        {
+          "name": "estado final",
+          "passed": true
+        },
+        {
+          "name": "mudança intermediária observada",
+          "passed": true
+        },
+        {
+          "name": "duração, delay e easing observados",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "motionId": "modules-reveal",
+      "viewport": 1440,
+      "mode": "normal",
+      "status": "passed",
+      "checks": [
+        {
+          "name": "estado inicial",
+          "passed": true
+        },
+        {
+          "name": "estado final",
+          "passed": true
+        },
+        {
+          "name": "mudança intermediária observada",
+          "passed": true
+        },
+        {
+          "name": "duração, delay e easing observados",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "motionId": "hero-frame-rise",
+      "viewport": 1440,
+      "mode": "reduced",
+      "status": "passed",
+      "checks": [
+        {
+          "name": "estado estático reduced preservado",
+          "passed": true
+        },
+        {
+          "name": "sem animação ativa em reduced",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "motionId": "modules-reveal",
+      "viewport": 1440,
+      "mode": "reduced",
+      "status": "passed",
+      "checks": [
+        {
+          "name": "estado estático reduced preservado",
+          "passed": true
+        },
+        {
+          "name": "sem animação ativa em reduced",
+          "passed": true
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Verificação numérica de opacity/translateY e timing; não comprova qualidade visual, causalidade ou equivalência com referências.",
+    "Sem cliques/gestos, canvas/WebGL, shadow DOM ou iframes; mesmo acesso público e sem login do extrator.",
+    "Frames usam recorte fixo ao redor do alvo quando visível; vídeo mantém o contexto. O recorte não acompanha o deslocamento durante o efeito.",
+    "Propriedades também são amostradas por requestAnimationFrame durante a captura; movimento intermediário pode estar nas amostras/vídeo e não no PNG rotulado middle. Não há pausa nem avanço artificial da animação.",
+    "Screenshots e navegação têm custo real; tempos registrados podem divergir dos instantes programados. Entradas rápidas podem terminar antes da amostra.",
+    "Vídeo pertence ao navegador de verificação, não é uma execução dos agentes de destino. Revisão visual e funcional do produto continua necessária."
+  ]
+}
