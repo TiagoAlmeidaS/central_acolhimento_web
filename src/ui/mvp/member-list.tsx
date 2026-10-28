@@ -159,7 +159,7 @@ export function MemberList({
       description: filters.description,
       needs: needsOnly ? "1" : undefined,
       pageSize: String(pagination.pageSize),
-      page: options.keepPage ? String(pagination.page) : undefined,
+      page: options.keepPage && pagination.page > 1 ? String(pagination.page) : undefined,
     };
     for (const [key, value] of Object.entries({ ...current, ...patch })) {
       if (value) params.set(key, value);

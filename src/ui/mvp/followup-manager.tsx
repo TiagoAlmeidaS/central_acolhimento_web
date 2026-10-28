@@ -392,6 +392,7 @@ export function FollowupManager({
       )}
 
       <Tabs<Tab>
+        className="overflow-y-hidden"
         label="Acompanhamentos"
         idPrefix="followups"
         value={tab}

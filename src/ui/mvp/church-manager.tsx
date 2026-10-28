@@ -399,6 +399,7 @@ export function ChurchManager({ tenants, members, churchMembers, meetingTypes, o
       />
 
       <Tabs<Tab>
+        className="overflow-y-hidden"
         label="Igreja"
         idPrefix="church"
         value={activeTab}
