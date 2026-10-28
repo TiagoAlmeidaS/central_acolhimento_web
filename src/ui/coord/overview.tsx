@@ -16,7 +16,7 @@ export function PanelTabs<T extends string>({
   hrefFor: (tab: T) => string;
 }) {
   return (
-    <nav aria-label="Seções do painel" className="mb-5 flex gap-1 overflow-x-auto border-b border-border">
+    <nav aria-label="Seções do painel" className="mb-5 flex gap-1 overflow-x-auto border-b border-border pb-px">
       {tabs.map((tab) => {
         const selected = tab.value === active;
         return (

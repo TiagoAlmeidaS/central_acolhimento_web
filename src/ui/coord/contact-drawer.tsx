@@ -151,7 +151,7 @@ export function ContactDrawer({ seed, tenants, caregivers, loadByCaregiver, ...h
         <KV label="Casa aberta">{seed.openHouse ? "Sim, recebe vizinhos para visitas" : "Não"}</KV>
         <KV label="Primeiro contato">{formatDate(seedStartedAt(seed))}</KV>
         <KV label="Último movimento">
-          {formatDate(seedLastActivityAt(seed))} <span className="text-muted">· {since <= 0 ? "hoje" : `há ${formatRelativeDays(since)}`}</span>
+          {formatDate(seedLastActivityAt(seed))} <span className="text-muted">· {since <= 1 ? formatRelativeDays(since) : `há ${formatRelativeDays(since)}`}</span>
         </KV>
       </dl>
 

@@ -129,7 +129,7 @@ export function CaregiversWorkspace({ caregivers, tenants, members, seeds, invit
         idPrefix="team"
         value={tab}
         onChange={setTab}
-        className="mb-4"
+        className="mb-4 pb-px"
         tabs={[
           { value: "equipe", label: "Equipe", count: caregivers.length },
           { value: "convites", label: "Convites", count: pendingInvites },
