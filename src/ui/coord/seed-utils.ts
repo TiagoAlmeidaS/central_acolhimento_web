@@ -176,6 +176,30 @@ export function buildNeeds(input: {
   );
 }
 
+/** Assistidos ativos cuja ultima proxima acao combinada ja passou. */
+export function countLateActions(members: Member[], followups: Followup[], now: Date = new Date()) {
+  const latest = new Map<string, Followup>();
+  for (const followup of followups) {
+    const current = latest.get(followup.memberId);
+    if (!current || followup.occurredAt > current.occurredAt) latest.set(followup.memberId, followup);
+  }
+  return members.filter((member) => {
+    if (member.status === "inactive") return false;
+    const next = latest.get(member.id)?.nextActionAt ?? null;
+    return next !== null && (daysUntil(next, now) ?? 0) < 0;
+  }).length;
+}
+
+/** Cor/estado do ponto de um contato no mapa (chaves visuais do DashboardMap). */
+export function seedMapStatus(seed: Seed): string {
+  if (seed.isUrgent && seed.status !== "consolidated" && seed.status !== "inactive") return "urgente";
+  if (seed.status === "new") return "novo";
+  if (seed.status === "contacted" || seed.status === "waiting_visit") return "aguardando";
+  if (seed.status === "in_progress") return "acompanhamento";
+  if (seed.status === "consolidated") return "concluido";
+  return "inativo";
+}
+
 /** Quantos assistidos ativos cada cuidador tem. */
 export function activeMemberCount(caregiverId: string, members: Member[]) {
   return members.filter((member) => member.caregiverId === caregiverId && member.status !== "inactive").length;

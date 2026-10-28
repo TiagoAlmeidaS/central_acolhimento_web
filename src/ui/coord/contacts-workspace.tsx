@@ -33,6 +33,7 @@ import {
   deleteSeedRequest,
   firstName,
   plural,
+  seedMapStatus,
   SEED_STATUS_LABEL,
   SEED_STATUS_PLURAL,
   updateSeedRequest,
@@ -54,15 +55,6 @@ export type ContactsWorkspaceProps = {
   /** Estado inicial vindo da URL (?contato=, ?novo=1, ?editar=, ?filtro=). */
   initial?: { contactId?: string; editId?: string; openNew?: boolean; chip?: ChipId; view?: View };
 };
-
-function mapStatus(seed: Seed): string {
-  if (seed.isUrgent && seed.status !== "consolidated" && seed.status !== "inactive") return "urgente";
-  if (seed.status === "new") return "novo";
-  if (seed.status === "contacted" || seed.status === "waiting_visit") return "aguardando";
-  if (seed.status === "in_progress") return "acompanhamento";
-  if (seed.status === "consolidated") return "concluido";
-  return "inativo";
-}
 
 function clearOpenParams() {
   if (typeof window === "undefined") return;
@@ -164,7 +156,7 @@ export function ContactsWorkspace({
         name: seed.referenceName,
         city: seed.city,
         address: seed.address,
-        status: mapStatus(seed),
+        status: seedMapStatus(seed),
         caregiver: seed.caregiverId ? (caregiversById.get(seed.caregiverId)?.name ?? null) : null,
         lastContact: SEED_STATUS_LABEL[seed.status],
         latitude: seed.latitude,
