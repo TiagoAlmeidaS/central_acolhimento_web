@@ -1,15 +1,14 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
-import Link from "next/link";
+import { FormEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { UserMembership } from "@/server/domain/mvp";
 import { useAuth } from "@/auth/auth-context";
-import { BrandMark } from "@/ui/v2-components/icons";
-import { Button, Card, Input } from "@/ui/v2-components/ui";
+import { Button, Eyebrow, Input, Pill } from "@/ui/atalaia";
+import { AuthCard, AuthHeading, AuthLink, AuthNotice, AuthShell } from "@/ui/auth";
 
 function roleLabel(role: UserMembership["role"]) {
-  return role === "coordinator" ? "Coordenacao" : "Cuidador";
+  return role === "coordinator" ? "Coordenação" : "Cuidador";
 }
 
 export function LoginForm() {
@@ -17,6 +16,7 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const next = searchParams.get("next");
   const invited = searchParams.get("invited") === "1";
+  const pendingApproval = searchParams.get("pendingApproval") === "1";
   const registered = searchParams.get("registered") === "1";
   const passwordReset = searchParams.get("reset") === "1";
   const prefilledEmail = searchParams.get("email") ?? "";
@@ -29,10 +29,6 @@ export function LoginForm() {
   const { signInWithPassword } = useAuth();
 
   const showMembershipStep = memberships.length > 0;
-  const title = useMemo(
-    () => (showMembershipStep ? "Selecione a cidade" : "Entrar na Central"),
-    [showMembershipStep]
-  );
 
   async function finishLogin(tenantUserId?: string | null) {
     setLoading(true);
@@ -45,7 +41,7 @@ export function LoginForm() {
     }
 
     if (!result) {
-      setError("Nao foi possivel concluir o login.");
+      setError("Não foi possível concluir o login.");
       return;
     }
 
@@ -66,254 +62,124 @@ export function LoginForm() {
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        minHeight: "100vh",
-        background: "var(--bg)",
-        padding: "40px 24px",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <div style={{ width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", gap: 32 }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
-          <BrandMark size={80} />
-          <div style={{ textAlign: "center" }}>
-            <h1
-              style={{
-                margin: 0,
-                fontSize: 28,
-                fontWeight: 800,
-                letterSpacing: "-0.03em",
-                color: "var(--text)",
-                lineHeight: 1.15,
-              }}
-            >
-              Central de Acolhimento
-            </h1>
-            <p
-              style={{
-                margin: "10px 0 0",
-                fontSize: 14.5,
-                lineHeight: 1.5,
-                color: "var(--text-2)",
-                letterSpacing: "-0.005em",
-              }}
-            >
-              Acompanhe pessoas, cuidadores e indicadores com clareza operacional.
+    <AuthShell
+      footer={
+        showMembershipStep ? null : (
+          <>
+            <p>
+              Ainda não tem uma central? <AuthLink href="/cadastro/coordenacao">Criar a central em três passos</AuthLink>
             </p>
-          </div>
-        </div>
+            <p className="text-xs text-subtle">
+              Cuidadores entram por um link de convite da coordenação da igreja.
+            </p>
+          </>
+        )
+      }
+    >
+      <AuthCard>
+        <AuthHeading
+          eyebrow={showMembershipStep ? "Passo 2 de 2" : "Passo 1 de 2"}
+          title={showMembershipStep ? "Em qual igreja você vai entrar?" : "Entrar no Atalaia"}
+          lead={
+            showMembershipStep
+              ? "Sua conta tem acesso a mais de uma igreja. Escolha uma para continuar."
+              : "Use o e-mail e a senha da sua conta."
+          }
+        />
 
-        <Card padding={24}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 11,
-                  fontWeight: 800,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.15em",
-                  color: "var(--accent)",
-                }}
-              >
-                {showMembershipStep ? "Etapa 2 de 2" : "Etapa 1 de 2"}
+        {invited ? (
+          <AuthNotice tone="success" title="Cadastro concluído">
+            Entre com o e-mail e a senha que você acabou de criar para abrir o app do cuidador.
+          </AuthNotice>
+        ) : null}
+
+        {pendingApproval ? (
+          <AuthNotice tone="warning" title="Cadastro enviado para aprovação">
+            A coordenação da igreja vai revisar seu pedido. Quando for aprovado, entre aqui com o e-mail e a senha
+            que você criou.
+          </AuthNotice>
+        ) : null}
+
+        {registered ? (
+          <AuthNotice tone="success" title="Central criada">
+            Entre com o e-mail e a senha da coordenação para começar a configurar a igreja.
+          </AuthNotice>
+        ) : null}
+
+        {passwordReset ? (
+          <AuthNotice tone="success" title="Senha redefinida">
+            Entre com a sua nova senha.
+          </AuthNotice>
+        ) : null}
+
+        {error ? <AuthNotice tone="danger">{error}</AuthNotice> : null}
+
+        {!showMembershipStep ? (
+          <form onSubmit={handleSubmit} className="grid gap-4">
+            <Input
+              label="E-mail"
+              type="email"
+              required
+              autoComplete="username"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="voce@igreja.org.br"
+            />
+
+            <Input
+              label="Senha"
+              type="password"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Digite sua senha"
+            />
+
+            <div className="grid gap-3">
+              <Button type="submit" variant="primary" loading={loading} className="w-full">
+                {loading ? "Entrando…" : "Entrar"}
+              </Button>
+              <p className="text-center text-[13px]">
+                <AuthLink href="/esqueci-senha">Esqueci minha senha</AuthLink>
               </p>
-              <h2
-                style={{
-                  margin: "6px 0 0",
-                  fontSize: 20,
-                  fontWeight: 700,
-                  color: "var(--text)",
-                }}
-              >
-                {title}
-              </h2>
             </div>
-
-            {invited ? (
-              <div
-                style={{
-                  padding: "12px 16px",
-                  borderRadius: 12,
-                  background: "var(--status-concluido-bg)",
-                  color: "var(--status-concluido)",
-                  fontSize: 13,
-                  fontWeight: 600,
-                }}
-              >
-                Cadastro concluido. Entre com o e-mail e a senha que voce acabou de criar.
-              </div>
-            ) : null}
-
-            {registered ? (
-              <div
-                style={{
-                  padding: "12px 16px",
-                  borderRadius: 12,
-                  background: "var(--status-concluido-bg)",
-                  color: "var(--status-concluido)",
-                  fontSize: 13,
-                  fontWeight: 600,
-                }}
-              >
-                Acesso da coordenacao criado. Entre para iniciar a configuracao da sua central.
-              </div>
-            ) : null}
-
-            {passwordReset ? (
-              <div
-                style={{
-                  padding: "12px 16px",
-                  borderRadius: 12,
-                  background: "var(--status-concluido-bg)",
-                  color: "var(--status-concluido)",
-                  fontSize: 13,
-                  fontWeight: 600,
-                }}
-              >
-                Senha redefinida com sucesso! Entre com sua nova senha.
-              </div>
-            ) : null}
-
-            {error ? (
-              <div
-                style={{
-                  padding: "12px 16px",
-                  borderRadius: 12,
-                  background: "var(--status-urgente-bg)",
-                  color: "var(--status-urgente)",
-                  fontSize: 13,
-                  fontWeight: 600,
-                }}
-              >
-                {error}
-              </div>
-            ) : null}
-
-            {!showMembershipStep ? (
-              <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                <Input
-                  label="E-mail"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={setEmail}
-                  placeholder="voce@igreja.org"
-                />
-
-                <Input
-                  label="Senha"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={setPassword}
-                  placeholder="Digite sua senha"
-                />
-
-                <Button type="submit" variant="primary" full disabled={loading}>
-                  {loading ? "Entrando..." : "Continuar"}
-                </Button>
-
-                <div style={{ textAlign: "right", marginTop: -4 }}>
-                  <Link
-                    href="/esqueci-senha"
-                    style={{
-                      fontSize: 13,
-                      color: "var(--accent)",
-                      fontWeight: 600,
-                      textDecoration: "none",
-                    }}
-                  >
-                    Esqueci minha senha
-                  </Link>
-                </div>
-              </form>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {memberships.map((membership) => (
+          </form>
+        ) : (
+          <div className="grid gap-3">
+            <Eyebrow>Suas igrejas</Eyebrow>
+            <ul className="m-0 grid list-none gap-2 p-0">
+              {memberships.map((membership) => (
+                <li key={membership.tenantUserId}>
                   <button
-                    key={membership.tenantUserId}
                     type="button"
                     onClick={() => {
                       setError(null);
                       void finishLogin(membership.tenantUserId);
                     }}
                     disabled={loading}
-                    style={{
-                      width: "100%",
-                      padding: 16,
-                      borderRadius: 14,
-                      border: "1.5px solid var(--border)",
-                      background: "var(--surface-2)",
-                      cursor: "pointer",
-                      textAlign: "left",
-                      fontFamily: "inherit",
-                      transition: "border-color 0.15s, background-color 0.15s",
-                    }}
-                    onMouseEnter={(event) => {
-                      event.currentTarget.style.borderColor = "var(--accent)";
-                      event.currentTarget.style.background = "var(--surface)";
-                    }}
-                    onMouseLeave={(event) => {
-                      event.currentTarget.style.borderColor = "var(--border)";
-                      event.currentTarget.style.background = "var(--surface-2)";
-                    }}
+                    className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-card border border-border-strong bg-surface px-3.5 py-3 text-left transition-colors duration-150 hover:border-primary hover:bg-sunken disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ margin: 0, fontWeight: 700, color: "var(--text)" }}>
-                          {membership.tenantName}
-                        </p>
-                        <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-2)" }}>
-                          {membership.tenantCity} - {membership.tenantState}
-                        </p>
-                      </div>
-                      <span
-                        style={{
-                          padding: "4px 10px",
-                          borderRadius: 8,
-                          background: "var(--accent-bg)",
-                          color: "var(--accent)",
-                          fontSize: 12,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {roleLabel(membership.role)}
+                    <span className="grid min-w-0 gap-0.5">
+                      <span className="truncate font-medium text-fg">{membership.tenantName}</span>
+                      <span className="text-xs text-muted">
+                        {membership.tenantCity} - {membership.tenantState}
                       </span>
-                    </div>
+                    </span>
+                    <Pill tone={membership.role === "coordinator" ? "primary" : "neutral"}>
+                      {roleLabel(membership.role)}
+                    </Pill>
                   </button>
-                ))}
+                </li>
+              ))}
+            </ul>
 
-                <Button onClick={() => setMemberships([])} variant="secondary" full>
-                  Voltar e alterar credenciais
-                </Button>
-              </div>
-            )}
+            <Button onClick={() => setMemberships([])} variant="ghost" className="w-full" disabled={loading}>
+              Voltar e alterar credenciais
+            </Button>
           </div>
-        </Card>
-
-        {!showMembershipStep ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "center", width: "100%" }}>
-            <div style={{ fontSize: 13, color: "var(--text-2)", textAlign: "center" }}>
-              Ainda nao possui central?{" "}
-              <Link
-                href="/cadastro/coordenacao"
-                style={{ color: "var(--accent)", fontWeight: 700, textDecoration: "none" }}
-              >
-                Cadastre-se aqui
-              </Link>
-            </div>
-            <div style={{ height: 1, background: "var(--border)", width: "100%" }} />
-            <div style={{ fontSize: 11.5, color: "var(--text-3)", textAlign: "center", lineHeight: 1.5 }}>
-              Os cuidadores recebem acesso por convite da coordenacao local.
-            </div>
-          </div>
-        ) : null}
-      </div>
-    </div>
+        )}
+      </AuthCard>
+    </AuthShell>
   );
 }

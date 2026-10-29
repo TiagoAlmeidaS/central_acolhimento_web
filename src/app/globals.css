@@ -1,134 +1,331 @@
-@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200");
-
 @import "tailwindcss";
 
+/*
+ * Atalaia v2 - tokens e base.
+ * Fonte da verdade: design-ref/atalaia-v2/style.css.
+ * Escuro por padrao; o claro e escolha explicita (html[data-theme="light"]).
+ */
+
+:root {
+  --bg: #0e0704;
+  --sunken: #0a0503;
+  --surface: #17100a;
+  --raised: #221710;
+  --border: #2a2018;
+  --border-strong: #3d3024;
+  --fg: #fff0de;
+  --muted: #cdbfad;
+  --subtle: #a39582;
+  --primary: #f2b24c;
+  --primary-hover: #ffc76e;
+  --primary-fg: #1b1206;
+  --primary-soft: #33240f;
+  --lume: #f2b24c;
+  --lume-ink: #f2b24c;
+  --lume-soft: #33240f;
+  --danger: #ff8a70;
+  --danger-soft: #3a1a12;
+  --success: #6fd3a2;
+  --success-soft: #12291f;
+  --warning: #f2b24c;
+  --warning-soft: #33240f;
+  --cold: #6fb6ff;
+  --cold-soft: #10223a;
+  --warm: #f2b24c;
+  --warm-soft: #33240f;
+  --hot: #ff8a70;
+  --hot-soft: #3a1a12;
+  --blanket: rgba(6, 3, 2, 0.66);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 16px 40px rgba(14, 7, 4, 0.5), inset 0 1px 0 rgba(255, 224, 196, 0.06);
+
+  --font: var(--font-inter), "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --display: var(--font-inter-tight), "Inter Tight", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --mono: var(--font-plex-mono), "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --r-control: 3px;
+  --r-card: 5px;
+  --control: 32px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* Aliases de compatibilidade (telas e v2-components ainda nao migrados). */
+  --accent: var(--primary);
+  --accent-strong: var(--primary-hover);
+  --accent-bg: var(--primary-soft);
+  --text: var(--fg);
+  --text-2: var(--muted);
+  --text-3: var(--subtle);
+  --surface-2: var(--raised);
+  --shadow-card: none;
+  --status-urgente: var(--danger);
+  --status-urgente-bg: var(--danger-soft);
+  --status-aguardando: var(--warning);
+  --status-aguardando-bg: var(--warning-soft);
+  --status-acompanhamento: var(--cold);
+  --status-acompanhamento-bg: var(--cold-soft);
+  --status-concluido: var(--success);
+  --status-concluido-bg: var(--success-soft);
+  --font-sans: var(--font);
+  --font-display: var(--display);
+
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg: #faf6f1;
+  --sunken: #f2ebe2;
+  --surface: #ffffff;
+  --raised: #ffffff;
+  --border: #e6dccf;
+  --border-strong: #d2c4b2;
+  --fg: #1d140c;
+  --muted: #5e5246;
+  --subtle: #7d7061;
+  --primary: #9a5a00;
+  --primary-hover: #7d4900;
+  --primary-fg: #ffffff;
+  --primary-soft: #fbefd9;
+  --lume: #d88a12;
+  --lume-ink: #8a5300;
+  --lume-soft: #fbefd9;
+  --danger: #b8352a;
+  --danger-soft: #fbe9e6;
+  --success: #1d7550;
+  --success-soft: #e3f4ec;
+  --warning: #9a5600;
+  --warning-soft: #fcefd9;
+  --cold: #2c69a8;
+  --cold-soft: #e5eef8;
+  --warm: #9a5f05;
+  --warm-soft: #fbf0dc;
+  --hot: #b8352a;
+  --hot-soft: #fbe9e6;
+  --blanket: rgba(29, 20, 12, 0.4);
+  --shadow: 0 1px 2px rgba(29, 20, 12, 0.06), 0 8px 24px rgba(29, 20, 12, 0.08);
+  --shadow-lg: 0 12px 48px rgba(29, 20, 12, 0.22);
+  --surface-2: var(--sunken);
+
+  color-scheme: light;
+}
+
 @theme inline {
-  --color-primary: var(--accent);
-  --color-success: #16a34a;
-  --color-warning: #ea580c;
-  --color-danger: #e11d48;
+  --color-bg: var(--bg);
+  --color-sunken: var(--sunken);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-fg: var(--primary-fg);
+  --color-primary-soft: var(--primary-soft);
+  --color-lume: var(--lume);
+  --color-lume-ink: var(--lume-ink);
+  --color-lume-soft: var(--lume-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-cold: var(--cold);
+  --color-cold-soft: var(--cold-soft);
+  --color-warm: var(--warm);
+  --color-warm-soft: var(--warm-soft);
+  --color-hot: var(--hot);
+  --color-hot-soft: var(--hot-soft);
+
+  /* Aliases das classes usadas antes do Atalaia v2. */
   --color-background-light: var(--bg);
   --color-background-dark: var(--bg);
   --color-border-subtle: var(--border);
-  --color-temp-hot: #e11d48;
-  --color-temp-warm: #ea580c;
-  --color-temp-cold: #2563eb;
-  --font-display: "Plus Jakarta Sans", sans-serif;
+  --color-temp-hot: var(--hot);
+  --color-temp-warm: var(--warm);
+  --color-temp-cold: var(--cold);
+
+  --font-sans: var(--font);
+  --font-display: var(--display);
+  --font-mono: var(--mono);
+
+  --radius-control: 3px;
+  --radius-card: 5px;
+
+  --shadow-panel: var(--shadow);
+  --ease-atalaia: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
-:root {
-  color-scheme: light;
-  --bg: #F5F5F7;
-  --surface: #FFFFFF;
-  --surface-2: #F8F9FB;
-  --border: #E8EAEE;
-  --border-strong: #D5D9E0;
+@layer base {
+  *,
+  ::after,
+  ::before {
+    border-color: var(--border);
+  }
 
-  --text: #0F172A;
-  --text-2: #4B5563;
-  --text-3: #94A3B8;
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
 
-  --accent: #2D7FF9;
-  --accent-strong: #1F6BE0;
-  --accent-bg: #E8F1FE;
+  body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--fg);
+    font: 14px/1.5 var(--font);
+    -webkit-font-smoothing: antialiased;
+  }
 
-  --shadow-card: 0 1px 2px rgba(15,23,42,0.04), 0 1px 0 rgba(15,23,42,0.02);
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 
-  --status-urgente: #E11D48;
-  --status-urgente-bg: #FFE4E6;
-  --status-aguardando: #EA580C;
-  --status-aguardando-bg: #FFEDD5;
-  --status-acompanhamento: #2563EB;
-  --status-acompanhamento-bg: #DBEAFE;
-  --status-concluido: #16A34A;
-  --status-concluido-bg: #DCFCE7;
+  h1,
+  h2,
+  h3,
+  h4 {
+    margin: 0;
+    line-height: 1.2;
+    text-wrap: balance;
+  }
+
+  p {
+    margin: 0;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--primary-soft);
+    color: var(--fg);
+  }
 }
 
-.dark {
-  color-scheme: dark;
-  --bg: #0B1220;
-  --surface: #131A2A;
-  --surface-2: #1B2336;
-  --border: #232C42;
-  --border-strong: #344058;
-
-  --text: #F1F5F9;
-  --text-2: #94A3B8;
-  --text-3: #64748B;
-
-  --accent: #60A5FA;
-  --accent-strong: #3B82F6;
-  --accent-bg: rgba(96,165,250,0.14);
-
-  --shadow-card: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.25);
+/* Numeros e rotulos tecnicos em IBM Plex Mono. */
+.num,
+.mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
 }
 
-
-* {
-  box-sizing: border-box;
+/* Link "pular para o conteudo". */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  z-index: 100;
+  padding: 8px 12px;
+  background: var(--primary);
+  color: var(--primary-fg);
+  border-radius: var(--r-control);
+}
+.skip-link:focus {
+  top: 8px;
 }
 
-html,
-body {
-  min-height: 100%;
+/* Entrada: sobe 16px em 400ms, uma vez. */
+.reveal {
+  animation: atalaia-reveal 0.4s var(--ease) both;
+}
+@keyframes atalaia-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
-body {
-  margin: 0;
-  font-family: var(--font-display);
-  background: var(--bg);
-  color: var(--text);
+/* Drawer e toasts. */
+.atalaia-blanket {
+  animation: atalaia-fade 0.2s ease-out;
+}
+.atalaia-drawer {
+  animation: atalaia-slide 0.24s var(--ease);
+}
+.atalaia-toast {
+  animation: atalaia-toast 0.24s var(--ease);
+}
+@keyframes atalaia-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes atalaia-slide {
+  from {
+    transform: translateX(32px);
+    opacity: 0.4;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes atalaia-toast {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-.material-symbols-outlined {
-  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
-}
-
-.material-symbols-outlined.filled {
-  font-variation-settings: "FILL" 1;
-}
-
+/* Utilitarios herdados (telas ainda nao migradas). */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
-
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
-
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #e2e8f0;
+  background: var(--border-strong);
   border-radius: 999px;
 }
-
 .bg-mesh {
-  background-color: #f8fafc;
+  background-color: var(--bg);
   background-image:
-    radial-gradient(at 0% 0%, rgb(36 99 235 / 0.06) 0, transparent 50%),
-    radial-gradient(at 100% 100%, rgb(16 185 129 / 0.05) 0, transparent 45%);
+    radial-gradient(at 0% 0%, color-mix(in srgb, var(--primary) 8%, transparent) 0, transparent 50%),
+    radial-gradient(at 100% 100%, color-mix(in srgb, var(--success) 5%, transparent) 0, transparent 45%);
 }
-
 .sidebar-item-active {
-  background-color: rgb(36 99 235 / 0.1);
-  color: #2463eb;
-  border-right: 3px solid #2463eb;
+  background-color: var(--primary-soft);
+  color: var(--primary);
+  border-right: 3px solid var(--primary);
 }
-
 .shadow-panel {
-  box-shadow: 0 18px 50px rgb(15 23 42 / 0.08);
+  box-shadow: var(--shadow);
 }
-
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
-
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

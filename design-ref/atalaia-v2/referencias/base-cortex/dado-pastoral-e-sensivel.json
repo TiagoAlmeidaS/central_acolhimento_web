@@ -1,0 +1,30 @@
+{
+  "id": "ux-rule/dado-pastoral-e-sensivel",
+  "kind": "ux-rule",
+  "title": "Dado de fé e de saúde é sensível: escopo por papel e notas só no detalhe",
+  "keywords": [
+    "lgpd",
+    "privacidade",
+    "dado sensível",
+    "dado sensivel",
+    "igreja",
+    "pastoral",
+    "saúde",
+    "papel",
+    "permissão",
+    "multi-tenant"
+  ],
+  "summary": "Convicção religiosa e saúde são dados sensíveis (LGPD art. 11). Quem visita vê só as pessoas atribuídas a ele; notas de oração e saúde aparecem no drawer da pessoa, nunca em listas, feeds públicos ou exportações gerais.",
+  "data": {
+    "category": "Privacidade",
+    "do": "Filtrar por papel no dado, não só esconder na interface; mostrar no app qual papel está ativo; isolar cada igreja da rede.",
+    "dont": "Pedido de oração em feed geral; lista de todos os assistidos para qualquer voluntário; enviar endereço para serviço de mapas sem necessidade.",
+    "severity": "High"
+  },
+  "source": {
+    "origin": "cortex",
+    "ref": "examples/atalaia (papéis coordinator e caregiver)",
+    "license": "MIT"
+  },
+  "status": "draft"
+}

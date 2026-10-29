@@ -1,0 +1,41 @@
+[
+  {
+    "motionId": "hero-cursor",
+    "sourceId": "reference/postman-home",
+    "sourceSha256": "32b48c033235a6b784dc2037289ce679346574cd64e75d43c26e3750457fbb41",
+    "path": "data.motion.snapshots[0].animations[3]",
+    "phase": "load",
+    "viewport": 1440,
+    "observed": {
+      "selector": "html > body:nth-child(2) > main:nth-child(3) > section:nth-child(2) > div:nth-child(2) > div:nth-child(1) > h1:nth-child(1) > span:nth-child(1) > span:nth-child(2) > span:nth-child(1)",
+      "duration": "1050",
+      "delay": 0,
+      "easing": "linear"
+    },
+    "target": {
+      "id": "hero-cursor",
+      "selector": "#hero-cursor",
+      "purpose": "Mostrar que a palavra de destaque está sendo escrita agora; ritmo observado no cursor do Postman.",
+      "trigger": "load",
+      "durationMs": 1050,
+      "delayMs": 0,
+      "easing": "steps(1, end)",
+      "from": {
+        "opacity": 1
+      },
+      "to": {
+        "opacity": 0
+      },
+      "reduced": {
+        "opacity": 1
+      },
+      "classification": "derived",
+      "evidence": {
+        "id": "reference/postman-home",
+        "snapshot": 0,
+        "animation": 3
+      }
+    },
+    "relation": "adaptação declarada; não comprova equivalência visual"
+  }
+]

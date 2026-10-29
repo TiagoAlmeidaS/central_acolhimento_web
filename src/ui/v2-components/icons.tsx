@@ -1,4 +1,5 @@
 import React from "react";
+import { AtalaiaMark } from "@/ui/atalaia/icons";
 
 type IconProps = React.SVGProps<SVGSVGElement> & {
   size?: number;
@@ -299,36 +300,35 @@ export const IconChart: React.FC<IconProps> = (p) => (
   </Icon>
 );
 
-export const IconVerified: React.FC<{ size?: number; color?: string }> = ({ size = 16, color = "#22C55E" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24">
-    <path d="M12 1.5l2.4 2 3.2-.2.7 3 2.7 1.6-.9 3 1.6 2.8-2 2.5.1 3.2-3 1-1.6 2.7-3.2-.9-2.8 1.6-2.5-2-3.2.1-1-3-2.7-1.6.9-3-1.6-2.8 2-2.5L1 6.7l3-1L5.7 3l3.2.9L11.7 2.3z" fill={color} />
-    <path d="M8 12.5l2.5 2.5L16 9.5" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+export const IconVerified: React.FC<{ size?: number; color?: string }> = ({ size = 16, color = "var(--success)" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+    <path
+      d="M12 1.5l2.4 2 3.2-.2.7 3 2.7 1.6-.9 3 1.6 2.8-2 2.5.1 3.2-3 1-1.6 2.7-3.2-.9-2.8 1.6-2.5-2-3.2.1-1-3-2.7-1.6.9-3-1.6-2.8 2-2.5L1 6.7l3-1L5.7 3l3.2.9L11.7 2.3z"
+      style={{ fill: color }}
+    />
+    <path d="M8 12.5l2.5 2.5L16 9.5" fill="none" style={{ stroke: "var(--bg)" }} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
-export const BrandMark: React.FC<{ size?: number; bg?: string; fg?: string }> = ({ size = 72, bg = "#E8F1FE", fg = "#2D7FF9" }) => (
-  <div style={{
-    width: size, height: size, borderRadius: size * 0.28,
-    background: bg, display: "flex", alignItems: "center", justifyContent: "center",
-    position: "relative", boxShadow: "0 6px 18px rgba(45,127,249,0.18)",
-  }}>
-    <svg width={size * 0.5} height={size * 0.5} viewBox="0 0 24 24"
-         fill="none" stroke={fg} strokeWidth="2"
-         strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 21s-7-4.5-9.5-9.2A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 5.8C19 16.5 12 21 12 21z" />
-    </svg>
-    <div style={{
-      position: "absolute", right: -size * 0.08, top: -size * 0.06,
-      width: size * 0.32, height: size * 0.32, borderRadius: "50%",
-      background: fg, color: "#fff",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
-    }}>
-      <svg width={size * 0.18} height={size * 0.18} viewBox="0 0 24 24"
-           fill="none" stroke="#fff" strokeWidth="3"
-           strokeLinecap="round" strokeLinejoin="round">
-        <path d="M5 12l5 5L20 6" />
-      </svg>
-    </div>
+/** Selo da marca Atalaia (arco com a luz acesa) sobre fundo suave. */
+export const BrandMark: React.FC<{ size?: number; bg?: string; fg?: string }> = ({
+  size = 72,
+  bg = "var(--primary-soft)",
+  fg = "var(--primary)",
+}) => (
+  <div
+    style={{
+      width: size,
+      height: size,
+      borderRadius: Math.max(5, size * 0.12),
+      background: bg,
+      color: fg,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      border: "1px solid var(--border)",
+    }}
+  >
+    <AtalaiaMark size={size * 0.56} />
   </div>
 );

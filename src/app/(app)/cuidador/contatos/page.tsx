@@ -1,30 +1,37 @@
 export const dynamic = "force-dynamic";
 
-import { listSeeds, listTenants } from "@/server/repositories/mvp-repository";
+import { listFollowups, listMembers, listSeeds } from "@/server/repositories/mvp-repository";
 import { getDataScopeFromSession } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
 import { MobileShell } from "@/ui/navigation/mobile-shell";
-import { ContactManager } from "@/ui/mvp/contact-manager";
+import { CareWorkspace } from "@/ui/cuidador/care-workspace";
+import type { ContactFilter } from "@/ui/cuidador/care-contacts";
 
-export default async function CaregiverContactsPage() {
+const FILTERS: ContactFilter[] = ["ativos", "precisa", "novos", "visita", "acompanhando", "concluidos", "inativos"];
+
+export default async function CaregiverContactsPage({
+  searchParams,
+}: Readonly<{ searchParams: Promise<{ filtro?: string }> }>) {
   const session = await requireServerAuthSession("caregiver");
   const scope = getDataScopeFromSession(session);
-  const [contacts, tenants] = await Promise.all([
+  const { filtro } = await searchParams;
+  const [members, seeds, followups] = await Promise.all([
+    listMembers(scope),
     listSeeds(scope),
-    listTenants(scope),
+    listFollowups(scope),
   ]);
 
   return (
     <MobileShell>
-      <div className="space-y-6 px-4 py-6">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-primary">Meu servico</p>
-          <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900">Novos contatos</h1>
-          <p className="mt-2 text-sm text-slate-500">Registre rapidamente quem acabou de entrar no fluxo de acolhimento.</p>
-        </div>
-
-        <ContactManager contacts={contacts} tenants={tenants} />
-      </div>
+      <CareWorkspace
+        view="contatos"
+        members={members}
+        seeds={seeds}
+        followups={followups}
+        session={session}
+        nowIso={new Date().toISOString()}
+        initialFilter={FILTERS.find((item) => item === filtro)}
+      />
     </MobileShell>
   );
 }

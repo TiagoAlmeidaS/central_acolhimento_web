@@ -1,0 +1,29 @@
+{
+  "id": "ux-rule/proxima-acao-com-data",
+  "kind": "ux-rule",
+  "title": "Todo registro de acompanhamento termina com a próxima ação datada",
+  "keywords": [
+    "acompanhamento",
+    "follow-up",
+    "followup",
+    "próxima ação",
+    "proxima acao",
+    "crm",
+    "cuidado",
+    "visita",
+    "atrasado"
+  ],
+  "summary": "O formulário de acompanhamento já vem com a data do próximo contato preenchida (hoje + 7 dias); a data vira item atrasado na fila quando passa.",
+  "data": {
+    "category": "Fluxo",
+    "do": "Campo de próximo contato no mesmo formulário, com valor sugerido; atraso aparece com texto (\"atrasada 3 dias\") na tabela e na fila Precisa de alguém.",
+    "dont": "Registro solto sem compromisso seguinte; lembrete em tela separada; atraso indicado só pela cor.",
+    "severity": "High"
+  },
+  "source": {
+    "origin": "cortex",
+    "ref": "examples/atalaia/app.js (followupForm, needs)",
+    "license": "MIT"
+  },
+  "status": "draft"
+}

@@ -1,10 +1,9 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BrandMark } from "@/ui/v2-components/icons";
-import { Button, Card, Input } from "@/ui/v2-components/ui";
+import { Button, Input } from "@/ui/atalaia";
+import { AuthCard, AuthHeading, AuthLink, AuthNotice, AuthShell, AuthStateCard } from "@/ui/auth";
 
 export function RedefinirSenhaForm() {
   const router = useRouter();
@@ -16,6 +15,8 @@ export function RedefinirSenhaForm() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   // Valida antes de enviar ao servidor
   function getClientError(): string | null {
@@ -27,14 +28,19 @@ export function RedefinirSenhaForm() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError(null);
+    setPasswordError(null);
+    setConfirmError(null);
+
     const clientError = getClientError();
     if (clientError) {
-      setError(clientError);
+      if (newPassword.length < 8) setPasswordError(clientError);
+      else if (newPassword !== confirmPassword) setConfirmError(clientError);
+      else setError(clientError);
       return;
     }
 
     setLoading(true);
-    setError(null);
 
     try {
       const response = await fetch("/api/auth/reset-password", {
@@ -62,215 +68,100 @@ export function RedefinirSenhaForm() {
 
   if (!token) {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          minHeight: "100vh",
-          background: "var(--bg)",
-          padding: "40px 24px",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
+      <AuthShell
+        footer={
+          <p>
+            <AuthLink href="/login">Voltar para o login</AuthLink>
+          </p>
+        }
       >
-        <div style={{ width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", gap: 32 }}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
-            <BrandMark size={80} />
-          </div>
-          <Card padding={24}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              <div
-                style={{
-                  padding: "16px",
-                  borderRadius: 12,
-                  background: "var(--status-urgente-bg)",
-                  color: "var(--status-urgente)",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  lineHeight: 1.5,
-                }}
-              >
-                Link inválido ou expirado. Solicite um novo link de recuperação.
-              </div>
-              <Link
-                href="/esqueci-senha"
-                style={{
-                  display: "block",
-                  textAlign: "center",
-                  padding: "12px",
-                  borderRadius: 12,
-                  background: "var(--accent-bg)",
-                  color: "var(--accent)",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  textDecoration: "none",
-                }}
-              >
-                Solicitar novo link
-              </Link>
-            </div>
-          </Card>
-        </div>
-      </div>
+        <AuthStateCard
+          eyebrow="Link de recuperação"
+          title="Este link não é válido"
+          reason="O endereço está incompleto ou já foi usado. Por segurança, cada link serve uma vez só e vale por 30 minutos."
+          hint="Peça um novo link: você recebe outro e-mail em instantes."
+          actions={
+            <Button href="/esqueci-senha" variant="primary">
+              Solicitar novo link
+            </Button>
+          }
+        />
+      </AuthShell>
     );
   }
 
+  const linkProblem = error ? /inv[aá]lido|expirado/i.test(error) : false;
+
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        minHeight: "100vh",
-        background: "var(--bg)",
-        padding: "40px 24px",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
+    <AuthShell
+      footer={
+        <p>
+          <AuthLink href="/login">Voltar para o login</AuthLink>
+        </p>
+      }
     >
-      <div style={{ width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", gap: 32 }}>
-        {/* Header */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
-          <BrandMark size={80} />
-          <div style={{ textAlign: "center" }}>
-            <h1
-              style={{
-                margin: 0,
-                fontSize: 28,
-                fontWeight: 800,
-                letterSpacing: "-0.03em",
-                color: "var(--text)",
-                lineHeight: 1.15,
-              }}
-            >
-              Central de Acolhimento
-            </h1>
-          </div>
-        </div>
+      <AuthCard>
+        <AuthHeading
+          eyebrow="Nova senha"
+          title="Redefinir senha"
+          lead={success ? undefined : "Crie uma nova senha para a sua conta. Mínimo de 8 caracteres."}
+        />
 
-        {/* Card */}
-        <Card padding={24}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        {success ? (
+          <div className="grid gap-4">
+            <AuthNotice tone="success" title="Senha redefinida com sucesso">
+              Estamos levando você para o login.
+            </AuthNotice>
             <div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 11,
-                  fontWeight: 800,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.15em",
-                  color: "var(--accent)",
-                }}
-              >
-                Nova senha
-              </p>
-              <h2
-                style={{
-                  margin: "6px 0 0",
-                  fontSize: 20,
-                  fontWeight: 700,
-                  color: "var(--text)",
-                }}
-              >
-                Redefinir senha
-              </h2>
+              <Button href="/login?reset=1" variant="primary">
+                Ir para o login agora
+              </Button>
             </div>
-
-            {success ? (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 10,
-                  padding: "20px",
-                  borderRadius: 14,
-                  background: "var(--status-concluido-bg)",
-                  border: "1px solid var(--status-concluido)",
-                }}
-              >
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: 14.5,
-                    fontWeight: 700,
-                    color: "var(--status-concluido)",
-                  }}
-                >
-                  ✅ Senha redefinida com sucesso!
-                </p>
-                <p style={{ margin: 0, fontSize: 13, color: "var(--text-2)" }}>
-                  Redirecionando para o login...
-                </p>
-              </div>
-            ) : (
-              <>
-                <p style={{ margin: 0, fontSize: 14, color: "var(--text-2)", lineHeight: 1.6 }}>
-                  Crie uma nova senha para sua conta. Mínimo de 8 caracteres.
-                </p>
-
-                {error ? (
-                  <div
-                    style={{
-                      padding: "12px 16px",
-                      borderRadius: 12,
-                      background: "var(--status-urgente-bg)",
-                      color: "var(--status-urgente)",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    {error}
-                    {(error.toLowerCase().includes("inválido") || error.toLowerCase().includes("expirado")) ? (
-                      <div style={{ marginTop: 8 }}>
-                        <Link
-                          href="/esqueci-senha"
-                          style={{ color: "var(--status-urgente)", fontWeight: 800, textDecoration: "underline" }}
-                        >
-                          Solicitar novo link →
-                        </Link>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-
-                <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  <Input
-                    label="Nova senha"
-                    type="password"
-                    required
-                    value={newPassword}
-                    onChange={setNewPassword}
-                    placeholder="Mínimo 8 caracteres"
-                  />
-
-                  <Input
-                    label="Confirmar nova senha"
-                    type="password"
-                    required
-                    value={confirmPassword}
-                    onChange={setConfirmPassword}
-                    placeholder="Repita a nova senha"
-                  />
-
-                  <Button type="submit" variant="primary" full disabled={loading}>
-                    {loading ? "Salvando..." : "Salvar nova senha"}
-                  </Button>
-                </form>
-              </>
-            )}
           </div>
-        </Card>
+        ) : (
+          <>
+            {error ? (
+              <AuthNotice tone="danger">
+                {error}
+                {linkProblem ? (
+                  <>
+                    {" "}
+                    <AuthLink href="/esqueci-senha">Solicitar novo link</AuthLink>
+                  </>
+                ) : null}
+              </AuthNotice>
+            ) : null}
 
-        {/* Footer */}
-        <div style={{ textAlign: "center" }}>
-          <Link
-            href="/login"
-            style={{ fontSize: 13.5, color: "var(--accent)", fontWeight: 700, textDecoration: "none" }}
-          >
-            ← Voltar para o login
-          </Link>
-        </div>
-      </div>
-    </div>
+            <form onSubmit={handleSubmit} noValidate className="grid gap-4">
+              <Input
+                label="Nova senha"
+                type="password"
+                required
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                placeholder="Mínimo de 8 caracteres"
+                error={passwordError}
+              />
+
+              <Input
+                label="Confirmar nova senha"
+                type="password"
+                required
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                placeholder="Repita a nova senha"
+                error={confirmError}
+              />
+
+              <Button type="submit" variant="primary" loading={loading} className="w-full">
+                {loading ? "Salvando…" : "Salvar nova senha"}
+              </Button>
+            </form>
+          </>
+        )}
+      </AuthCard>
+    </AuthShell>
   );
 }

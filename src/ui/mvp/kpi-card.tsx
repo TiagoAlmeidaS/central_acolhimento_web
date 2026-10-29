@@ -1,55 +1,45 @@
-import React from "react";
-import { Card } from "@/ui/v2-components/ui";
+import type { ReactNode } from "react";
+import { cx } from "@/ui/atalaia";
 
 export interface KpiCardProps {
-  icon: React.ReactElement;
   label: string;
   value: string | number;
+  /** Frase curta que explica o número (aparece abaixo dele). */
   sub?: string;
-  accent: string;
-  bg: string;
-  /** Marca o cartao como retrato do momento (fila em aberto), nao do periodo filtrado. */
+  /** Marca o cartão como retrato do momento (fila em aberto), não do período filtrado. */
   snapshot?: boolean;
+  /** `alert` pinta o número de vermelho (algo precisa de atenção). */
+  tone?: "default" | "alert";
+  /**
+   * Props herdadas do desenho anterior (ícone e cores fixas). O Atalaia não usa mais ícone
+   * nem cor por cartão: a cor só aparece quando `tone="alert"`. Mantidas para não quebrar chamadas.
+   */
+  icon?: ReactNode;
+  accent?: string;
+  bg?: string;
 }
 
-export function KpiCard({ icon, label, value, sub, accent, bg, snapshot }: KpiCardProps) {
+/** Indicador do painel: rótulo mono maiúsculo, número em IBM Plex Mono e a frase que o explica. */
+export function KpiCard({ label, value, sub, snapshot, tone = "default" }: KpiCardProps) {
+  const isText = typeof value === "string" && value.length > 6;
   return (
-    <Card padding={16} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-3)", letterSpacing: "-0.01em" }}>
-          {label}
-        </span>
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 8,
-            background: bg,
-            color: accent,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          {icon}
-        </div>
-      </div>
+    <div className="flex min-w-0 flex-col rounded-card border border-border bg-surface px-4 py-3.5">
+      <span className="block font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted">{label}</span>
       <div
-        style={{
-          fontSize: 26,
-          fontWeight: 800,
-          color: "var(--text)",
-          letterSpacing: "-0.025em",
-          fontVariantNumeric: "tabular-nums",
-        }}
+        className={cx(
+          "mt-1 break-words font-mono font-medium leading-[1.1] tabular-nums",
+          isText ? "text-xl" : "text-[28px] max-[560px]:text-[22px]",
+          tone === "alert" ? "text-danger" : "text-fg",
+        )}
       >
         {value}
       </div>
-      {sub ? <span style={{ fontSize: 11.5, color: "var(--text-3)" }}>{sub}</span> : null}
+      {sub ? <span className="mt-1.5 text-xs text-muted">{sub}</span> : null}
       {snapshot ? (
-        <span style={{ fontSize: 11, color: "var(--text-3)", opacity: 0.85 }}>Retrato de agora · nao segue o periodo</span>
+        <span className="mt-auto pt-2 font-mono text-[11px] uppercase tracking-[0.08em] text-muted">
+          Retrato de agora · não segue o período
+        </span>
       ) : null}
-    </Card>
+    </div>
   );
 }

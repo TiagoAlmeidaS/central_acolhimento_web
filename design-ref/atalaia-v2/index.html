@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Atalaia</title>
+    <meta name="claude:viewport-fit-sides" content="cover" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="landing.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Pular para o conteúdo</a>
+    <div id="root" aria-live="off"></div>
+    <div id="drawer-layer" hidden>
+      <div class="blanket" data-action="close-drawer"></div>
+      <aside
+        class="drawer"
+        id="drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="drawer-title"
+        tabindex="-1"
+      ></aside>
+    </div>
+    <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+    <noscript>
+      <p class="noscript">
+        O Atalaia é uma demonstração interativa e precisa de JavaScript. Os dados são fictícios.
+      </p>
+    </noscript>
+    <script src="data.js"></script>
+    <script src="landing.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

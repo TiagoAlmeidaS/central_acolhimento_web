@@ -1,115 +1,81 @@
 "use client";
 
-import { startTransition, useEffect, useRef, useState } from "react";
+import { startTransition, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { Caregiver, Followup, Member, Tenant } from "@/server/domain/mvp";
 import {
-  Card,
-  Button,
-  Select,
-  Textarea,
-  SectionTitle,
   Avatar,
-} from "@/ui/v2-components/ui";
+  Button,
+  Card,
+  Chip,
+  Drawer,
+  EmptyState,
+  Icon,
+  Input,
+  NeedsChip,
+  PageHeader,
+  Pill,
+  SearchInput,
+  Select,
+  Tabs,
+  Textarea,
+  cx,
+  useToast,
+} from "@/ui/atalaia";
 import {
-  IconCalendar,
-  IconCheck,
-  IconPlus,
-  IconX,
-  IconPhone,
-  IconMessage,
-  IconHeart,
-  IconDoc,
-  IconHome,
-  IconMapPin,
-  IconClock,
-  IconVideo,
-  IconChevronDown,
-} from "@/ui/v2-components/icons";
+  FOLLOWUP_TYPES,
+  FOLLOWUP_TYPE_LABEL,
+  FormError,
+  FormGrid,
+  fmtDate,
+  fmtTime,
+  plural,
+  readApiError,
+  shortName,
+  toDateTimeLocal,
+  useResetOnOpen,
+} from "@/ui/gestao";
 
-const typeLabels: Record<Followup["type"], string> = {
-  visit: "Visita",
-  call: "Ligação",
-  message: "Mensagem",
-  prayer: "Oração",
-  other: "Outro",
+type FollowupFormState = {
+  tenantId: string;
+  memberId: string;
+  caregiverId: string;
+  type: Followup["type"];
+  occurredAt: string;
+  nextActionAt: string;
+  notes: string;
 };
 
-const typeIcons: Record<Followup["type"], React.ReactNode> = {
-  visit: <IconHome size={14} />,
-  call: <IconPhone size={14} />,
-  message: <IconMessage size={14} />,
-  prayer: <IconHeart size={14} />,
-  other: <IconDoc size={14} />,
-};
-
-const emptyForm = {
-  tenantId: "",
-  memberId: "",
-  caregiverId: "",
-  type: "visit" as Followup["type"],
-  occurredAt: "",
-  nextActionAt: "",
-  notes: "",
-};
-
-function toDateTimeLocal(value?: string | null) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 16);
+function emptyForm(memberId: string, members: Member[]): FollowupFormState {
+  const member = members.find((item) => item.id === memberId);
+  return {
+    tenantId: member?.tenantId ?? "",
+    memberId,
+    caregiverId: member?.caregiverId ?? "",
+    type: "call",
+    occurredAt: toDateTimeLocal(new Date().toISOString()),
+    nextActionAt: "",
+    notes: "",
+  };
 }
 
-// Styled native datetime-local input
-function DateTimeInput({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <span style={{
-        fontSize: 13.5, fontWeight: 600,
-        color: "var(--text)", letterSpacing: "-0.005em",
-      }}>
-        {label}
-      </span>
-      <div style={{
-        display: "flex", alignItems: "center", height: 54,
-        padding: "0 18px",
-        background: "var(--surface)",
-        border: "1.5px solid var(--border)",
-        borderRadius: 14,
-      }}>
-        <input
-          type="datetime-local"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          style={{
-            flex: 1, border: 0, outline: "none",
-            background: "transparent", fontFamily: "inherit",
-            fontSize: 15, color: "var(--text)", letterSpacing: "-0.005em",
-          }}
-        />
-      </div>
-    </label>
-  );
+function formFromFollowup(followup: Followup): FollowupFormState {
+  return {
+    tenantId: followup.tenantId,
+    memberId: followup.memberId,
+    caregiverId: followup.caregiverId ?? "",
+    type: followup.type,
+    occurredAt: toDateTimeLocal(followup.occurredAt),
+    nextActionAt: toDateTimeLocal(followup.nextActionAt),
+    notes: followup.notes,
+  };
 }
+
+/** Compromissos criados pela agenda guardam título, duração e local dentro das notas. */
 function parseScheduledNotes(notesText: string, defaultType: string) {
   const isScheduled = notesText.startsWith("Agendado:");
   if (!isScheduled) {
-    return {
-      isScheduled: false,
-      title: `Acompanhamento: ${defaultType}`,
-      duration: "30 min",
-      location: "Não informado",
-      notes: notesText,
-    };
+    return { isScheduled: false, title: `Acompanhamento: ${defaultType}`, duration: "", location: "", notes: notesText };
   }
 
   const titleMatch = notesText.match(/📌 Título:\s*(.*)/);
@@ -120,11 +86,222 @@ function parseScheduledNotes(notesText: string, defaultType: string) {
   return {
     isScheduled: true,
     title: titleMatch ? titleMatch[1].trim() : "Compromisso",
-    duration: durationMatch ? durationMatch[1].trim() : "60 min",
-    location: locationMatch ? locationMatch[1].trim() : "Presencial",
+    duration: durationMatch ? durationMatch[1].trim() : "",
+    location: locationMatch ? locationMatch[1].trim() : "",
     notes: notesMatch ? notesMatch[1].trim() : "",
   };
 }
+
+type FollowupFormDrawerProps = Readonly<{
+  open: boolean;
+  onClose: () => void;
+  /** Acompanhamento em edição; `null` registra um novo. */
+  followup: Followup | null;
+  /** Pessoa pré-selecionada ao registrar um novo. */
+  defaultMemberId?: string;
+  /** Impede trocar a pessoa (registro feito a partir do perfil dela). */
+  lockMember?: boolean;
+  tenants?: Tenant[];
+  members: Member[];
+  caregivers: Caregiver[];
+  /** Chamado depois de salvar e antes de fechar. */
+  onSaved?: () => void;
+}>;
+
+/** Drawer de registro/edição de acompanhamento (mesmo contrato da API de antes). */
+export function FollowupFormDrawer({
+  open,
+  onClose,
+  followup,
+  defaultMemberId,
+  lockMember = false,
+  tenants = [],
+  members,
+  caregivers,
+  onSaved,
+}: FollowupFormDrawerProps) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [form, setForm] = useState<FollowupFormState>(() => emptyForm(defaultMemberId ?? "", members));
+  const [memberQuery, setMemberQuery] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useResetOnOpen(open, () => {
+    setForm(followup ? formFromFollowup(followup) : emptyForm(defaultMemberId ?? "", members));
+    setMemberQuery("");
+    setSubmitting(false);
+    setError(null);
+  });
+
+  const tenantNameById = useMemo(() => new Map(tenants.map((tenant) => [tenant.id, tenant.name])), [tenants]);
+  const memberOptions = useMemo(() => {
+    const query = memberQuery.trim().toLowerCase();
+    return members
+      .filter((member) => member.id === form.memberId || !query || member.name.toLowerCase().includes(query))
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
+      .map((member) => ({
+        value: member.id,
+        label: tenants.length > 1 ? `${member.name} · ${tenantNameById.get(member.tenantId) ?? ""}` : member.name,
+      }));
+  }, [members, memberQuery, form.memberId, tenants.length, tenantNameById]);
+  const caregiverOptions = useMemo(
+    () => caregivers.filter((caregiver) => !form.tenantId || caregiver.tenantId === form.tenantId),
+    [caregivers, form.tenantId],
+  );
+
+  function selectMember(memberId: string) {
+    const member = members.find((item) => item.id === memberId);
+    setForm((current) => ({
+      ...current,
+      memberId,
+      tenantId: member?.tenantId ?? current.tenantId,
+      caregiverId: member?.caregiverId ?? "",
+    }));
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!form.memberId) {
+      setError("Escolha a pessoa acompanhada.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+
+    const response = await fetch(followup ? `/api/followups/${followup.id}` : "/api/followups", {
+      method: followup ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tenantId: form.tenantId,
+        memberId: form.memberId,
+        caregiverId: form.caregiverId || null,
+        type: form.type,
+        occurredAt: form.occurredAt ? new Date(form.occurredAt).toISOString() : undefined,
+        nextActionAt: form.nextActionAt ? new Date(form.nextActionAt).toISOString() : null,
+        notes: form.notes,
+      }),
+    });
+
+    setSubmitting(false);
+    if (!response.ok) {
+      setError(await readApiError(response, "Não foi possível salvar o acompanhamento."));
+      return;
+    }
+
+    toast(followup ? "Acompanhamento atualizado." : "Acompanhamento registrado.");
+    onSaved?.();
+    onClose();
+    startTransition(() => router.refresh());
+  }
+
+  const memberName = members.find((member) => member.id === form.memberId)?.name;
+
+  return (
+    <Drawer
+      open={open}
+      onClose={onClose}
+      title={followup ? "Editar acompanhamento" : "Registrar acompanhamento"}
+      subtitle={lockMember ? memberName : "Registre cada ação de cuidado e a próxima movimentação."}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button variant="primary" type="submit" form="followup-form" loading={submitting}>
+            {followup ? "Salvar alterações" : "Salvar acompanhamento"}
+          </Button>
+        </>
+      }
+    >
+      <form id="followup-form" onSubmit={handleSubmit} className="grid gap-4" noValidate>
+        {!lockMember ? (
+          <div className="grid gap-2">
+            <SearchInput
+              label="Buscar pessoa"
+              placeholder="Buscar pessoa pelo nome"
+              value={memberQuery}
+              onChange={(event) => setMemberQuery(event.target.value)}
+            />
+            <Select
+              label="Pessoa acompanhada"
+              value={form.memberId}
+              onChange={(event) => selectMember(event.target.value)}
+              options={memberOptions}
+              placeholder="Escolha a pessoa"
+              required
+              data-autofocus
+            />
+          </div>
+        ) : null}
+
+        <fieldset className="m-0 grid gap-1.5 border-0 p-0">
+          <legend className="mb-1.5 text-xs font-semibold text-muted">Tipo</legend>
+          <div className="grid grid-cols-5 gap-1.5 max-[420px]:grid-cols-3">
+            {FOLLOWUP_TYPES.map((type) => {
+              const selected = form.type === type;
+              return (
+                <label
+                  key={type}
+                  className={cx(
+                    "grid cursor-pointer justify-items-center gap-1 rounded-md border px-1 py-2 text-xs has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary",
+                    selected ? "border-primary bg-primary-soft text-primary" : "border-border text-fg hover:bg-sunken",
+                  )}
+                >
+                  <Icon name={type} size={18} />
+                  <input
+                    type="radio"
+                    name="followup-type"
+                    value={type}
+                    checked={selected}
+                    onChange={() => setForm((current) => ({ ...current, type }))}
+                    className="sr-only"
+                  />
+                  {FOLLOWUP_TYPE_LABEL[type]}
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+
+        <FormGrid>
+          <Input
+            label="Quando aconteceu"
+            type="datetime-local"
+            value={form.occurredAt}
+            onChange={(event) => setForm((current) => ({ ...current, occurredAt: event.target.value }))}
+          />
+          <Input
+            label="Próxima ação"
+            type="datetime-local"
+            value={form.nextActionAt}
+            hint="Entra no painel como próxima ação."
+            onChange={(event) => setForm((current) => ({ ...current, nextActionAt: event.target.value }))}
+          />
+        </FormGrid>
+
+        <Select
+          label="Cuidador"
+          value={form.caregiverId}
+          onChange={(event) => setForm((current) => ({ ...current, caregiverId: event.target.value }))}
+          options={[{ value: "", label: "Sem cuidador" }, ...caregiverOptions.map((c) => ({ value: c.id, label: c.name }))]}
+        />
+
+        <Textarea
+          label="O que foi conversado"
+          value={form.notes}
+          rows={4}
+          placeholder="Como foi a conversa, como a pessoa está, próximos passos…"
+          onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
+        />
+
+        <FormError>{error}</FormError>
+      </form>
+    </Drawer>
+  );
+}
+
+type Tab = "history" | "schedule";
 
 export function FollowupManager({
   followups,
@@ -132,622 +309,232 @@ export function FollowupManager({
   members,
   caregivers,
   initialMemberId,
+  title,
+  subtitle,
 }: Readonly<{
   followups: Followup[];
   tenants: Tenant[];
   members: Member[];
   caregivers: Caregiver[];
   initialMemberId?: string;
+  /** Com título, o gerenciador mostra o próprio cabeçalho de página (com a ação primária). */
+  title?: string;
+  subtitle?: string;
 }>) {
-  const router = useRouter();
   const [editing, setEditing] = useState<Followup | null>(null);
-  const [form, setForm] = useState(() => ({
-    ...emptyForm,
-    tenantId: tenants[0]?.id ?? "",
-    memberId: initialMemberId && members.some((m) => m.id === initialMemberId) ? initialMemberId : members[0]?.id ?? "",
-    occurredAt: toDateTimeLocal(new Date().toISOString()),
-  }));
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [isFormOpen, setIsFormOpen] = useState(!!initialMemberId);
-  const [activeTab, setActiveTab] = useState<"history" | "schedule">("history");
+  const [drawerOpen, setDrawerOpen] = useState(Boolean(initialMemberId && members.some((m) => m.id === initialMemberId)));
+  const [tab, setTab] = useState<Tab>("history");
+  const [typeFilter, setTypeFilter] = useState<Followup["type"] | "">("");
+  const [needsOnly, setNeedsOnly] = useState(false);
+  const [query, setQuery] = useState("");
+  const [now] = useState(() => new Date());
 
-  function resetForm() {
+  const membersById = useMemo(() => new Map(members.map((member) => [member.id, member])), [members]);
+
+  const { history, scheduled, overdueIds } = useMemo(() => {
+    const latestByMember = new Map<string, Followup>();
+    for (const followup of followups) {
+      const current = latestByMember.get(followup.memberId);
+      if (!current || new Date(followup.occurredAt) > new Date(current.occurredAt)) {
+        latestByMember.set(followup.memberId, followup);
+      }
+    }
+    const overdue = new Set<string>();
+    for (const followup of latestByMember.values()) {
+      const member = membersById.get(followup.memberId);
+      if (followup.nextActionAt && new Date(followup.nextActionAt) <= now && member?.status !== "inactive") {
+        overdue.add(followup.id);
+      }
+    }
+    return {
+      history: [...followups]
+        .filter((f) => !f.nextActionAt || new Date(f.nextActionAt) <= now)
+        .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()),
+      scheduled: [...followups]
+        .filter((f) => f.nextActionAt && new Date(f.nextActionAt) > now)
+        .sort((a, b) => new Date(a.nextActionAt!).getTime() - new Date(b.nextActionAt!).getTime()),
+      overdueIds: overdue,
+    };
+  }, [followups, membersById, now]);
+
+  const base = tab === "history" ? history : scheduled;
+  const needle = query.trim().toLowerCase();
+  const visible = base.filter(
+    (f) =>
+      (!typeFilter || f.type === typeFilter) &&
+      (!needsOnly || overdueIds.has(f.id)) &&
+      (!needle || `${f.member ?? ""} ${f.notes}`.toLowerCase().includes(needle)),
+  );
+  const typeCount = (type: Followup["type"]) => base.filter((f) => f.type === type).length;
+
+  function openNew() {
     setEditing(null);
-    setForm({
-      ...emptyForm,
-      tenantId: tenants[0]?.id ?? "",
-      memberId: initialMemberId && members.some((m) => m.id === initialMemberId) ? initialMemberId : members[0]?.id ?? "",
-      occurredAt: toDateTimeLocal(new Date().toISOString()),
-    });
-    setError(null);
-    setSuccess(false);
-    setIsFormOpen(false);
+    setDrawerOpen(true);
   }
 
   function openEdit(followup: Followup) {
     setEditing(followup);
-    setForm({
-      tenantId: followup.tenantId,
-      memberId: followup.memberId,
-      caregiverId: followup.caregiverId ?? "",
-      type: followup.type,
-      occurredAt: toDateTimeLocal(followup.occurredAt),
-      nextActionAt: toDateTimeLocal(followup.nextActionAt),
-      notes: followup.notes,
-    });
-    setError(null);
-    setSuccess(false);
-    setIsFormOpen(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setDrawerOpen(true);
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSubmitting(true);
-    setError(null);
-    setSuccess(false);
-
-    const response = await fetch(
-      editing ? `/api/followups/${editing.id}` : "/api/followups",
-      {
-        method: editing ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tenantId: form.tenantId,
-          memberId: form.memberId,
-          caregiverId: form.caregiverId || null,
-          type: form.type,
-          occurredAt: form.occurredAt ? new Date(form.occurredAt).toISOString() : undefined,
-          nextActionAt: form.nextActionAt ? new Date(form.nextActionAt).toISOString() : null,
-          notes: form.notes,
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => ({}))) as { error?: string };
-      setError(payload.error ?? "Não foi possível salvar o acompanhamento.");
-      setSubmitting(false);
-      return;
-    }
-
-    setSuccess(true);
-    resetForm();
-    setSubmitting(false);
-    startTransition(() => router.refresh());
-  }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      
-      {/* ── Form View (Only shown when isFormOpen is true) ── */}
-      {isFormOpen ? (
-        <Card padding={28}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-            <button
-              type="button"
-              onClick={() => resetForm()}
-              style={{
-                width: 36, height: 36, borderRadius: "50%",
-                background: "var(--surface-2)", border: "1px solid var(--border)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: "pointer", color: "var(--text)",
-              }}
-            >
-              ←
-            </button>
-            <SectionTitle>
-              {editing ? "Editar acompanhamento" : "Registrar acompanhamento"}
-            </SectionTitle>
-          </div>
-          <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 24, marginTop: -8 }}>
-            Registre cada ação de cuidado e a próxima movimentação da jornada pastoral.
-          </p>
-
-          <form style={{ display: "flex", flexDirection: "column", gap: 16 }} onSubmit={handleSubmit}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
-              <Select
-                label="Localidade"
-                value={form.tenantId}
-                onChange={(v) => setForm((f) => ({ ...f, tenantId: v }))}
-                options={tenants.map((t) => ({ value: t.id, label: t.name }))}
-                placeholder="Localidade"
-                required
-              />
-              <MemberSearchSelect
-                label="Pessoa acompanhada"
-                value={form.memberId}
-                onChange={(v) => setForm((f) => ({ ...f, memberId: v }))}
-                members={members}
-                required
-              />
-              <Select
-                label="Cuidador"
-                value={form.caregiverId}
-                onChange={(v) => setForm((f) => ({ ...f, caregiverId: v }))}
-                options={[
-                  { value: "", label: "Sem cuidador" },
-                  ...caregivers.map((c) => ({ value: c.id, label: c.name })),
-                ]}
-              />
-              <Select
-                label="Tipo de ação"
-                value={form.type}
-                onChange={(v) => setForm((f) => ({ ...f, type: v as Followup["type"] }))}
-                options={Object.entries(typeLabels).map(([value, label]) => ({ value, label }))}
-              />
-            </div>
-
-            <DateTimeInput
-              label="Quando aconteceu"
-              value={form.occurredAt}
-              onChange={(v) => setForm((f) => ({ ...f, occurredAt: v }))}
-            />
-
-            <DateTimeInput
-              label="Próxima ação programada"
-              value={form.nextActionAt}
-              onChange={(v) => setForm((f) => ({ ...f, nextActionAt: v }))}
-            />
-
-            <Textarea
-              label="Observações"
-              value={form.notes}
-              onChange={(v) => setForm((f) => ({ ...f, notes: v }))}
-              placeholder="Como foi a conversa, como a pessoa está, próximos passos..."
-              rows={4}
-            />
-
-            {error && (
-              <div style={{
-                padding: "12px 16px", borderRadius: 12,
-                background: "#FFF1F2", border: "1px solid #FECDD3",
-                fontSize: 13, color: "#E11D48",
-                display: "flex", alignItems: "center", gap: 8,
-              }}>
-                <IconX size={14} /> {error}
-              </div>
-            )}
-
-            {success && (
-              <div style={{
-                padding: "12px 16px", borderRadius: 12,
-                background: "#F0FDF4", border: "1px solid #BBF7D0",
-                fontSize: 13, color: "#15803D",
-                display: "flex", alignItems: "center", gap: 8,
-              }}>
-                <IconCheck size={14} /> Acompanhamento salvo com sucesso!
-              </div>
-            )}
-
-            <div style={{ display: "flex", gap: 10 }}>
-              <Button
-                type="submit"
-                variant="primary"
-                size="md"
-                disabled={submitting}
-                icon={<IconPlus />}
-              >
-                {submitting ? "Salvando..." : editing ? "Salvar alterações" : "Salvar acompanhamento"}
-              </Button>
-              <Button type="button" variant="secondary" size="md" onClick={() => resetForm()}>
-                Cancelar
-              </Button>
-            </div>
-          </form>
-        </Card>
-      ) : (() => {
-        const now = new Date();
-
-        // Sort history: latest occurred first
-        const historyFollowups = [...followups]
-          .filter((f) => !f.nextActionAt || new Date(f.nextActionAt) <= now)
-          .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime());
-
-        // Sort schedule: soonest scheduled first
-        const scheduledFollowups = [...followups]
-          .filter((f) => f.nextActionAt && new Date(f.nextActionAt) > now)
-          .sort((a, b) => new Date(a.nextActionAt!).getTime() - new Date(b.nextActionAt!).getTime());
-
-        const totalUpcoming = scheduledFollowups.length;
-        const visitsCount = scheduledFollowups.filter((f) => f.type === "visit").length;
-        const callsCount = scheduledFollowups.filter((f) => f.type === "call").length;
-        const otherCount = scheduledFollowups.filter((f) => f.type !== "visit" && f.type !== "call").length;
-
-        return (
-          <Card padding={28}>
-            {/* Header */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-              <div>
-                <SectionTitle>Acompanhamento Pastoral</SectionTitle>
-                <p style={{ fontSize: 13, color: "var(--text-2)", margin: "4px 0 0" }}>
-                  Gerencie o histórico e a programação futura de visitas e ligações.
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="primary"
-                size="md"
-                icon={<IconPlus />}
-                onClick={() => {
-                  resetForm();
-                  setIsFormOpen(true);
-                }}
-              >
-                Novo Registro
-              </Button>
-            </div>
-
-            {/* Tabs Switcher Header */}
-            <div style={{ display: "flex", borderBottom: "1px solid var(--border)", marginBottom: 20 }}>
-              <button
-                type="button"
-                onClick={() => setActiveTab("history")}
-                style={{
-                  padding: "12px 18px",
-                  border: 0,
-                  background: "transparent",
-                  borderBottom: activeTab === "history" ? "3px solid var(--accent)" : "3px solid transparent",
-                  color: activeTab === "history" ? "var(--text)" : "var(--text-3)",
-                  fontSize: 14,
-                  fontWeight: activeTab === "history" ? 700 : 500,
-                  cursor: "pointer",
-                  transition: "all .15s",
-                  fontFamily: "inherit",
-                }}
-              >
-                Histórico ({historyFollowups.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("schedule")}
-                style={{
-                  padding: "12px 18px",
-                  border: 0,
-                  background: "transparent",
-                  borderBottom: activeTab === "schedule" ? "3px solid var(--accent)" : "3px solid transparent",
-                  color: activeTab === "schedule" ? "var(--text)" : "var(--text-3)",
-                  fontSize: 14,
-                  fontWeight: activeTab === "schedule" ? 700 : 500,
-                  cursor: "pointer",
-                  transition: "all .15s",
-                  fontFamily: "inherit",
-                }}
-              >
-                Programação ({scheduledFollowups.length})
-              </button>
-            </div>
-
-            {/* TAB CONTENT: HISTORY */}
-            {activeTab === "history" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {historyFollowups.length === 0 ? (
-                  <p style={{ fontSize: 13, color: "var(--text-3)", textAlign: "center", padding: "32px 0" }}>
-                    Nenhum histórico registrado ainda.
-                  </p>
-                ) : (
-                  historyFollowups.map((followup) => {
-                    const member = members.find((m) => m.id === followup.memberId);
-                    const isUrgent = !!member?.isUrgent;
-                    return (
-                      <button
-                        key={followup.id}
-                        type="button"
-                        onClick={() => openEdit(followup)}
-                        style={{
-                          display: "flex", alignItems: "flex-start", gap: 12,
-                          padding: "14px 16px", borderRadius: 14,
-                          background: "var(--surface-2)",
-                          border: isUrgent ? "1.5px solid #FECDD3" : "1.5px solid var(--border)",
-                          borderLeft: isUrgent ? "4px solid #E11D48" : undefined,
-                          cursor: "pointer", textAlign: "left", fontFamily: "inherit",
-                          transition: "border-color .15s, background .15s",
-                          width: "100%",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = isUrgent ? "#E11D48" : "var(--accent)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor = isUrgent ? "#FECDD3" : "var(--border)";
-                        }}
-                      >
-                        <Avatar name={followup.member ?? "?"} size={40} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                            <div style={{
-                              fontSize: 14.5, fontWeight: 700, color: "var(--text)",
-                              letterSpacing: "-0.01em",
-                              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                              display: "flex", alignItems: "center", gap: 6,
-                            }}>
-                              {followup.member ?? "Sem membro"}
-                              {isUrgent && (
-                                <span style={{
-                                  background: "#FFF1F2", color: "#E11D48",
-                                  fontSize: 9.5, fontWeight: 800, padding: "1px 5px",
-                                  borderRadius: 4, textTransform: "uppercase", border: "1px solid #FECDD3",
-                                }}>
-                                  Urgente
-                                </span>
-                              )}
-                            </div>
-                            <span style={{
-                              display: "inline-flex", alignItems: "center", gap: 5,
-                              padding: "3px 10px", borderRadius: 999,
-                              background: "var(--accent-bg)",
-                              color: "var(--accent)",
-                              fontSize: 11.5, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0,
-                            }}>
-                              {typeIcons[followup.type]}
-                              {typeLabels[followup.type]}
-                            </span>
-                          </div>
-                          {followup.notes && (
-                            <p style={{
-                              marginTop: 4, fontSize: 12.5, color: "var(--text-2)",
-                              lineHeight: 1.4,
-                              overflow: "hidden", display: "-webkit-box",
-                              WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-                              margin: "4px 0 0",
-                            }}>
-                              {followup.notes}
-                            </p>
-                          )}
-                          <div style={{
-                            marginTop: 6, fontSize: 12, color: "var(--text-3)",
-                            display: "flex", alignItems: "center", gap: 4,
-                          }}>
-                            <span>Aconteceu em: {new Date(followup.occurredAt).toLocaleDateString("pt-BR")}</span>
-                            {followup.nextActionAt && (
-                              <span style={{ color: "var(--accent)", fontWeight: 500 }}>
-                                • Próxima: {new Date(followup.nextActionAt).toLocaleDateString("pt-BR")}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            )}
-
-            {/* TAB CONTENT: SCHEDULE */}
-            {activeTab === "schedule" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                {/* Stats Summary */}
-                <div style={{ padding: "0 0 4px" }}>
-                  <Card padding={16} style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                      <div style={{
-                        width: 44, height: 44, borderRadius: 12,
-                        background: "var(--accent-bg)", color: "var(--accent)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                      }}><IconCalendar size={22} /></div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 16.5, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.02em", lineHeight: 1.15 }}>
-                          {totalUpcoming} {totalUpcoming === 1 ? "reunião programada" : "reuniões programadas"}
-                        </div>
-                        <div style={{ fontSize: 12.5, color: "var(--text-2)", marginTop: 2 }}>
-                          {visitsCount} {visitsCount === 1 ? "visita" : "visitas"} · {callsCount} {callsCount === 1 ? "ligação" : "ligações"} · {otherCount} {otherCount === 1 ? "outros" : "outros"}
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                </div>
-
-                {/* Scheduled Cards List */}
-                {scheduledFollowups.length === 0 ? (
-                  <p style={{ fontSize: 13, color: "var(--text-3)", textAlign: "center", padding: "32px 0" }}>
-                    Nenhuma programação pendente.
-                  </p>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    {scheduledFollowups.map((followup) => {
-                      const parsed = parseScheduledNotes(followup.notes, typeLabels[followup.type]);
-                      const member = members.find((m) => m.id === followup.memberId);
-                      const isUrgent = !!member?.isUrgent;
-                      const isOnline = parsed.location.toLowerCase().includes("http") || parsed.location.toLowerCase().includes("online") || parsed.location.toLowerCase().includes("vídeo") || parsed.location.toLowerCase().includes("video");
-
-                      const dateFormatted = new Date(followup.nextActionAt!).toLocaleString("pt-BR", {
-                        weekday: "short",
-                        day: "numeric",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      });
-
-                      return (
-                        <Card
-                          key={followup.id}
-                          padding={0}
-                          onClick={() => openEdit(followup)}
-                          style={{
-                            overflow: "hidden",
-                            cursor: "pointer",
-                            border: isUrgent ? "1.5px solid #FECDD3" : "1.5px solid var(--border)",
-                            background: "var(--surface)",
-                            transition: "border-color .15s, transform .1s",
-                            width: "100%",
-                          }}
-                          hoverable
-                        >
-                          <div style={{ display: "flex", alignItems: "stretch" }}>
-                            <div style={{
-                              width: 6,
-                              background: isUrgent ? "#E11D48" : "var(--accent)",
-                              flexShrink: 0,
-                            }} />
-                            <div style={{ flex: 1, padding: "16px 18px", display: "flex", flexDirection: "column" }}>
-                              <div style={{
-                                display: "flex", alignItems: "center", gap: 8, marginBottom: 6,
-                                fontSize: 12, color: isUrgent ? "#E11D48" : "var(--accent)",
-                                fontWeight: 700, letterSpacing: "-0.005em",
-                              }}>
-                                <IconClock size={14} />
-                                <span style={{ textTransform: "capitalize" }}>{dateFormatted}</span>
-                                <span style={{ color: "var(--text-3)", fontWeight: 500 }}>· {parsed.duration}</span>
-                              </div>
-                              <div style={{
-                                fontSize: 15, fontWeight: 700, color: "var(--text)",
-                                letterSpacing: "-0.015em", marginBottom: 6,
-                              }}>{parsed.title}</div>
-                              <div style={{
-                                display: "flex", alignItems: "center", gap: 12,
-                                fontSize: 12.5, color: "var(--text-2)", flexWrap: "wrap",
-                              }}>
-                                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                                  {isOnline ? <IconVideo size={13} /> : <IconMapPin size={13} />}
-                                  {parsed.location}
-                                </span>
-                                {member && (
-                                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
-                                    <Avatar name={member.name} size={22} />
-                                    <span style={{ fontWeight: 600, color: "var(--text)" }}>
-                                      {member.name.split(" ")[0]}
-                                    </span>
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-          </Card>
-        );
-      })()}
-    </div>
-  );
-}
-
-function MemberSearchSelect({
-  label,
-  value,
-  onChange,
-  members,
-  required,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  members: Member[];
-  required?: boolean;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const selectedMember = members.find((m) => m.id === value);
-  const filteredMembers = members.filter((m) =>
-    m.name.toLowerCase().includes(search.toLowerCase())
+  const createButton = (
+    <Button variant="primary" icon="plus" onClick={openNew}>
+      Registrar acompanhamento
+    </Button>
   );
 
   return (
-    <div ref={containerRef} style={{ display: "flex", flexDirection: "column", gap: 8, position: "relative", minWidth: 0 }}>
-      {label && (
-        <label style={{
-          fontSize: 13.5, fontWeight: 600,
-          color: "var(--text)", letterSpacing: "-0.005em",
-        }}>
-          {label}
-        </label>
+    <div className="grid gap-4">
+      {title ? (
+        <PageHeader title={title} subtitle={subtitle} action={createButton} />
+      ) : (
+        <div className="flex justify-end">{createButton}</div>
       )}
-      <div
-        onClick={() => setIsOpen(!isOpen)}
-        style={{
-          display: "flex", alignItems: "center", gap: 10,
-          height: 54, padding: "0 18px",
-          background: "var(--surface)",
-          border: "1.5px solid var(--border)",
-          borderRadius: 14,
-          cursor: "pointer",
-          position: "relative",
-          justifyContent: "space-between",
+
+      <Tabs<Tab>
+        className="overflow-y-hidden"
+        label="Acompanhamentos"
+        idPrefix="followups"
+        value={tab}
+        onChange={(next) => {
+          setTab(next);
+          if (next === "schedule") setNeedsOnly(false);
         }}
-      >
-        <span style={{
-          fontSize: 15,
-          color: value ? "var(--text)" : "var(--text-3)",
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-        }}>
-          {selectedMember?.name || "Selecione a pessoa"}
-        </span>
-        <span style={{ color: "var(--accent)", display: "flex", pointerEvents: "none" }}>
-          <IconChevronDown size={18} />
-        </span>
+        tabs={[
+          { value: "history", label: "Histórico", count: history.length },
+          { value: "schedule", label: "Programação", count: scheduled.length },
+        ]}
+      />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <SearchInput
+          label="Buscar acompanhamentos"
+          placeholder="Buscar por pessoa ou nota"
+          wrapperClassName="w-full min-[560px]:w-64"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+        {tab === "history" ? (
+          <NeedsChip count={overdueIds.size} pressed={needsOnly} onClick={() => setNeedsOnly((current) => !current)} />
+        ) : null}
+        <Chip label="Todos" count={base.length} pressed={!typeFilter} onClick={() => setTypeFilter("")} />
+        {FOLLOWUP_TYPES.map((type) => (
+          <Chip
+            key={type}
+            label={FOLLOWUP_TYPE_LABEL[type]}
+            count={typeCount(type)}
+            pressed={typeFilter === type}
+            onClick={() => setTypeFilter(typeFilter === type ? "" : type)}
+          />
+        ))}
       </div>
 
-      {isOpen && (
-        <div style={{
-          position: "absolute", top: "100%", left: 0, right: 0,
-          marginTop: 4,
-          background: "var(--surface)",
-          border: "1.5px solid var(--border)",
-          borderRadius: 14,
-          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-          zIndex: 1000,
-          maxHeight: 300,
-          display: "flex", flexDirection: "column", overflow: "hidden",
-        }}>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar membro..."
-            autoFocus
-            style={{
-              padding: "12px 14px", border: 0,
-              borderBottom: "1px solid var(--border)",
-              outline: "none", background: "var(--surface-2)",
-              fontSize: 14, fontFamily: "inherit", color: "var(--text)",
-            }}
+      <div role="tabpanel" id={`followups-panel-${tab}`} aria-labelledby={`followups-tab-${tab}`}>
+        {followups.length === 0 ? (
+          <EmptyState
+            title="Nenhum acompanhamento registrado."
+            reason="Cada ligação, visita ou oração com um assistido vira uma linha aqui, e a próxima ação aparece no painel."
+            hint={<>Use &quot;Registrar acompanhamento&quot; para criar o primeiro.</>}
+            action={createButton}
           />
-          <div style={{ overflowY: "auto", maxHeight: 250 }}>
-            {filteredMembers.map((m) => (
-              <div
-                key={m.id}
-                onClick={() => {
-                  onChange(m.id);
-                  setIsOpen(false);
-                  setSearch("");
-                }}
-                style={{
-                  padding: "10px 14px", cursor: "pointer",
-                  fontSize: 14, color: "var(--text)",
-                  background: m.id === value ? "var(--accent-bg)" : "transparent",
-                  transition: "background .1s",
-                }}
-                onMouseEnter={(e) => { if (m.id !== value) e.currentTarget.style.background = "var(--surface-2)"; }}
-                onMouseLeave={(e) => { if (m.id !== value) e.currentTarget.style.background = "transparent"; }}
-              >
-                {m.name}
-              </div>
-            ))}
-            {filteredMembers.length === 0 && (
-              <div style={{ padding: "14px", fontSize: 13, color: "var(--text-3)", textAlign: "center" }}>
-                Nenhum membro encontrado
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+        ) : visible.length === 0 ? (
+          <EmptyState
+            title={tab === "history" ? "Nada no histórico com esses filtros." : "Nenhuma programação pendente."}
+            reason={
+              tab === "history"
+                ? "Limpe a busca ou escolha outro tipo para ver mais registros."
+                : "Ao registrar um acompanhamento com data em Próxima ação, ele aparece aqui."
+            }
+            action={
+              typeFilter || needsOnly || query ? (
+                <Button
+                  onClick={() => {
+                    setTypeFilter("");
+                    setNeedsOnly(false);
+                    setQuery("");
+                  }}
+                >
+                  Limpar filtros
+                </Button>
+              ) : undefined
+            }
+          />
+        ) : (
+          <Card>
+            <p className="px-4 pt-3.5 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted" role="status">
+              {plural(visible.length, "registro", "registros")}
+            </p>
+            <ul className="m-0 list-none p-0">
+              {visible.map((followup) => {
+                const member = membersById.get(followup.memberId);
+                const overdue = overdueIds.has(followup.id);
+                const parsed = parseScheduledNotes(followup.notes, FOLLOWUP_TYPE_LABEL[followup.type]);
+                return (
+                  <li key={followup.id} className="border-t border-border first:border-t-0">
+                    <button
+                      type="button"
+                      onClick={() => openEdit(followup)}
+                      className="grid w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)] items-start gap-3 border-0 bg-transparent px-4 py-3 text-left text-fg hover:bg-sunken min-[720px]:grid-cols-[auto_minmax(0,1fr)_auto]"
+                    >
+                      <Avatar name={followup.member ?? ""} />
+                      <span className="grid min-w-0 gap-0.5">
+                        <span className="flex flex-wrap items-center gap-2">
+                          <b className="font-semibold">{followup.member ?? "Sem pessoa"}</b>
+                          {member?.isUrgent ? <Pill tone="danger">Urgente</Pill> : null}
+                          <Pill tone="neutral" dot={false}>
+                            <Icon name={followup.type} size={12} />
+                            {FOLLOWUP_TYPE_LABEL[followup.type]}
+                          </Pill>
+                          {overdue ? <Pill tone="danger">Ação atrasada</Pill> : null}
+                        </span>
+                        {parsed.isScheduled ? (
+                          <span className="text-[13px] font-medium">{parsed.title}</span>
+                        ) : null}
+                        {parsed.notes ? (
+                          <span className="line-clamp-2 text-[13px] text-muted">{parsed.notes}</span>
+                        ) : null}
+                        {parsed.isScheduled && (parsed.location || parsed.duration) ? (
+                          <span className="text-xs text-subtle">
+                            {[parsed.location, parsed.duration].filter(Boolean).join(" · ")}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="col-start-2 grid gap-0.5 text-xs text-muted min-[720px]:col-start-3 min-[720px]:justify-items-end">
+                        <span>
+                          {tab === "schedule" && followup.nextActionAt ? "Para " : "Aconteceu "}
+                          <span className="font-mono text-fg">
+                            {tab === "schedule" && followup.nextActionAt
+                              ? `${fmtDate(followup.nextActionAt)} ${fmtTime(followup.nextActionAt)}`
+                              : fmtDate(followup.occurredAt)}
+                          </span>
+                        </span>
+                        {tab === "history" && followup.nextActionAt ? (
+                          <span>
+                            Próxima <span className="font-mono">{fmtDate(followup.nextActionAt)}</span>
+                          </span>
+                        ) : null}
+                        {followup.caregiver ? <span>{shortName(followup.caregiver)}</span> : null}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+        )}
+      </div>
+
+      <FollowupFormDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        followup={editing}
+        defaultMemberId={
+          editing ? editing.memberId : initialMemberId && members.some((m) => m.id === initialMemberId) ? initialMemberId : ""
+        }
+        tenants={tenants}
+        members={members}
+        caregivers={caregivers}
+      />
     </div>
   );
 }

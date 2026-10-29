@@ -1,13 +1,13 @@
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
-import type { CSSProperties } from "react";
-import type { Seed, Tenant } from "@/server/domain/mvp";
-import { listCaregivers, listSeeds, listSeedsPage, listTenants } from "@/server/repositories/mvp-repository";
+import type { Seed } from "@/server/domain/mvp";
+import { listCaregivers, listMembers, listSeeds, listTenants } from "@/server/repositories/mvp-repository";
+import { listOutings } from "@/server/repositories/outing-repository";
 import { listAccessibleTenantIds } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
-import { ContactList } from "@/ui/mvp/contact-list";
-import { filterContacts, normalizePage, normalizePageSize, type ContactListingFilters } from "@/lib/listing-filters";
+import { filterContacts, type ContactListingFilters } from "@/lib/listing-filters";
+import { ContactsWorkspace } from "@/ui/coord/contacts-workspace";
+import { activeMemberCount, chipFromParam } from "@/ui/coord/seed-utils";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -17,263 +17,57 @@ function firstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function buildPageHref(basePath: string, searchParams: Record<string, string | string[] | undefined>, nextPage: number) {
-  const params = new URLSearchParams();
-  for (const [key, rawValue] of Object.entries(searchParams)) {
-    const value = firstValue(rawValue);
-    if (!value || key === "page") continue;
-    params.set(key, value);
-  }
-  params.set("page", String(nextPage));
-  return `${basePath}?${params.toString()}`;
-}
-
-const STATUS_LABELS: Record<Seed["status"], string> = {
-  new: "Novos",
-  contacted: "Contatados",
-  waiting_visit: "Esperando Visita",
-  in_progress: "Virou membro",
-  consolidated: "Consolidados",
-  inactive: "Inativos",
-};
+const VIEWS = ["quadro", "lista", "mapa"] as const;
 
 export default async function ContactsPage({ searchParams }: PageProps) {
-  const resolvedSearchParams = await searchParams;
+  const params = await searchParams;
   const session = await requireServerAuthSession("coordinator");
   const accessibleTenantIds = await listAccessibleTenantIds(session);
-  const page = normalizePage(firstValue(resolvedSearchParams.page), 1);
-  const pageSize = normalizePageSize(firstValue(resolvedSearchParams.pageSize), 10, 50);
-  const [allTenants, allCaregivers] = await Promise.all([
-    listTenants({ tenantIds: accessibleTenantIds }),
-    listCaregivers({ tenantIds: accessibleTenantIds }),
+  const scope = { tenantIds: accessibleTenantIds };
+
+  const filters: ContactListingFilters = {
+    name: firstValue(params.name),
+    city: firstValue(params.city),
+    tenantId: firstValue(params.tenantId),
+    caregiverId: firstValue(params.caregiverId),
+    dateFrom: firstValue(params.dateFrom),
+    dateTo: firstValue(params.dateTo),
+    description: firstValue(params.description),
+    status: (firstValue(params.status) as Seed["status"] | "") ?? "",
+  };
+
+  const effectiveScope = filters.tenantId ? { tenantId: filters.tenantId } : scope;
+  const [allTenants, allCaregivers, members, outings, seeds] = await Promise.all([
+    listTenants(scope),
+    listCaregivers(scope),
+    listMembers(scope),
+    listOutings(scope),
+    listSeeds(effectiveScope).then((items) => filterContacts(items, filters)),
   ]);
 
   const tenants = allTenants.filter((tenant) => accessibleTenantIds.includes(tenant.id));
   const caregivers = allCaregivers.filter((caregiver) => accessibleTenantIds.includes(caregiver.tenantId));
+  const loadByCaregiver: Record<string, number> = {};
+  for (const caregiver of caregivers) loadByCaregiver[caregiver.id] = activeMemberCount(caregiver.id, members);
 
-  const filters: ContactListingFilters = {
-    name: firstValue(resolvedSearchParams.name),
-    city: firstValue(resolvedSearchParams.city),
-    tenantId: firstValue(resolvedSearchParams.tenantId),
-    caregiverId: firstValue(resolvedSearchParams.caregiverId),
-    dateFrom: firstValue(resolvedSearchParams.dateFrom),
-    dateTo: firstValue(resolvedSearchParams.dateTo),
-    description: firstValue(resolvedSearchParams.description),
-    status: (firstValue(resolvedSearchParams.status) as Seed["status"] | "") ?? "",
-  };
-
-  const effectiveScope = filters.tenantId
-    ? { tenantId: filters.tenantId }
-    : { tenantIds: accessibleTenantIds };
-  const [filteredForSummary, paginated] = await Promise.all([
-    listSeeds(effectiveScope).then((items) => filterContacts(items, filters)),
-    listSeedsPage(effectiveScope, filters, { page, pageSize }),
-  ]);
-  const pending = filteredForSummary.filter((contact) => contact.status === "new" || contact.status === "contacted" || contact.status === "waiting_visit").length;
+  const requestedView = firstValue(params.visao);
+  const view = VIEWS.find((item) => item === requestedView);
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", padding: "0 0 32px" }}>
-      <div
-        style={{
-          padding: "24px 16px 20px",
-          borderBottom: "1px solid var(--border)",
-          background: "var(--surface)",
-          marginBottom: 24,
-        }}
-      >
-        <p
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            color: "var(--accent)",
-            marginBottom: 6,
-          }}
-        >
-          Coordenacao · Funil
-        </p>
-        <h1
-          style={{
-            margin: 0,
-            fontSize: 28,
-            fontWeight: 800,
-            letterSpacing: "-0.03em",
-            color: "var(--text)",
-            lineHeight: 1.1,
-          }}
-        >
-          Contatos
-        </h1>
-        <p style={{ marginTop: 8, fontSize: 14, color: "var(--text-2)", maxWidth: 640, lineHeight: 1.5 }}>
-          Lista operacional de triagem com filtro e paginacao. Criacao e edicao ficam em telas separadas.
-        </p>
-      </div>
-
-      <div style={{ padding: "0 16px", display: "flex", flexDirection: "column", gap: 24 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
-          <div
-            style={{
-              padding: "18px",
-              borderRadius: 16,
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              boxShadow: "var(--shadow-card)",
-              gridColumn: "span 2",
-            }}
-          >
-            <div style={{ fontSize: 12, color: "var(--text-2)", fontWeight: 500, marginBottom: 8 }}>Total filtrado</div>
-            <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1, color: "var(--accent)", letterSpacing: "-0.05em" }}>
-              {paginated.totalItems}
-            </div>
-            {pending > 0 ? <div style={{ fontSize: 12, color: "#C2410C", marginTop: 6, fontWeight: 600 }}>{pending} aguardando acao</div> : null}
-          </div>
-
-          {(Object.keys(STATUS_LABELS) as Seed["status"][]).map((key) => (
-            <div
-              key={key}
-              style={{
-                padding: "16px",
-                borderRadius: 14,
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                boxShadow: "var(--shadow-card)",
-              }}
-            >
-              <div style={{ fontSize: 11, color: "var(--text-2)", fontWeight: 600, marginBottom: 6 }}>{STATUS_LABELS[key]}</div>
-              <div style={{ fontSize: 24, fontWeight: 800, lineHeight: 1, color: "var(--text)" }}>
-                {filteredForSummary.filter((contact) => contact.status === key).length}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <section
-          style={{
-            padding: "16px",
-            borderRadius: 16,
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            boxShadow: "var(--shadow-card)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Filtros</div>
-              <div style={{ fontSize: 12.5, color: "var(--text-3)" }}>Nome, cidade, localidade, cuidador, data e descricao.</div>
-            </div>
-            <Link
-              href="/coord/contatos/novo"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 42,
-                padding: "0 16px",
-                borderRadius: 12,
-                background: "var(--accent)",
-                color: "#fff",
-                textDecoration: "none",
-                fontSize: 13.5,
-                fontWeight: 700,
-              }}
-            >
-              Novo contato
-            </Link>
-          </div>
-
-          <form method="get" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-            <input name="name" defaultValue={filters.name ?? ""} placeholder="Nome" style={inputStyle} />
-            <input name="city" defaultValue={filters.city ?? ""} placeholder="Cidade" style={inputStyle} />
-            <select name="tenantId" defaultValue={filters.tenantId ?? ""} style={inputStyle}>
-              <option value="">Todas as localidades</option>
-              {tenants.map((tenant) => (
-                <option key={tenant.id} value={tenant.id}>
-                  {tenant.name}
-                </option>
-              ))}
-            </select>
-            <select name="caregiverId" defaultValue={filters.caregiverId ?? ""} style={inputStyle}>
-              <option value="">Todos os cuidadores</option>
-              {caregivers.map((caregiver) => (
-                <option key={caregiver.id} value={caregiver.id}>
-                  {caregiver.name}
-                </option>
-              ))}
-            </select>
-            <select name="status" defaultValue={filters.status ?? ""} style={inputStyle}>
-              <option value="">Todos os status</option>
-              {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <input name="dateFrom" type="date" defaultValue={filters.dateFrom ?? ""} style={inputStyle} />
-            <input name="dateTo" type="date" defaultValue={filters.dateTo ?? ""} style={inputStyle} />
-            <input name="description" defaultValue={filters.description ?? ""} placeholder="Descricao / observacao" style={inputStyle} />
-            <input type="hidden" name="pageSize" value={String(pageSize)} />
-            <div style={{ display: "flex", gap: 8, gridColumn: "1 / -1" }}>
-              <button type="submit" style={primaryButtonStyle}>Aplicar filtros</button>
-              <Link href="/coord/contatos" style={secondaryLinkStyle}>Limpar</Link>
-            </div>
-          </form>
-        </section>
-
-        <ContactList contacts={paginated.items} tenants={tenants} />
-
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 13, color: "var(--text-3)" }}>
-            Pagina {paginated.page} de {paginated.totalPages} · {paginated.totalItems} resultado(s)
-          </span>
-          <div style={{ display: "flex", gap: 8 }}>
-            {paginated.page > 1 ? <Link href={buildPageHref("/coord/contatos", resolvedSearchParams, paginated.page - 1)} style={secondaryLinkStyle}>Anterior</Link> : null}
-            {paginated.page < paginated.totalPages ? <Link href={buildPageHref("/coord/contatos", resolvedSearchParams, paginated.page + 1)} style={secondaryLinkStyle}>Proxima</Link> : null}
-          </div>
-        </div>
-      </div>
-    </div>
+    <ContactsWorkspace
+      seeds={seeds}
+      tenants={tenants}
+      caregivers={caregivers}
+      outings={outings.filter((outing) => outing.status === "confirmed" || Boolean(outing.completedAt))}
+      loadByCaregiver={loadByCaregiver}
+      filters={filters}
+      initial={{
+        contactId: firstValue(params.contato),
+        editId: firstValue(params.editar),
+        openNew: firstValue(params.novo) === "1",
+        chip: chipFromParam(firstValue(params.filtro)),
+        view,
+      }}
+    />
   );
 }
-
-const inputStyle: CSSProperties = {
-  height: 46,
-  padding: "0 14px",
-  borderRadius: 12,
-  border: "1px solid var(--border)",
-  background: "var(--surface)",
-  color: "var(--text)",
-  fontFamily: "inherit",
-  fontSize: 14,
-};
-
-const primaryButtonStyle: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  minHeight: 42,
-  padding: "0 16px",
-  borderRadius: 12,
-  border: 0,
-  background: "var(--accent)",
-  color: "#fff",
-  fontFamily: "inherit",
-  fontSize: 13.5,
-  fontWeight: 700,
-  cursor: "pointer",
-};
-
-const secondaryLinkStyle: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  minHeight: 42,
-  padding: "0 16px",
-  borderRadius: 12,
-  border: "1px solid var(--border)",
-  background: "var(--surface)",
-  color: "var(--text)",
-  textDecoration: "none",
-  fontSize: 13.5,
-  fontWeight: 600,
-};

@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "goal": "Atalaia v2: landing e app de acolhimento pastoral reconstruídos pelo método Cortex/Asimov a partir da engenharia reversa do postman.com (estrutura, tipografia, movimento ambiente) e do linear.app (espaçamento, degraus de superfície), com identidade, texto e dados próprios.",
+  "stack": "HTML, CSS e JavaScript sem build nem dependência; canvas 2D próprio para o mapa pontilhado; Playwright só para QA.",
+  "preserve": [
+    "Modelo do produto: Seed, Member, Followup, Outing, TCI, Church, SignupChannel; papéis coordinator e caregiver",
+    "Fluxos da v1 já verificados: cadastro, avançar etapa, acompanhamento, grupos por carro, canais, onboarding",
+    "Nenhum texto, logo, imagem, cor de marca ou código do Postman ou do Linear",
+    "prefers-reduced-motion para tudo, inclusive letreiros (corrige o que o Postman não faz)"
+  ],
+  "viewports": [
+    {
+      "width": 390,
+      "height": 844
+    },
+    {
+      "width": 1440,
+      "height": 1000
+    }
+  ],
+  "sections": [
+    {
+      "id": "hero",
+      "title": "Hero noturno com palavra que troca, cursor e arco de alvorada",
+      "layout": "Postman s1: título 64px peso 500 tracking −0,035em à esquerda, palavra de destaque âmbar que troca (Acolhimento, Visitas, Cuidado, Consolidação) com cursor; parágrafo de 2 linhas; ação em forma de linha de cadastro (seletor de origem, campo mono com o exemplo, botão Cadastrar); rótulo mono maiúsculo abaixo. Embaixo, arco de horizonte em três camadas lentas e, saindo dele, a moldura do painel real com borda luminosa.",
+      "content": [
+        "Título: Acolhimento_ / Visitas_ / Cuidado_ / Consolidação_ sem ninguém esquecido.",
+        "Linha de cadastro: Culto de domingo ▾ | Francisca Araújo · (83) 99812-4410 · Mangabeira | Cadastrar",
+        "Rótulo: CADASTRE NA RECEPÇÃO · O CUIDADOR RECEBE NO CELULAR",
+        "Moldura com o painel da coordenação em miniatura (dados fictícios)"
+      ],
+      "motions": [
+        {
+          "id": "hero-frame-rise",
+          "selector": "#hero-frame",
+          "purpose": "A moldura do painel emerge do arco na chegada, sem esconder conteúdo.",
+          "trigger": "load",
+          "durationMs": 900,
+          "delayMs": 150,
+          "easing": "cubic-bezier(0.2, 0.7, 0.2, 1)",
+          "from": {
+            "translateY": 24
+          },
+          "to": {
+            "translateY": 0
+          },
+          "reduced": {
+            "translateY": 0
+          },
+          "classification": "authored"
+        }
+      ]
+    },
+    {
+      "id": "rede",
+      "title": "Faixa da rede de igrejas",
+      "layout": "Postman s2: faixa de 160px com letreiro horizontal contínuo e máscara nas bordas; aqui nomes e cidades das igrejas em mono, não logos.",
+      "content": ["Igrejas e cidades da rede de demonstração com número de contatos em jornada"],
+      "motions": []
+    },
+    {
+      "id": "cadastro",
+      "title": "Cadastro em três passos e módulos",
+      "layout": "Postman s3: coluna de texto à esquerda, passos com rótulo mono STEP à direita; grade 3×2 de módulos com nome mono e descrição; lista de perguntas que a coordenação responde num clique, com ação à direita.",
+      "content": [
+        "Passos: recepção cadastra, coordenação atribui, cuidador registra",
+        "Módulos: contatos, assistidos, saidas, encontros, canais, ajustes",
+        "Perguntas: quem está sem cuidador há mais de 2 dias? quem faltou aos 3 últimos cultos? quem pode levar gente no sábado?"
+      ],
+      "motions": [
+        {
+          "id": "modules-reveal",
+          "selector": "#modulos",
+          "purpose": "A grade de módulos sobe 16px ao entrar na tela, uma vez. Movimento autoral: o Postman não teve reveal observado na amostra.",
+          "trigger": "scroll",
+          "durationMs": 400,
+          "delayMs": 0,
+          "easing": "cubic-bezier(0.2, 0.7, 0.2, 1)",
+          "from": {
+            "translateY": 16
+          },
+          "to": {
+            "translateY": 0
+          },
+          "reduced": {
+            "translateY": 0
+          },
+          "classification": "authored"
+        }
+      ]
+    },
+    {
+      "id": "mapa",
+      "title": "Mapa pontilhado das casas",
+      "layout": "Postman s4/s5: card de duas colunas; à esquerda frase, comparação em barras com rótulos mono e lista A–D com números; à direita campo pontilhado em canvas com legenda de estados.",
+      "content": [
+        "Contatos por situação na rede de demonstração",
+        "Legenda: novo, contatado, aguardando visita, em acompanhamento, consolidado, casa aberta"
+      ],
+      "motions": []
+    },
+    {
+      "id": "fluxo",
+      "title": "Diagrama do caminho de uma pessoa e privacidade",
+      "layout": "Postman s6: diagrama com nós retangulares mono, conectores finos, etapas 01–03 em círculos e fronteira tracejada SUA IGREJA; abaixo três cards numerados.",
+      "content": [
+        "Recepção → Contato (cuidador) → Visita → Célula, dentro da fronteira SUA IGREJA",
+        "Cards: 01 Cadastrar e atribuir, 02 Visitar e registrar, 03 Consolidar com frequência"
+      ],
+      "motions": []
+    },
+    {
+      "id": "papeis",
+      "title": "Quatro frentes do produto",
+      "layout": "Postman s7: título de duas linhas e quatro cards com ícone próprio, nome, descrição e link com seta.",
+      "content": [
+        "Painel da coordenação",
+        "Celular do cuidador",
+        "Saídas em grupo",
+        "Rede de igrejas"
+      ],
+      "motions": []
+    },
+    {
+      "id": "fechamento",
+      "title": "Pré-rodapé e rodapé",
+      "layout": "Postman s8: frase de confiança centralizada, repetição da linha de cadastro do hero sobre o brilho do arco, rodapé em colunas.",
+      "content": ["Abrir a demonstração", "Criar a central da minha igreja", "Ezequiel 33:7"],
+      "motions": []
+    }
+  ]
+}

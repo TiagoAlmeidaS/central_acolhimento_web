@@ -1,0 +1,40 @@
+{
+  "id": "product/gestao-pastoral-de-acolhimento",
+  "kind": "product",
+  "title": "Gestão pastoral de acolhimento (igrejas, multi-igreja)",
+  "keywords": [
+    "igreja",
+    "pastoral",
+    "acolhimento",
+    "consolidação",
+    "consolidacao",
+    "visitas",
+    "cuidadores",
+    "voluntários",
+    "voluntarios",
+    "células",
+    "frequência",
+    "crm",
+    "comunidade",
+    "multi-tenant",
+    "ong",
+    "terceiro setor"
+  ],
+  "summary": "Coordenação e voluntários acompanham pessoas novas do primeiro contato à consolidação: fila de quem precisa de alguém, cuidador responsável sempre visível, próxima ação com data, saídas em grupo e frequência. Uso diário no celular pelo voluntário e no desktop pela coordenação.",
+  "data": {
+    "productType": "Gestão pastoral de acolhimento",
+    "keywords": "igreja, acolhimento, consolidação, cuidadores, visitas, células, frequência, multi-igreja",
+    "primaryStyleRecommendation": "Painel operacional calmo (claro primeiro, escuro derivado)",
+    "secondaryStyles": "Accessible & Ethical; Minimalism",
+    "landingPagePattern": "Hero com demonstração da jornada + passos + papéis + privacidade",
+    "dashboardStyle": "Fila de ação antes de gráfico; um acento; estado com texto",
+    "colorPaletteFocus": "Neutros com viés do acento, acento frio para ação e uma cor quente reservada à marca",
+    "keyConsiderations": "Dado religioso e de saúde é sensível (LGPD art. 11): acesso por papel e por igreja. Cuidador visível em todo lugar. Todo acompanhamento termina com a próxima ação datada. Temperatura espiritual sempre em palavra. Público com pouca familiaridade digital: formulários curtos e linguagem da igreja."
+  },
+  "source": {
+    "origin": "cortex",
+    "ref": "examples/atalaia (experimento de 27/10/2026)",
+    "license": "MIT"
+  },
+  "status": "draft"
+}

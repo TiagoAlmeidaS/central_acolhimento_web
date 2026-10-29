@@ -1,0 +1,67 @@
+{
+  "id": "palette/atalaia",
+  "kind": "palette",
+  "title": "Atalaia v2 (fundo quente medido no Postman, âmbar de marca, arco de alvorada)",
+  "keywords": [
+    "acolhimento",
+    "alvorada",
+    "ambar",
+    "atalaia",
+    "calmo",
+    "claro",
+    "escuro",
+    "igreja",
+    "pastoral",
+    "postman",
+    "quente",
+    "um acento",
+    "v2",
+    "âmbar"
+  ],
+  "summary": "Composição da v2: fundo, superfícies, borda e textos selecionados de reference/postman-home; profundidade por degraus como em reference/linear-home; acento âmbar próprio. Escuro por padrão, claro derivado.",
+  "data": {
+    "light": {
+      "background": "#faf6f1",
+      "card": "#ffffff",
+      "border": "#e6dccf",
+      "foreground": "#1d140c",
+      "mutedForeground": "#5e5246",
+      "primary": "#9a5a00",
+      "secondary": "#d88a12",
+      "destructive": "#b8352a",
+      "success": "#1d7550",
+      "warning": "#9a5600",
+      "sunken": "#f2ebe2"
+    },
+    "dark": {
+      "background": "#0e0704",
+      "card": "#17100a",
+      "border": "#2a2018",
+      "foreground": "#fff0de",
+      "mutedForeground": "#cdbfad",
+      "primary": "#f2b24c",
+      "secondary": "#6fb6ff",
+      "destructive": "#ff8a70",
+      "success": "#6fd3a2",
+      "warning": "#f2b24c",
+      "sunken": "#0a0503",
+      "raised": "#221710"
+    },
+    "background": "#0e0704",
+    "card": "#17100a",
+    "border": "#2a2018",
+    "foreground": "#fff0de",
+    "mutedForeground": "#cdbfad",
+    "primary": "#f2b24c",
+    "secondary": "#6fb6ff",
+    "destructive": "#ff8a70",
+    "ring": "#f2b24c",
+    "notes": "Arco de alvorada (landing): #ffcf7a → #ff8a4c → #d9487a → #6b3fd0 → #1f2a8c, do centro para fora. Texto sobre âmbar: #1b1206. Rótulos pequenos em #cdbfad, nunca no cinza #8a8178 observado. Origem: examples/atalaia/DESIGN.md."
+  },
+  "source": {
+    "origin": "cortex",
+    "ref": "examples/atalaia (v2): recipe.json + direcao/design-system.json",
+    "license": "MIT"
+  },
+  "status": "draft"
+}
