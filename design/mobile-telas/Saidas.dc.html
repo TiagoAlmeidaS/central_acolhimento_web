@@ -1,0 +1,130 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: "Plus Jakarta Sans", system-ui, sans-serif; background: #F5F5F7; color: #0F172A; }
+    * { box-sizing: border-box; }
+    a { color: #2D7FF9; text-decoration: none; }
+    a:hover { color: #1F6BE0; }
+    button { font-family: inherit; cursor: pointer; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 900px; background: #F5F5F7; display: flex; flex-direction: column; overflow: hidden;">
+
+  <header style="padding: 16px 18px 14px; background: #FFFFFF; border-bottom: 1px solid #E8EAEE; display: flex; flex-direction: column; gap: 12px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <button style="width: 44px; height: 44px; flex-shrink: 0; border: 1px solid #D5D9E0; border-radius: 12px; background: #FFFFFF; color: #0F172A; display: flex; align-items: center; justify-content: center;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg>
+      </button>
+      <div style="flex-grow: 1; min-width: 0;">
+        <p style="margin: 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: #EA580C;">Saída · grupos gerados</p>
+        <h1 style="margin: 2px 0 0; font-size: 17px; font-weight: 800; letter-spacing: -0.02em; color: #0F172A;">Jardim Aurora</h1>
+        <p style="margin: 1px 0 0; font-size: 12.5px; color: #94A3B8;">Sábado, 20 de setembro · 14h00</p>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+      <sc-for list="{{stats}}" as="s" hint-placeholder-count="3">
+        <div style="padding: 10px 11px; border: 1px solid #E8EAEE; border-radius: 13px; background: #F8F9FB; display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 19px; font-weight: 800; letter-spacing: -0.02em; color: {{s.color}}; font-variant-numeric: tabular-nums;">{{s.value}}</span>
+          <span style="font-size: 11px; color: #94A3B8; line-height: 1.3;">{{s.label}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </header>
+
+  <main style="flex: 1; padding: 14px 18px 24px; display: flex; flex-direction: column; gap: 12px; overflow: hidden;">
+
+    <div style="display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; background: #FFEDD5; border-left: 3px solid #EA580C;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M12 8v5"></path><path d="M12 17h.01"></path><circle cx="12" cy="12" r="9"></circle></svg>
+      <p style="margin: 0; font-size: 12.5px; line-height: 1.5; color: #4B5563;">O grupo 3 está sem carro. Mover alguém com vaga ou liberar a saída a pé.</p>
+    </div>
+
+    <sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+      <div style="background: #FFFFFF; border: 1px solid {{g.border}}; border-radius: 18px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); overflow: hidden;">
+        <div style="padding: 13px 15px; border-bottom: 1px solid #F1F3F7; display: flex; align-items: center; gap: 10px;">
+          <span style="width: 28px; height: 28px; border-radius: 9px; flex-shrink: 0; background: {{g.badgeBg}}; color: {{g.badgeFg}}; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800;">{{g.n}}</span>
+          <div style="flex-grow: 1; min-width: 0;">
+            <span style="font-size: 14.5px; font-weight: 700; color: #0F172A;">{{g.title}}</span>
+            <p style="margin: 1px 0 0; font-size: 11.5px; color: #94A3B8;">{{g.meta}}</p>
+          </div>
+          <span style="display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 999px; background: {{g.tagBg}}; color: {{g.tagFg}}; font-size: 11.5px; font-weight: 700; white-space: nowrap;">{{g.tag}}</span>
+        </div>
+        <div style="padding: 6px 0;">
+          <sc-for list="{{g.people}}" as="p" hint-placeholder-count="4">
+            <div style="display: flex; align-items: center; gap: 11px; padding: 9px 15px;">
+              <div style="width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; background: #E2E8F0; color: #64748B; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 11px;">{{p.initials}}</div>
+              <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1; min-width: 0;">
+                <span style="font-size: 13.5px; font-weight: 600; color: #0F172A;">{{p.name}}</span>
+                <span style="font-size: 11.5px; color: #94A3B8;">{{p.role}}</span>
+              </div>
+              <button style="width: 38px; height: 38px; flex-shrink: 0; border: 1px solid #E8EAEE; border-radius: 10px; background: #FFFFFF; color: #94A3B8; display: flex; align-items: center; justify-content: center;">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7h8M8 12h8M8 17h8"></path></svg>
+              </button>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+  </main>
+
+  <div style="padding: 12px 18px 26px; background: #FFFFFF; border-top: 1px solid #E8EAEE; display: flex; gap: 9px; box-shadow: 0 -4px 20px rgba(0,0,0,0.04);">
+    <button style="flex-grow: 1; height: 50px; border: 1px solid #D5D9E0; border-radius: 14px; background: #FFFFFF; color: #0F172A; font-size: 14px; font-weight: 700;">Gerar de novo</button>
+    <button style="flex-grow: 1; height: 50px; border: 1px solid transparent; border-radius: 14px; background: #2D7FF9; color: #fff; font-size: 14px; font-weight: 700;">Confirmar saída</button>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview":{"width":390,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      stats: [
+        { value: '3', label: 'grupos montados', color: '#0F172A' },
+        { value: '11', label: 'participantes', color: '#0F172A' },
+        { value: '2', label: 'carros disponíveis', color: '#EA580C' }
+      ],
+      groups: [
+        {
+          n: '1', title: 'Grupo 1', meta: 'Sai do salão · carro de Marina', tag: 'Com carro',
+          border: '#E8EAEE', badgeBg: '#E8F1FE', badgeFg: '#1D4ED8', tagBg: '#DCFCE7', tagFg: '#15803D',
+          people: [
+            { initials: 'MS', name: 'Marina Souza', role: 'Cuidadora · motorista · 4 vagas' },
+            { initials: 'JP', name: 'João Prado',   role: 'Cuidador' },
+            { initials: 'VC', name: 'Vera Campos',  role: 'Membro' },
+            { initials: 'CO', name: 'Convidado',    role: 'Visitante · primeiro sábado' }
+          ]
+        },
+        {
+          n: '2', title: 'Grupo 2', meta: 'Sai do salão · carro de Rafael', tag: 'Com carro',
+          border: '#E8EAEE', badgeBg: '#E8F1FE', badgeFg: '#1D4ED8', tagBg: '#DCFCE7', tagFg: '#15803D',
+          people: [
+            { initials: 'RC', name: 'Rafael Cunha',   role: 'Cuidador · motorista · 3 vagas' },
+            { initials: 'AL', name: 'Ana Lima',       role: 'Cuidadora' },
+            { initials: 'HN', name: 'Hélio Nunes',    role: 'Membro' },
+            { initials: 'RA', name: 'Rita Alencar',   role: 'Membro · fica com Hélio' }
+          ]
+        },
+        {
+          n: '3', title: 'Grupo 3', meta: 'Sem motorista designado', tag: 'Sem carro',
+          border: '#EA580C', badgeBg: '#FFEDD5', badgeFg: '#C2410C', tagBg: '#FFEDD5', tagFg: '#C2410C',
+          people: [
+            { initials: 'BS', name: 'Bruna Siqueira', role: 'Cuidadora' },
+            { initials: 'TV', name: 'Tiago Veloso',   role: 'Cuidador' },
+            { initials: 'MT', name: 'Marcos Teixeira', role: 'Membro' }
+          ]
+        }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

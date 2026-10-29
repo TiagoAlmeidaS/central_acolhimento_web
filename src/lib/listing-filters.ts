@@ -110,3 +110,28 @@ export function paginateItems<T>(items: T[], page: number, pageSize: number) {
     totalPages,
   };
 }
+
+export type RecorteFilters = {
+  state?: string;
+  city?: string;
+  tenantId?: string;
+};
+
+/**
+ * Localidades que sobrevivem ao recorte do painel. A lista de entrada precisa
+ * ser a mesma que popula os seletores (localidades acessiveis), senao escolher
+ * uma localidade oferecida pelo seletor devolveria um recorte vazio.
+ */
+export function filterTenantIdsByRecorte(
+  tenants: Array<{ id: string; city: string; state: string }>,
+  filters: RecorteFilters,
+) {
+  return tenants
+    .filter((tenant) => {
+      if (filters.tenantId) return tenant.id === filters.tenantId;
+      if (filters.state && tenant.state !== filters.state) return false;
+      if (filters.city && tenant.city !== filters.city) return false;
+      return true;
+    })
+    .map((tenant) => tenant.id);
+}

@@ -1,0 +1,435 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: "Plus Jakarta Sans", system-ui, sans-serif; background: #F5F5F7; color: #0F172A; }
+    * { box-sizing: border-box; }
+    a { color: #2D7FF9; text-decoration: none; }
+    a:hover { color: #1F6BE0; }
+    button { font-family: inherit; cursor: pointer; }
+  </style>
+</helmet>
+
+<div style="display: flex; width: 1440px; height: 900px; background: #F5F5F7; overflow: hidden;">
+
+  <aside style="width: 280px; flex-shrink: 0; background: #FFFFFF; border-right: 1px solid #E8EAEE; display: flex; flex-direction: column;">
+    <div style="padding: 24px; border-bottom: 1px solid #E8EAEE; display: flex; flex-direction: column; gap: 6px;">
+      <p style="margin: 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; color: #2D7FF9;">Acolhimento V2</p>
+      <h2 style="margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.025em; color: #0F172A;">Central de Acolhimento</h2>
+      <p style="margin: 0; font-size: 13px; color: #94A3B8;">Gestão local integrada</p>
+    </div>
+    <nav style="flex: 1; padding: 20px 16px; display: flex; flex-direction: column; gap: 6px;">
+      <sc-for list="{{nav}}" as="item" hint-placeholder-count="6">
+        <div style="display: flex; align-items: center; gap: 12px; border-radius: 14px; padding: 12px 16px; font-size: 14.5px; font-weight: 600; background: {{item.bg}}; color: {{item.fg}};">
+          <span style="display: flex; align-items: center; color: {{item.iconColor}};">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{item.d1}}"></path><path d="{{item.d2}}"></path></svg>
+          </span>
+          <span>{{item.label}}</span>
+        </div>
+      </sc-for>
+    </nav>
+    <div style="padding: 16px; border-top: 1px solid #E8EAEE; display: flex; align-items: center; gap: 12px;">
+      <div style="width: 40px; height: 40px; border-radius: 50%; background: #E2E8F0; color: #64748B; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13.6px;">TA</div>
+      <div style="display: flex; flex-direction: column;">
+        <span style="font-size: 13.5px; font-weight: 700; color: #0F172A;">Coordenação</span>
+        <span style="font-size: 12px; color: #94A3B8;">Campinas · SP</span>
+      </div>
+    </div>
+  </aside>
+
+  <div style="flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden;">
+
+    <header style="padding: 24px 32px 16px; display: flex; align-items: flex-start; justify-content: space-between; border-bottom: 1px solid #E8EAEE; background: #FFFFFF;">
+      <div>
+        <p style="margin: 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2em; color: #2D7FF9;">Liderança</p>
+        <h1 style="margin: 4px 0 0; font-size: 26px; font-weight: 800; letter-spacing: -0.025em; color: #0F172A;">Painel da Coordenação</h1>
+        <p style="margin: 4px 0 0; font-size: 13.5px; color: #94A3B8;">{{scopeLabel}}</p>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <button style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 18px; border: 1px solid #D5D9E0; background: #FFFFFF; color: #0F172A; border-radius: 12px; font-size: 14px; font-weight: 700;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"></path><path d="M9 12h6M9 16h6"></path></svg>
+          Gerar relatório
+        </button>
+        <button style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 18px; border: 1px solid transparent; background: #2D7FF9; color: #fff; border-radius: 12px; font-size: 14px; font-weight: 700;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+          Novo contato
+        </button>
+      </div>
+    </header>
+
+    <section style="padding: 14px 32px; background: #FFFFFF; border-bottom: 1px solid #E8EAEE; display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.16em; color: #94A3B8;">Recorte aplicado a toda a página</span>
+        <span style="height: 1px; flex-grow: 1; background: #E8EAEE;"></span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <sc-for list="{{scopeChips}}" as="chip" hint-placeholder-count="4">
+          <div style="display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border: 1px solid #D5D9E0; border-radius: 10px; background: #FFFFFF;">
+            <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #94A3B8;">{{chip.label}}</span>
+            <span style="font-size: 13px; font-weight: 700; color: #0F172A;">{{chip.value}}</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>
+          </div>
+        </sc-for>
+
+        <span style="width: 1px; height: 26px; background: #E8EAEE; margin: 0 4px;"></span>
+
+        <sc-for list="{{origins}}" as="o" hint-placeholder-count="6">
+          <button onClick="{{o.pick}}" style="display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 13px; border: 1px solid {{o.border}}; border-radius: 999px; background: {{o.bg}}; color: {{o.fg}}; font-size: 13px; font-weight: 700;">
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: {{o.dot}};"></span>
+            {{o.label}}
+          </button>
+        </sc-for>
+      </div>
+    </section>
+
+    <nav style="padding: 16px 32px 0; background: #FFFFFF; border-bottom: 1px solid #E8EAEE; display: flex; gap: 4px;">
+      <sc-for list="{{segments}}" as="s" hint-placeholder-count="5">
+        <button onClick="{{s.pick}}" style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 10px 10px 0 0; font-weight: 700; font-size: 13px; color: {{s.fg}}; background: {{s.bg}}; border-top: 2px solid {{s.borderTop}}; border-left: 1px solid {{s.borderSide}}; border-right: 1px solid {{s.borderSide}}; border-bottom: 1px solid {{s.borderBottom}}; margin-bottom: {{s.mb}};">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{s.d1}}"></path><path d="{{s.d2}}"></path></svg>
+          {{s.label}}
+        </button>
+      </sc-for>
+    </nav>
+
+    <main style="flex: 1; padding: 24px 32px; display: flex; flex-direction: column; gap: 18px; overflow: hidden;">
+
+      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px;">
+        <div>
+          <h2 style="margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -0.02em; color: #0F172A;">{{active.title}}</h2>
+          <p style="margin: 3px 0 0; font-size: 13px; color: #4B5563;">{{active.question}}</p>
+        </div>
+        <span style="font-size: 12px; color: #94A3B8; font-weight: 600;">{{filterNote}}</span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px;">
+        <sc-for list="{{kpis}}" as="k" hint-placeholder-count="4">
+          <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; padding: 16px; box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 1px 0 rgba(15,23,42,0.02); display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+              <span style="font-size: 13px; font-weight: 700; color: #94A3B8; letter-spacing: -0.01em;">{{k.label}}</span>
+              <div style="width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0; background: {{k.bg}}; color: {{k.accent}}; display: flex; align-items: center; justify-content: center;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{k.d1}}"></path><path d="{{k.d2}}"></path></svg>
+              </div>
+            </div>
+            <div style="font-size: 26px; font-weight: 800; color: #0F172A; letter-spacing: -0.025em; font-variant-numeric: tabular-nums;">{{k.value}}</div>
+            <span style="font-size: 11.5px; color: #94A3B8;">{{k.sub}}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 16px; flex-grow: 1; min-height: 0;">
+
+        <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; padding: 20px; box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 1px 0 rgba(15,23,42,0.02); display: flex; flex-direction: column; gap: 16px; overflow: hidden;">
+          <div>
+            <h3 style="margin: 0; font-size: 15px; font-weight: 800; color: #0F172A;">{{active.panelA.title}}</h3>
+            <p style="margin: 3px 0 0; font-size: 12.5px; color: #94A3B8;">{{active.panelA.sub}}</p>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 13px;">
+            <sc-for list="{{bars}}" as="b" hint-placeholder-count="6">
+              <div style="display: flex; flex-direction: column; gap: 6px; opacity: {{b.opacity}};">
+                <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px;">
+                  <span style="font-size: 13px; font-weight: 700; color: #0F172A;">{{b.label}}</span>
+                  <span style="font-size: 12.5px; color: #4B5563; font-variant-numeric: tabular-nums;">{{b.meta}}</span>
+                </div>
+                <div style="height: 10px; border-radius: 999px; background: #F1F3F7; overflow: hidden;">
+                  <div style="height: 10px; border-radius: 999px; width: {{b.width}}; background: {{b.color}};"></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 1px 0 rgba(15,23,42,0.02); display: flex; flex-direction: column; overflow: hidden;">
+          <div style="padding: 18px 20px 14px; border-bottom: 1px solid #E8EAEE; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+            <div>
+              <h3 style="margin: 0; font-size: 15px; font-weight: 800; color: #0F172A;">{{active.panelB.title}}</h3>
+              <p style="margin: 3px 0 0; font-size: 12.5px; color: #94A3B8;">{{active.panelB.sub}}</p>
+            </div>
+            <span style="font-size: 12.5px; font-weight: 800; color: #2D7FF9; white-space: nowrap;">{{active.panelB.link}}</span>
+          </div>
+          <div style="display: flex; flex-direction: column;">
+            <sc-for list="{{rows}}" as="r" hint-placeholder-count="5">
+              <div style="display: flex; align-items: center; gap: 12px; padding: 13px 20px; border-bottom: 1px solid #F1F3F7;">
+                <div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: #E2E8F0; color: #64748B; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12.2px;">{{r.initials}}</div>
+                <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1; min-width: 0;">
+                  <span style="font-size: 13.5px; font-weight: 700; color: #0F172A;">{{r.name}}</span>
+                  <span style="font-size: 12px; color: #94A3B8;">{{r.meta}}</span>
+                </div>
+                <span style="display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 999px; background: {{r.tagBg}}; color: {{r.tagFg}}; font-size: 11.5px; font-weight: 700; white-space: nowrap;">
+                  <span style="width: 6px; height: 6px; border-radius: 50%; background: {{r.tagDot}};"></span>
+                  {{r.tag}}
+                </span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { seg: 'aquisicao', origin: 'todas' };
+  }
+
+  originDefs() {
+    return [
+      { key: 'todas',   label: 'Todas as origens', dot: '#94A3B8', share: 1 },
+      { key: 'saida',   label: 'Saída',            dot: '#2D7FF9', share: 0.46 },
+      { key: 'indica',  label: 'Indicação',        dot: '#16A34A', share: 0.19 },
+      { key: 'culto',   label: 'Culto',            dot: '#7C3AED', share: 0.15 },
+      { key: 'link',    label: 'Link público',     dot: '#EA580C', share: 0.12 },
+      { key: 'whats',   label: 'WhatsApp',         dot: '#0891B2', share: 0.08 }
+    ];
+  }
+
+  segmentDefs() {
+    return [
+      {
+        key: 'aquisicao', label: 'Aquisição',
+        d1: 'M12 3v10', d2: 'M7 9l5 4 5-4M4 20h16',
+        title: 'Aquisição',
+        question: 'De onde estão vindo as pessoas, por qual canal e quem as cadastrou.',
+        kpis: [
+          { label: 'Pessoas novas', base: 48, sub: '+12 vs. período anterior', accent: '#2563EB', bg: '#DBEAFE', d1: 'M12 3v10', d2: 'M7 9l5 4 5-4M4 20h16' },
+          { label: 'Origem principal', text: 'Saída', sub: '22 pessoas · 46% do total', accent: '#2D7FF9', bg: '#E8F1FE', d1: 'M12 21s-7-4.5-9.5-9.2A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 5.8C19 16.5 12 21 12 21z', d2: '' },
+          { label: 'Taxa de 1º contato', text: '68%', sub: '33 de 48 abordados', accent: '#16A34A', bg: '#DCFCE7', d1: 'M4 12l5 5L20 6', d2: '' },
+          { label: 'Sem cuidador', base: 14, sub: 'Fila de vínculo', accent: '#EA580C', bg: '#FFEDD5', d1: 'M12 7v6', d2: 'M12 17h.01M12 3l9 16H3z' }
+        ],
+        panelA: { title: 'Funil por origem', sub: 'Cadastros do período, por canal de entrada.' },
+        bars: [
+          { key: 'saida',  label: 'Saída / Evangelismo', value: 22, color: '#2D7FF9', meta: '22 · 46%' },
+          { key: 'indica', label: 'Indicação de membro', value: 9,  color: '#16A34A', meta: '9 · 19%' },
+          { key: 'culto',  label: 'Culto / Reunião',     value: 7,  color: '#7C3AED', meta: '7 · 15%' },
+          { key: 'link',   label: 'Link público / QR',   value: 6,  color: '#EA580C', meta: '6 · 12%' },
+          { key: 'whats',  label: 'WhatsApp',            value: 3,  color: '#0891B2', meta: '3 · 6%' },
+          { key: 'outro',  label: 'Outro / não informado', value: 1, color: '#94A3B8', meta: '1 · 2%' }
+        ],
+        panelB: { title: 'Quem cadastrou', sub: 'Ator e canal por trás de cada entrada.', link: 'Ver aquisição' },
+        rows: [
+          { initials: 'MS', name: 'Marina Souza', meta: 'Cuidadora · 11 cadastros · último há 2h', tag: 'Saída', tagBg: '#E8F1FE', tagFg: '#1D4ED8', tagDot: '#2D7FF9' },
+          { initials: 'LP', name: 'Link /acolher-campinas', meta: 'Canal público · 6 cadastros · 2 pendentes', tag: 'Link', tagBg: '#FFEDD5', tagFg: '#C2410C', tagDot: '#EA580C' },
+          { initials: 'RC', name: 'Rafael Cunha', meta: 'Cuidador · 8 cadastros · último ontem', tag: 'Indicação', tagBg: '#DCFCE7', tagFg: '#15803D', tagDot: '#16A34A' },
+          { initials: 'CO', name: 'Coordenação', meta: 'Cadastro manual · 7 registros', tag: 'Manual', tagBg: '#E2E8F0', tagFg: '#475569', tagDot: '#64748B' },
+          { initials: 'AL', name: 'Ana Lima', meta: 'Cuidadora · 5 cadastros · sem 1º contato em 3', tag: 'Culto', tagBg: '#EDE9FE', tagFg: '#6D28D9', tagDot: '#7C3AED' }
+        ]
+      },
+      {
+        key: 'cuidado', label: 'Cuidado',
+        d1: 'M12 21s-7-4.5-9.5-9.2A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 5.8C19 16.5 12 21 12 21z', d2: '',
+        title: 'Cuidado',
+        question: 'Quem está sendo cuidado, em que etapa da jornada e o que está parado.',
+        kpis: [
+          { label: 'Sendo cuidados', base: 63, sub: '54% da base ativa', accent: '#16A34A', bg: '#DCFCE7', d1: 'M12 21s-7-4.5-9.5-9.2A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 5.8C19 16.5 12 21 12 21z', d2: '' },
+          { label: 'Aguardando visita', base: 18, sub: 'Casas abertas na fila', accent: '#0891B2', bg: '#ECFEFF', d1: 'M3 11l9-8 9 8', d2: 'M5 10v10h14V10' },
+          { label: 'Sem cuidador', base: 26, sub: 'Contatos + membros', accent: '#EA580C', bg: '#FFEDD5', d1: 'M12 7v6', d2: 'M12 17h.01M12 3l9 16H3z' },
+          { label: 'Urgentes', base: 5, sub: 'Prioridade de resposta', accent: '#E11D48', bg: '#FFE4E6', d1: 'M6 8a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6z', d2: 'M10 20h4' }
+        ],
+        panelA: { title: 'Jornada da pessoa', sub: 'Distribuição por etapa, do primeiro contato à consolidação.' },
+        bars: [
+          { key: 'novo',   label: 'Novo contato',      value: 31, color: '#EA580C', meta: '31 pessoas' },
+          { key: 'cont',   label: 'Contatado',         value: 22, color: '#0891B2', meta: '22 pessoas' },
+          { key: 'visita', label: 'Aguardando visita', value: 18, color: '#2D7FF9', meta: '18 pessoas' },
+          { key: 'acomp',  label: 'Em acompanhamento', value: 63, color: '#2563EB', meta: '63 pessoas' },
+          { key: 'consol', label: 'Consolidado',       value: 41, color: '#16A34A', meta: '41 pessoas' },
+          { key: 'inat',   label: 'Inativo',           value: 12, color: '#94A3B8', meta: '12 pessoas' }
+        ],
+        panelB: { title: 'Fila priorizada', sub: 'Ordenada por urgência e tempo parado.', link: 'Ver acompanhamentos' },
+        rows: [
+          { initials: 'JB', name: 'Joana Batista', meta: 'Sem cuidador há 9 dias · veio de Saída', tag: 'Urgente', tagBg: '#FFE4E6', tagFg: '#E11D48', tagDot: '#E11D48' },
+          { initials: 'PM', name: 'Pedro Martins', meta: 'Visita agendada vencida há 4 dias', tag: 'Vencido', tagBg: '#FFEDD5', tagFg: '#C2410C', tagDot: '#EA580C' },
+          { initials: 'ER', name: 'Elaine Rocha', meta: 'Sem 1º contato · veio de Link público', tag: 'Novo', tagBg: '#FFEDD5', tagFg: '#C2410C', tagDot: '#EA580C' },
+          { initials: 'SD', name: 'Sérgio Dias', meta: 'Cuidador: Marina Souza · última ação há 12 dias', tag: 'Parado', tagBg: '#E2E8F0', tagFg: '#475569', tagDot: '#64748B' },
+          { initials: 'VC', name: 'Vera Campos', meta: 'Cuidador: Rafael Cunha · pronta p/ consolidar', tag: 'Acompanhando', tagBg: '#DBEAFE', tagFg: '#1D4ED8', tagDot: '#2563EB' }
+        ]
+      },
+      {
+        key: 'igreja', label: 'Igreja',
+        d1: 'M12 3v6', d2: 'M9 6h6M5 21V11l7-5 7 5v10z',
+        title: 'Igreja',
+        question: 'Quem está reunindo, com que frequência e quem parou de aparecer.',
+        kpis: [
+          { label: 'Membros ativos', base: 184, sub: 'Vínculos ativos', accent: '#2563EB', bg: '#DBEAFE', d1: 'M12 3v6', d2: 'M9 6h6M5 21V11l7-5 7 5v10z' },
+          { label: 'Reuniram', base: 131, sub: '4 chamadas fechadas', accent: '#16A34A', bg: '#DCFCE7', d1: 'M9 8a3.5 3.5 0 1 0 0-.001', d2: 'M3 21a6 6 0 0 1 12 0' },
+          { label: 'Frequência média', text: '71%', sub: '131 de 184 elegíveis', accent: '#7C3AED', bg: 'rgba(124,58,237,0.12)', d1: 'M4 19V5', d2: 'M4 19h16M8 15v-4M13 15V9M18 15v-2' },
+          { label: 'Sem presença', base: 28, sub: 'Nenhuma presença no período', accent: '#EA580C', bg: '#FFEDD5', d1: 'M12 7v6', d2: 'M12 17h.01M12 3l9 16H3z' }
+        ],
+        panelA: { title: 'Frequência por tipo de reunião', sub: 'Presenças sobre a base elegível de chamadas fechadas.' },
+        bars: [
+          { key: 'culto',  label: 'Culto de domingo',   value: 88, color: '#7C3AED', meta: '88% · 162 de 184' },
+          { key: 'celula', label: 'Célula',             value: 64, color: '#2D7FF9', meta: '64% · 118 de 184' },
+          { key: 'oracao', label: 'Reunião de oração',  value: 47, color: '#0891B2', meta: '47% · 86 de 184' },
+          { key: 'jovens', label: 'Encontro de jovens', value: 39, color: '#16A34A', meta: '39% · 72 de 184' },
+          { key: 'disc',   label: 'Discipulado',        value: 28, color: '#EA580C', meta: '28% · 52 de 184' }
+        ],
+        panelB: { title: 'Pessoas para revisão', sub: 'Ausências seguidas, frequência em queda ou ação vencida.', link: 'Ver igreja' },
+        rows: [
+          { initials: 'CF', name: 'Cláudia Freitas', meta: '3 faltas seguidas · frequência 34%', tag: 'Alta', tagBg: '#FFE4E6', tagFg: '#E11D48', tagDot: '#E11D48' },
+          { initials: 'MT', name: 'Marcos Teixeira', meta: 'Última presença há 26 dias', tag: 'Alta', tagBg: '#FFE4E6', tagFg: '#E11D48', tagDot: '#E11D48' },
+          { initials: 'LB', name: 'Lúcia Barros', meta: '2 faltas · sem cuidador designado', tag: 'Média', tagBg: '#FFEDD5', tagFg: '#C2410C', tagDot: '#EA580C' },
+          { initials: 'HN', name: 'Hélio Nunes', meta: 'Frequência 52% · ação vencida há 6 dias', tag: 'Média', tagBg: '#FFEDD5', tagFg: '#C2410C', tagDot: '#EA580C' },
+          { initials: 'RA', name: 'Rita Alencar', meta: '1 falta justificada · em acompanhamento', tag: 'Baixa', tagBg: '#DBEAFE', tagFg: '#1D4ED8', tagDot: '#2563EB' }
+        ]
+      },
+      {
+        key: 'equipe', label: 'Equipe',
+        d1: 'M9 8a3.5 3.5 0 1 0 0-.001', d2: 'M3 21a6 6 0 0 1 12 0M17 10a2.5 2.5 0 1 0 0-.001M15 21a5 5 0 0 1 6.5-4.8',
+        title: 'Equipe',
+        question: 'Quem cuida de quem, com que carga e quem está sem movimento.',
+        kpis: [
+          { label: 'Cuidadores', base: 21, sub: '18 ativos · 3 inativos', accent: '#2563EB', bg: '#DBEAFE', d1: 'M9 8a3.5 3.5 0 1 0 0-.001', d2: 'M3 21a6 6 0 0 1 12 0' },
+          { label: 'Casos ativos', base: 63, sub: 'Membros acompanhados', accent: '#16A34A', bg: '#DCFCE7', d1: 'M12 21s-7-4.5-9.5-9.2A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 5.8C19 16.5 12 21 12 21z', d2: '' },
+          { label: 'Carga média', text: '3,0', sub: 'Casos por cuidador ativo', accent: '#7C3AED', bg: 'rgba(124,58,237,0.12)', d1: 'M4 19V5', d2: 'M4 19h16M8 15v-4M13 15V9M18 15v-2' },
+          { label: 'Sem ação há 7d', base: 4, sub: 'Cuidadores parados', accent: '#E11D48', bg: '#FFE4E6', d1: 'M12 7v5l3 2', d2: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z' }
+        ],
+        panelA: { title: 'Capacidade por cuidador', sub: 'Casos sob responsabilidade; acima de 4 é carga alta.' },
+        bars: [
+          { key: 'ms', label: 'Marina Souza',  value: 6, color: '#E11D48', meta: '6 casos · alta' },
+          { key: 'rc', label: 'Rafael Cunha',  value: 5, color: '#EA580C', meta: '5 casos · alta' },
+          { key: 'al', label: 'Ana Lima',      value: 3, color: '#2D7FF9', meta: '3 casos · normal' },
+          { key: 'jp', label: 'João Prado',    value: 2, color: '#2D7FF9', meta: '2 casos · normal' },
+          { key: 'bs', label: 'Bruna Siqueira', value: 1, color: '#16A34A', meta: '1 caso · baixa' },
+          { key: 'tv', label: 'Tiago Veloso',  value: 0, color: '#94A3B8', meta: 'sem casos' }
+        ],
+        panelB: { title: 'Cobertura por origem', sub: 'Quem recebe as pessoas de cada canal de entrada.', link: 'Ver cuidadores' },
+        rows: [
+          { initials: 'MS', name: 'Marina Souza', meta: '5 de Saída · 1 de Indicação · última ação há 2h', tag: 'Carga alta', tagBg: '#FFE4E6', tagFg: '#E11D48', tagDot: '#E11D48' },
+          { initials: 'RC', name: 'Rafael Cunha', meta: '4 de Indicação · 1 de Culto · última ação ontem', tag: 'Carga alta', tagBg: '#FFEDD5', tagFg: '#C2410C', tagDot: '#EA580C' },
+          { initials: 'AL', name: 'Ana Lima', meta: '2 de Culto · 1 de Link público', tag: 'Normal', tagBg: '#DBEAFE', tagFg: '#1D4ED8', tagDot: '#2563EB' },
+          { initials: 'JP', name: 'João Prado', meta: '2 de Saída · última ação há 9 dias', tag: 'Parado', tagBg: '#E2E8F0', tagFg: '#475569', tagDot: '#64748B' },
+          { initials: 'TV', name: 'Tiago Veloso', meta: 'Sem vínculo · disponível para a fila', tag: 'Livre', tagBg: '#DCFCE7', tagFg: '#15803D', tagDot: '#16A34A' }
+        ]
+      },
+      {
+        key: 'atividade', label: 'Atividade',
+        d1: 'M3 5h18v16H3z', d2: 'M3 10h18M8 3v4M16 3v4',
+        title: 'Atividade',
+        question: 'O que a equipe fez no período: ações, visitas, saídas e sessões.',
+        kpis: [
+          { label: 'Ações no período', base: 87, sub: 'Acompanhamentos registrados', accent: '#2D7FF9', bg: '#E8F1FE', d1: 'M3 5h18v16H3z', d2: 'M3 10h18M8 3v4M16 3v4' },
+          { label: 'Visitas realizadas', base: 34, sub: '39% das ações', accent: '#16A34A', bg: '#DCFCE7', d1: 'M3 11l9-8 9 8', d2: 'M5 10v10h14V10' },
+          { label: 'Ações vencidas', base: 11, sub: 'Próximas ações em atraso', accent: '#E11D48', bg: '#FFE4E6', d1: 'M12 7v5l3 2', d2: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z' },
+          { label: 'Saídas + TCI', text: '3 + 2', sub: '3 saídas · 2 sessões de TCI', accent: '#7C3AED', bg: 'rgba(124,58,237,0.12)', d1: 'M4 17h16', d2: 'M6 17l2-6h8l2 6M8 20h2M14 20h2' }
+        ],
+        panelA: { title: 'Ações por dia', sub: 'Últimos 7 dias, todas as origens do recorte.' },
+        bars: [
+          { key: 'seg', label: 'Segunda', value: 9,  color: '#2D7FF9', meta: '9 ações' },
+          { key: 'ter', label: 'Terça',   value: 14, color: '#2D7FF9', meta: '14 ações' },
+          { key: 'qua', label: 'Quarta',  value: 11, color: '#2D7FF9', meta: '11 ações' },
+          { key: 'qui', label: 'Quinta',  value: 18, color: '#2D7FF9', meta: '18 ações' },
+          { key: 'sex', label: 'Sexta',   value: 12, color: '#2D7FF9', meta: '12 ações' },
+          { key: 'sab', label: 'Sábado',  value: 16, color: '#2D7FF9', meta: '16 ações · saída' },
+          { key: 'dom', label: 'Domingo', value: 7,  color: '#2D7FF9', meta: '7 ações' }
+        ],
+        panelB: { title: 'Últimas interações', sub: 'Registros mais recentes da equipe.', link: 'Ver todos' },
+        rows: [
+          { initials: 'MS', name: 'Visita · Joana Batista', meta: 'Marina Souza · há 2 horas', tag: 'Visita', tagBg: '#DCFCE7', tagFg: '#15803D', tagDot: '#16A34A' },
+          { initials: 'RC', name: 'Ligação · Sérgio Dias', meta: 'Rafael Cunha · hoje, 09:40', tag: 'Ligação', tagBg: '#DBEAFE', tagFg: '#1D4ED8', tagDot: '#2563EB' },
+          { initials: 'AL', name: 'Mensagem · Elaine Rocha', meta: 'Ana Lima · ontem, 19:12', tag: 'Mensagem', tagBg: '#E8F1FE', tagFg: '#1D4ED8', tagDot: '#2D7FF9' },
+          { initials: 'JP', name: 'Oração · Vera Campos', meta: 'João Prado · ontem, 15:03', tag: 'Oração', tagBg: 'rgba(124,58,237,0.12)', tagFg: '#6D28D9', tagDot: '#7C3AED' },
+          { initials: 'CO', name: 'Saída · Jardim Aurora', meta: 'Coordenação · sábado · 12 contatos gerados', tag: 'Saída', tagBg: '#FFEDD5', tagFg: '#C2410C', tagDot: '#EA580C' }
+        ]
+      }
+    ];
+  }
+
+  renderVals() {
+    const segs = this.segmentDefs();
+    const active = segs.find((s) => s.key === this.state.seg) || segs[0];
+    const origins = this.originDefs();
+    const origin = origins.find((o) => o.key === this.state.origin) || origins[0];
+    const scaled = origin.key !== 'todas';
+
+    const nav = [
+      { label: 'Dashboard',       active: true,  d1: 'M3 11l9-8 9 8', d2: 'M5 10v10h14V10' },
+      { label: 'Novos contatos',  active: false, d1: 'M12 5v14', d2: 'M5 12h14' },
+      { label: 'Membros',         active: false, d1: 'M9 8a3.5 3.5 0 1 0 0-.001', d2: 'M3 21a6 6 0 0 1 12 0' },
+      { label: 'Igreja',          active: false, d1: 'M12 3v6', d2: 'M9 6h6M5 21V11l7-5 7 5v10z' },
+      { label: 'Cuidadores',      active: false, d1: 'M12 21s-7-4.5-9.5-9.2A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 5.8C19 16.5 12 21 12 21z', d2: '' },
+      { label: 'Acompanhamentos', active: false, d1: 'M3 5h18v16H3z', d2: 'M3 10h18M8 3v4M16 3v4' },
+      { label: 'Saídas',          active: false, d1: 'M4 17h16', d2: 'M6 17l2-6h8l2 6M8 20h2M14 20h2' }
+    ].map((item) => ({
+      label: item.label,
+      d1: item.d1,
+      d2: item.d2,
+      bg: item.active ? '#E8F1FE' : 'transparent',
+      fg: item.active ? '#2D7FF9' : '#4B5563',
+      iconColor: item.active ? '#2D7FF9' : '#94A3B8'
+    }));
+
+    const segments = segs.map((s) => ({
+      label: s.label,
+      d1: s.d1,
+      d2: s.d2 || s.d1,
+      pick: () => this.setState({ seg: s.key }),
+      fg: s.key === active.key ? '#2D7FF9' : '#4B5563',
+      bg: s.key === active.key ? '#F5F5F7' : 'transparent',
+      borderTop: s.key === active.key ? '#2D7FF9' : 'transparent',
+      borderSide: s.key === active.key ? '#E8EAEE' : 'transparent',
+      borderBottom: s.key === active.key ? '#F5F5F7' : 'transparent',
+      mb: s.key === active.key ? '-1px' : '0px'
+    }));
+
+    const originChips = origins.map((o) => ({
+      label: o.label,
+      dot: o.dot,
+      pick: () => this.setState({ origin: o.key }),
+      bg: o.key === origin.key ? '#E8F1FE' : '#FFFFFF',
+      fg: o.key === origin.key ? '#1D4ED8' : '#4B5563',
+      border: o.key === origin.key ? '#2D7FF9' : '#D5D9E0'
+    }));
+
+    const kpis = active.kpis.map((k) => ({
+      label: k.label,
+      sub: k.sub,
+      accent: k.accent,
+      bg: k.bg,
+      d1: k.d1,
+      d2: k.d2 || k.d1,
+      value: k.text !== undefined ? k.text : String(scaled ? Math.max(0, Math.round(k.base * origin.share)) : k.base)
+    }));
+
+    const maxBar = active.bars.reduce((acc, b) => (b.value > acc ? b.value : acc), 1);
+    const bars = active.bars.map((b) => ({
+      label: b.label,
+      meta: b.meta,
+      color: b.color,
+      width: Math.round((b.value / maxBar) * 100) + '%',
+      opacity: active.key === 'aquisicao' && scaled && b.key !== origin.key ? '0.32' : '1'
+    }));
+
+    const scopeChips = [
+      { label: 'Período', value: 'Semana' },
+      { label: 'Estado',  value: 'SP' },
+      { label: 'Cidade',  value: 'Campinas' },
+      { label: 'Local',   value: 'Todas' }
+    ];
+
+    return {
+      nav,
+      segments,
+      origins: originChips,
+      kpis,
+      bars,
+      rows: active.panelB.rows !== undefined ? active.panelB.rows : active.rows,
+      active,
+      scopeChips,
+      scopeLabel: 'Campinas · SP · semana de 07 a 13 de setembro · ' + origin.label.toLowerCase(),
+      filterNote: scaled ? 'Números recortados por origem: ' + origin.label : 'Todas as origens no recorte'
+    };
+  }
+}
+</script>
+</body>
+</html>

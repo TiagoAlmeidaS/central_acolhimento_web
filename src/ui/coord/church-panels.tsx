@@ -1,15 +1,12 @@
 import Link from "next/link";
-import type { ChurchMeetingType, PeopleDashboardSnapshot, PeopleDashboardView } from "@/server/domain/mvp";
+import type { PeopleDashboardSnapshot } from "@/server/domain/mvp";
 import {
   Button,
   Card,
   CardBody,
   CardHeader,
   EmptyState,
-  Input,
   Pill,
-  Select,
-  Stat,
   Table,
   Td,
   Th,
@@ -17,7 +14,6 @@ import {
   cx,
 } from "@/ui/atalaia";
 import {
-  formatComparison,
   formatDateLabel,
   formatDateTimeLabel,
   type ChurchAttentionItem,
@@ -30,283 +26,155 @@ const PRIORITY: Record<ChurchAttentionItem["priority"], { label: string; tone: "
   baixa: { label: "Baixa", tone: "cold", dot: "bg-cold" },
 };
 
-function FilterShell({ children, action = "/coord" }: { children: React.ReactNode; action?: string }) {
+/** Avisos de dados do recorte (ex.: coluna ausente), um por linha. */
+export function WarningList({ warnings }: { warnings: string[] }) {
+  if (warnings.length === 0) return null;
   return (
-    <form
-      action={action}
-      className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] items-end gap-3 border-t border-border pt-3.5"
-    >
-      {children}
-    </form>
+    <ul className="grid gap-2" aria-label="Avisos">
+      {warnings.map((warning) => (
+        <li key={warning} className="rounded-control bg-warning-soft px-3 py-2 text-[13px] text-warning">
+          {warning}
+        </li>
+      ))}
+    </ul>
   );
 }
 
-// --- Dashboard de pessoas -------------------------------------------------------------------------
+// --- Blocos do dashboard de pessoas (segmentos Cuidado e Igreja) --------------------------------
 
-export function PeoplePanel({
-  snapshot,
-  view,
-  period,
-  date,
-  state,
-  city,
-  tenantId,
-  meetingTypeId,
-  format,
-  availableStates,
-  stateCities,
-  cityTenants,
-  meetingTypes,
-  reportHref,
-}: {
-  snapshot: PeopleDashboardSnapshot;
-  view: PeopleDashboardView;
-  period: string;
-  date: string;
-  state: string;
-  city: string;
-  tenantId: string;
-  meetingTypeId: string;
-  format: string;
-  availableStates: string[];
-  stateCities: string[];
-  cityTenants: Array<{ id: string; name: string }>;
-  meetingTypes: ChurchMeetingType[];
-  reportHref: string;
-}) {
-  const s = snapshot.summary;
-  const contacts = view === "contacts";
-  const num = (value: number | null | undefined) => value ?? 0;
-
+/** Série do período + totais por cidade do estado do recorte. */
+export function PeopleTimelineCards({ snapshot, contacts }: { snapshot: PeopleDashboardSnapshot; contacts: boolean }) {
   return (
-    <div className="grid gap-4">
-      <Card aria-labelledby="people-heading">
+    <div className="grid gap-4 min-[900px]:grid-cols-2">
+      <Card aria-labelledby="timeline-heading">
         <CardHeader
-          id="people-heading"
-          title="Dashboard de pessoas"
-          meta={`${contacts ? "Contatos e andamento" : "Frequência da igreja"} · ${snapshot.filters.state}${snapshot.filters.city ? ` · ${snapshot.filters.city}` : ""}`}
+          id="timeline-heading"
+          title={contacts ? "Série do período" : "Tendência de presença"}
+          meta={contacts ? "cadastros no período" : "presenças por ocorrência fechada"}
         />
-        <CardBody>
-          <p className="text-xs text-muted">Atualizado em {formatDateTimeLabel(snapshot.generatedAt)}</p>
-          <FilterShell>
-            <input type="hidden" name="tab" value="igreja" />
-            <Select label="Lente" name="peopleView" defaultValue={view}>
-              <option value="contacts">Contatos</option>
-              <option value="church">Igreja</option>
-            </Select>
-            <Select label="Período" name="peoplePeriod" defaultValue={period}>
-              <option value="day">Dia</option>
-              <option value="week">Semana</option>
-              <option value="month">Mês</option>
-            </Select>
-            <Input label="Data" type="date" name="peopleDate" defaultValue={date} />
-            <Select label="Estado" name="peopleState" defaultValue={state}>
-              {availableStates.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </Select>
-            <Select label="Cidade" name="peopleCity" defaultValue={city}>
-              <option value="">Todas</option>
-              {stateCities.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </Select>
-            <Select label="Localidade" name="peopleTenantId" defaultValue={tenantId}>
-              <option value="">Todas</option>
-              {cityTenants.map((tenant) => (
-                <option key={tenant.id} value={tenant.id}>
-                  {tenant.name}
-                </option>
-              ))}
-            </Select>
-            {!contacts ? (
-              <Select label="Tipo" name="peopleMeetingTypeId" defaultValue={meetingTypeId}>
-                <option value="">Todos os tipos</option>
-                {meetingTypes.map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.name}
-                  </option>
+        <CardBody className="grid gap-2.5">
+          {snapshot.timeline.length > 0 ? (
+            snapshot.timeline.map((item) => (
+              <div key={item.key} className="grid grid-cols-[minmax(80px,1fr)_repeat(4,minmax(0,1fr))] items-center gap-2 text-[13px]">
+                <strong className="font-semibold">{item.label}</strong>
+                {Object.entries(item.values).map(([key, value]) => (
+                  <span key={key} className="text-muted">
+                    {key}: <b className="font-mono font-medium text-fg">{value}</b>
+                  </span>
                 ))}
-              </Select>
-            ) : null}
-            <Select label="Relatório" name="peopleFormat" defaultValue={format}>
-              <option value="csv">CSV</option>
-              <option value="pdf">PDF</option>
-            </Select>
-            <div className="flex flex-wrap gap-2">
-              <Button type="submit" icon="filter">
-                Aplicar
-              </Button>
-              <Button href={reportHref} icon="doc">
-                Gerar relatório
-              </Button>
-            </div>
-          </FilterShell>
+              </div>
+            ))
+          ) : (
+            <p className="text-[13px] text-muted">Nenhum dado no período.</p>
+          )}
         </CardBody>
       </Card>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
-        {contacts ? (
-          <>
-            <Stat label="Contatos gerados" value={num(s.generatedContacts)} note="no período" />
-            <Stat label="Sem cuidador" value={num(s.contactsWithoutCaregiver)} note="fila operacional" tone={num(s.contactsWithoutCaregiver) > 0 ? "alert" : "default"} />
-            <Stat label="1º contato pendente" value={num(s.firstContactPending)} note="sem abordagem" tone={num(s.firstContactPending) > 0 ? "alert" : "default"} />
-            <Stat label="Aguardando visita" value={num(s.waitingVisit)} note="situação atual" />
-            <Stat label="Atualizados" value={num(s.updatedInPeriod)} note="no período" />
-            <Stat label="Urgentes" value={num(s.urgentContacts)} note="prioridade" tone={num(s.urgentContacts) > 0 ? "alert" : "default"} />
-          </>
-        ) : (
-          <>
-            <Stat label="Membros ativos" value={num(s.activeMemberships)} note="vínculos ativos" />
-            <Stat label="Reuniram" value={num(s.gatheringPeople)} note={`${num(s.eligibleOccurrences)} chamada(s) fechada(s)`} />
-            <Stat label="Sem presença" value={num(s.peopleWithoutPresence)} note="no período" tone={num(s.peopleWithoutPresence) > 0 ? "alert" : "default"} />
-            <Stat label="Frequência média" value={s.averageFrequency !== null && s.averageFrequency !== undefined ? `${s.averageFrequency}%` : "—"} note={s.attendanceBase ? `${s.attendanceBase} marcações` : "sem base"} />
-            <Stat label="Justificadas" value={num(s.justifiedAbsences)} note="mantidas na base" />
-            <Stat label="Chamadas pendentes" value={num(s.pendingCalls)} note="fora da frequência" tone={num(s.pendingCalls) > 0 ? "alert" : "default"} />
-          </>
-        )}
-      </div>
-
-      {snapshot.warnings.length > 0 ? (
-        <ul className="grid gap-2" aria-label="Avisos">
-          {snapshot.warnings.map((warning) => (
-            <li key={warning} className="rounded-control bg-warning-soft px-3 py-2 text-[13px] text-warning">
-              {warning}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-
-      <div className="grid gap-4 min-[900px]:grid-cols-2">
-        <Card aria-labelledby="timeline-heading">
-          <CardHeader
-            id="timeline-heading"
-            title={contacts ? "Série do período" : "Tendência de presença"}
-            meta={contacts ? "cadastros no período" : "presenças por ocorrência fechada"}
-          />
-          <CardBody className="grid gap-2.5">
-            {snapshot.timeline.length > 0 ? (
-              snapshot.timeline.map((item) => (
-                <div key={item.key} className="grid grid-cols-[minmax(80px,1fr)_repeat(4,minmax(0,1fr))] items-center gap-2 text-[13px]">
-                  <strong className="font-semibold">{item.label}</strong>
+      <Card aria-labelledby="cities-heading">
+        <CardHeader id="cities-heading" title="Cidades do estado" meta={`totais de ${snapshot.filters.state}`} />
+        <CardBody className="grid gap-2.5">
+          {snapshot.cities.length > 0 ? (
+            snapshot.cities.map((item) => (
+              <div key={`${item.state}-${item.city}`} className="rounded-control border border-border bg-raised px-3 py-2.5">
+                <div className="mb-1 flex justify-between gap-3">
+                  <strong className="font-semibold">{item.city}</strong>
+                  <span className="font-mono text-[11px] text-muted">{item.state}</span>
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted">
                   {Object.entries(item.values).map(([key, value]) => (
-                    <span key={key} className="text-muted">
+                    <span key={key}>
                       {key}: <b className="font-mono font-medium text-fg">{value}</b>
                     </span>
                   ))}
                 </div>
-              ))
-            ) : (
-              <p className="text-[13px] text-muted">Nenhum dado no período.</p>
-            )}
-          </CardBody>
-        </Card>
+              </div>
+            ))
+          ) : (
+            <p className="text-[13px] text-muted">Nenhuma cidade com dados no recorte.</p>
+          )}
+        </CardBody>
+      </Card>
+    </div>
+  );
+}
 
-        <Card aria-labelledby="cities-heading">
-          <CardHeader id="cities-heading" title="Cidades do estado" meta={`totais de ${snapshot.filters.state}`} />
-          <CardBody className="grid gap-2.5">
-            {snapshot.cities.length > 0 ? (
-              snapshot.cities.map((item) => (
-                <div key={`${item.state}-${item.city}`} className="rounded-control border border-border bg-raised px-3 py-2.5">
-                  <div className="mb-1 flex justify-between gap-3">
-                    <strong className="font-semibold">{item.city}</strong>
-                    <span className="font-mono text-[11px] text-muted">{item.state}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted">
-                    {Object.entries(item.values).map(([key, value]) => (
-                      <span key={key}>
-                        {key}: <b className="font-mono font-medium text-fg">{value}</b>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-[13px] text-muted">Nenhuma cidade com dados no recorte.</p>
-            )}
-          </CardBody>
-        </Card>
-      </div>
-
-      <Card aria-labelledby="nominal-heading">
-        <CardHeader
-          id="nominal-heading"
-          title={contacts ? "Lista nominal de contatos" : "Lista nominal de frequência"}
-          meta={`${snapshot.people.length} registro(s)${snapshot.people.length > 20 ? " · mostrando 20" : ""}`}
-        />
-        {snapshot.people.length > 0 ? (
-          <Table caption={contacts ? "Contatos do recorte" : "Frequência do recorte"} wrapperClassName="mt-2">
-            <thead>
-              <tr>
-                <Th>Nome</Th>
-                <Th>Localidade</Th>
-                <Th>Situação</Th>
+/** Lista nominal (20 primeiros) de contatos ou de frequência. */
+export function PeopleNominalList({ snapshot, contacts }: { snapshot: PeopleDashboardSnapshot; contacts: boolean }) {
+  return (
+    <Card aria-labelledby="nominal-heading">
+      <CardHeader
+        id="nominal-heading"
+        title={contacts ? "Lista nominal de contatos" : "Lista nominal de frequência"}
+        meta={`${snapshot.people.length} registro(s)${snapshot.people.length > 20 ? " · mostrando 20" : ""}`}
+      />
+      {snapshot.people.length > 0 ? (
+        <Table caption={contacts ? "Contatos do recorte" : "Frequência do recorte"} wrapperClassName="mt-2">
+          <thead>
+            <tr>
+              <Th>Nome</Th>
+              <Th>Localidade</Th>
+              <Th>Situação</Th>
+              {contacts ? (
+                <>
+                  <Th>Origem</Th>
+                  <Th>Cuidador</Th>
+                  <Th>Criado</Th>
+                  <Th>Atualizado</Th>
+                </>
+              ) : (
+                <>
+                  <Th>Presenças</Th>
+                  <Th>Faltas</Th>
+                  <Th>Justif.</Th>
+                  <Th>Freq.</Th>
+                  <Th>Última presença</Th>
+                </>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {snapshot.people.slice(0, 20).map((person) => (
+              <Tr key={String(person.id)}>
+                <Td className="font-semibold">{String(person.name ?? "Sem nome")}</Td>
+                <Td className="text-muted">
+                  {String(person.city ?? "")}
+                  {person.state ? ` - ${String(person.state)}` : ""} · {String(person.tenantName ?? "Sem localidade")}
+                </Td>
+                <Td>
+                  <Pill tone="neutral">{String((contacts ? person.currentStatus : person.status) ?? "—")}</Pill>
+                </Td>
                 {contacts ? (
                   <>
-                    <Th>Origem</Th>
-                    <Th>Cuidador</Th>
-                    <Th>Criado</Th>
-                    <Th>Atualizado</Th>
+                    <Td>{String(person.source ?? "—")}</Td>
+                    <Td>{person.caregiver ? String(person.caregiver) : <span className="text-subtle">Sem cuidador</span>}</Td>
+                    <Td className="font-mono text-xs">{formatDateTimeLabel(String(person.createdAt ?? ""))}</Td>
+                    <Td className="font-mono text-xs">{formatDateTimeLabel(String(person.updatedAt ?? ""))}</Td>
                   </>
                 ) : (
                   <>
-                    <Th>Presenças</Th>
-                    <Th>Faltas</Th>
-                    <Th>Justif.</Th>
-                    <Th>Freq.</Th>
-                    <Th>Última presença</Th>
+                    <Td className="font-mono">{String(person.presences ?? 0)}</Td>
+                    <Td className="font-mono">{String(person.absences ?? 0)}</Td>
+                    <Td className="font-mono">{String(person.justified ?? 0)}</Td>
+                    <Td className="font-mono">
+                      {person.frequency !== null && person.frequency !== undefined ? `${String(person.frequency)}%` : "—"}
+                    </Td>
+                    <Td className="font-mono text-xs">{String(person.lastPresence ?? "—")}</Td>
                   </>
                 )}
-              </tr>
-            </thead>
-            <tbody>
-              {snapshot.people.slice(0, 20).map((person) => (
-                <Tr key={String(person.id)}>
-                  <Td className="font-semibold">{String(person.name ?? "Sem nome")}</Td>
-                  <Td className="text-muted">
-                    {String(person.city ?? "")}
-                    {person.state ? ` - ${String(person.state)}` : ""} · {String(person.tenantName ?? "Sem localidade")}
-                  </Td>
-                  <Td>
-                    <Pill tone="neutral">{String((contacts ? person.currentStatus : person.status) ?? "—")}</Pill>
-                  </Td>
-                  {contacts ? (
-                    <>
-                      <Td>{String(person.source ?? "—")}</Td>
-                      <Td>{person.caregiver ? String(person.caregiver) : <span className="text-subtle">Sem cuidador</span>}</Td>
-                      <Td className="font-mono text-xs">{formatDateTimeLabel(String(person.createdAt ?? ""))}</Td>
-                      <Td className="font-mono text-xs">{formatDateTimeLabel(String(person.updatedAt ?? ""))}</Td>
-                    </>
-                  ) : (
-                    <>
-                      <Td className="font-mono">{String(person.presences ?? 0)}</Td>
-                      <Td className="font-mono">{String(person.absences ?? 0)}</Td>
-                      <Td className="font-mono">{String(person.justified ?? 0)}</Td>
-                      <Td className="font-mono">
-                        {person.frequency !== null && person.frequency !== undefined ? `${String(person.frequency)}%` : "—"}
-                      </Td>
-                      <Td className="font-mono text-xs">{String(person.lastPresence ?? "—")}</Td>
-                    </>
-                  )}
-                </Tr>
-              ))}
-            </tbody>
-          </Table>
-        ) : (
-          <div className="p-4">
-            <EmptyState
-              title="Nenhum registro com esses filtros."
-              reason="O recorte escolhido não encontrou pessoas."
-              hint="Amplie o período, escolha “Todas” em cidade e localidade e use “Aplicar”."
-            />
-          </div>
-        )}
-      </Card>
-    </div>
+              </Tr>
+            ))}
+          </tbody>
+        </Table>
+      ) : (
+        <div className="p-4">
+          <EmptyState
+            title="Nenhum registro com esses filtros."
+            reason="O recorte escolhido não encontrou pessoas."
+            hint="Amplie o período, escolha “Todas” em cidade e localidade e use “Aplicar”."
+          />
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -340,141 +208,77 @@ function ChurchTrendChart({ data }: { data: ChurchProfileDashboard["trend"] }) {
   );
 }
 
-export function ChurchProfilePanel({
-  profile,
-  period,
-  date,
-  meetingTypeId,
-  meetingTypeName,
-  tenantName,
-}: {
-  profile: ChurchProfileDashboard;
-  period: string;
-  date: string;
-  meetingTypeId: string;
-  meetingTypeName: string | null;
-  tenantName: string;
-}) {
+export function ChurchTrendCard({ profile, meetingTypeName }: { profile: ChurchProfileDashboard; meetingTypeName: string | null }) {
   return (
-    <div className="grid gap-4">
-      <Card aria-labelledby="church-heading">
-        <CardHeader
-          id="church-heading"
-          title="Perfil da igreja"
-          meta={`${profile.range.label} · ${meetingTypeName ?? "Todos os tipos"} · ${tenantName}`}
-        />
-        <CardBody>
-          <FilterShell>
-            <input type="hidden" name="tab" value="igreja" />
-            <Select label="Visão" name="churchPeriod" defaultValue={period}>
-              <option value="day">Dia</option>
-              <option value="week">Semana</option>
-              <option value="month">Mês</option>
-            </Select>
-            <Input label="Data" type="date" name="churchDate" defaultValue={date} />
-            <Select label="Tipo" name="churchMeetingTypeId" defaultValue={meetingTypeId}>
-              <option value="">Todos os tipos</option>
-              {profile.meetingTypes.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.name}
-                </option>
-              ))}
-            </Select>
-            <div>
-              <Button type="submit" icon="filter">
-                Filtrar
-              </Button>
-            </div>
-          </FilterShell>
-        </CardBody>
-      </Card>
+    <Card aria-labelledby="trend-heading">
+      <CardHeader
+        id="trend-heading"
+        title="Tendência de participação"
+        meta={`${meetingTypeName ?? "Todos os tipos"} · ausentes ${profile.attendanceBase.absent} · justificadas ${profile.attendanceBase.justified}`}
+      />
+      <CardBody>
+        <p className="-mt-1 mb-1 text-xs text-muted">Verde: presenças na base elegível das chamadas fechadas.</p>
+        <ChurchTrendChart data={profile.trend} />
+      </CardBody>
+    </Card>
+  );
+}
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
-        <Stat label="Membros da igreja" value={profile.activeMemberships} note="vínculos ativos" />
-        <Stat
-          label="Reuniram"
-          value={profile.presentPeople.value}
-          note={`${profile.closedOccurrences.length} chamada(s) · ${formatComparison(profile.presentPeople)}`}
-        />
-        <Stat
-          label="Frequência média"
-          value={profile.attendanceBase.eligible > 0 ? `${profile.averageFrequency.value}%` : "—"}
-          note={profile.attendanceBase.eligible > 0 ? `${profile.attendanceBase.present} de ${profile.attendanceBase.eligible}` : "sem chamada fechada"}
-        />
-        <Stat label="Para revisão" value={profile.attention.length} note="frequência e cuidado" tone={profile.attention.length > 0 ? "alert" : "default"} />
-        <Stat label="Casos em andamento" value={profile.inCareCases} note="em acompanhamento" />
-        <Stat label="Contatos vencidos" value={profile.overdueContacts} note="próximas ações" tone={profile.overdueContacts > 0 ? "alert" : "default"} />
-        <Stat label="Chamadas pendentes" value={profile.pendingOccurrences.length} note="sem fechamento" tone={profile.pendingOccurrences.length > 0 ? "alert" : "default"} />
-      </div>
-
-      <div className="grid gap-4 min-[900px]:grid-cols-2">
-        <Card aria-labelledby="trend-heading">
-          <CardHeader
-            id="trend-heading"
-            title="Tendência de participação"
-            meta={`ausentes ${profile.attendanceBase.absent} · justificadas ${profile.attendanceBase.justified}`}
-          />
-          <CardBody>
-            <p className="-mt-1 mb-1 text-xs text-muted">Verde: presenças na base elegível das chamadas fechadas.</p>
-            <ChurchTrendChart data={profile.trend} />
-          </CardBody>
-        </Card>
-
-        <Card aria-labelledby="attention-heading">
-          <CardHeader
-            id="attention-heading"
-            title="Pessoas para revisão"
-            meta="ausências, frequência e ações vencidas"
-            action={
-              <Link href="/coord/igreja" className="text-[13px] text-primary underline underline-offset-2">
-                Igreja
-              </Link>
-            }
-          />
-          {profile.attention.length > 0 ? (
-            <ul className="pb-1 pt-2">
-              {profile.attention.map((item) => {
-                const priority = PRIORITY[item.priority];
-                return (
-                  <li key={item.member.id} className="grid gap-2 border-t border-border px-4 py-3 first:border-t-0">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span aria-hidden="true" className={cx("size-2 shrink-0 rounded-full", priority.dot)} />
-                          <strong className="truncate font-semibold">{item.member.name}</strong>
-                        </div>
-                        <p className="mt-0.5 text-xs text-muted">
-                          {item.caregiverName ?? "Sem cuidador"} · última presença: {item.lastPresence ? formatDateLabel(item.lastPresence) : "sem registro"}
-                        </p>
-                      </div>
-                      <Pill tone={priority.tone}>Prioridade {priority.label.toLowerCase()}</Pill>
+export function ChurchAttentionCard({ profile }: { profile: ChurchProfileDashboard }) {
+  return (
+    <Card aria-labelledby="attention-heading">
+      <CardHeader
+        id="attention-heading"
+        title="Pessoas para revisão"
+        meta="ausências, frequência e ações vencidas"
+        action={
+          <Link href="/coord/igreja" className="text-[13px] text-primary underline underline-offset-2">
+            Igreja
+          </Link>
+        }
+      />
+      {profile.attention.length > 0 ? (
+        <ul className="pb-1 pt-2">
+          {profile.attention.map((item) => {
+            const priority = PRIORITY[item.priority];
+            return (
+              <li key={item.member.id} className="grid gap-2 border-t border-border px-4 py-3 first:border-t-0">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span aria-hidden="true" className={cx("size-2 shrink-0 rounded-full", priority.dot)} />
+                      <strong className="truncate font-semibold">{item.member.name}</strong>
                     </div>
-                    <p className="text-[13px] text-muted">
-                      {item.reason}. {item.presentTotal} presença(s) em {item.sampleTotal} chamada(s).
+                    <p className="mt-0.5 text-xs text-muted">
+                      {item.caregiverName ?? "Sem cuidador"} · última presença: {item.lastPresence ? formatDateLabel(item.lastPresence) : "sem registro"}
                     </p>
-                    <div className="flex flex-wrap gap-2">
-                      <Button size="sm" href={`/coord/membros/${item.member.id}/editar`} icon="assistidos">
-                        Designar
-                      </Button>
-                      <Button size="sm" href="/coord/acompanhamentos" icon="message">
-                        Iniciar contato
-                      </Button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <div className="p-4">
-              <EmptyState
-                title="Ninguém para revisar."
-                reason="Nenhuma pessoa tem faltas seguidas, frequência baixa ou ação vencida nesta amostra."
-                hint="Quando alguém precisar de atenção, aparece aqui com os botões Designar e Iniciar contato."
-              />
-            </div>
-          )}
-        </Card>
-      </div>
-    </div>
+                  </div>
+                  <Pill tone={priority.tone}>Prioridade {priority.label.toLowerCase()}</Pill>
+                </div>
+                <p className="text-[13px] text-muted">
+                  {item.reason}. {item.presentTotal} presença(s) em {item.sampleTotal} chamada(s).
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" href={`/coord/membros/${item.member.id}/editar`} icon="assistidos">
+                    Designar
+                  </Button>
+                  <Button size="sm" href="/coord/acompanhamentos" icon="message">
+                    Iniciar contato
+                  </Button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <div className="p-4">
+          <EmptyState
+            title="Ninguém para revisar."
+            reason="Nenhuma pessoa tem faltas seguidas, frequência baixa ou ação vencida nesta amostra."
+            hint="Quando alguém precisar de atenção, aparece aqui com os botões Designar e Iniciar contato."
+          />
+        </div>
+      )}
+    </Card>
   );
 }

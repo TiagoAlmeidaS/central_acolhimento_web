@@ -69,6 +69,9 @@ type SeedRow = {
   state: string;
   house_front_image_url: string | null;
   source: string;
+  origin_channel: Seed["originChannel"];
+  origin_detail: string;
+  registered_by_tenant_user_id: string | null;
   status: Seed["status"];
   notes: string;
   first_contact_at: string | null;
@@ -183,6 +186,9 @@ function mapSeed(row: SeedRow): Seed {
     state: row.state,
     houseFrontImageUrl: row.house_front_image_url,
     source: row.source,
+    originChannel: row.origin_channel ?? "other",
+    originDetail: row.origin_detail ?? "",
+    registeredByTenantUserId: row.registered_by_tenant_user_id ?? null,
     status: row.status,
     notes: row.notes,
     firstContactAt: serializeDateValue(row.first_contact_at),
@@ -290,6 +296,9 @@ function buildLocalSeeds(): Seed[] {
       state: "",
       houseFrontImageUrl: null,
       source: "Contato no culto",
+      originChannel: "church_service",
+      originDetail: "Contato no culto",
+      registeredByTenantUserId: null,
       status: "contacted",
       notes: "Primeiro acolhimento feito pelo cuidador.",
       firstContactAt: new Date().toISOString(),
@@ -315,6 +324,9 @@ function buildLocalSeeds(): Seed[] {
       state: "",
       houseFrontImageUrl: null,
       source: "Visita residencial",
+      originChannel: "other",
+      originDetail: "Visita residencial",
+      registeredByTenantUserId: null,
       status: "new",
       notes: "Novo contato aguardando primeiro retorno.",
       firstContactAt: null,
@@ -866,6 +878,9 @@ export async function createSeed(input: CreateSeedInput, options?: { changedByTe
       state: input.state ?? "",
       houseFrontImageUrl: input.houseFrontImageUrl ?? null,
       source: input.source ?? "",
+      originChannel: input.originChannel ?? "other",
+      originDetail: input.originDetail ?? "",
+      registeredByTenantUserId: input.registeredByTenantUserId ?? options?.changedByTenantUserId ?? null,
       status: input.status ?? "new",
       notes: input.notes ?? "",
       firstContactAt: input.firstContactAt ?? null,
@@ -890,8 +905,8 @@ export async function createSeed(input: CreateSeedInput, options?: { changedByTe
 
   const db = ensureDb();
   const result = await db.query<SeedRow>(
-    `insert into seeds (tenant_id, caregiver_id, reference_name, age, phone, city, postal_code, open_house, address, street, neighborhood, address_number, state, house_front_image_url, source, status, notes, first_contact_at, latitude, longitude, is_urgent, outing_event_id)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+    `insert into seeds (tenant_id, caregiver_id, reference_name, age, phone, city, postal_code, open_house, address, street, neighborhood, address_number, state, house_front_image_url, source, origin_channel, origin_detail, registered_by_tenant_user_id, status, notes, first_contact_at, latitude, longitude, is_urgent, outing_event_id)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
      returning *`,
     [
       input.tenantId,
@@ -909,6 +924,9 @@ export async function createSeed(input: CreateSeedInput, options?: { changedByTe
       input.state ?? "",
       input.houseFrontImageUrl ?? null,
       input.source ?? "",
+      input.originChannel ?? "other",
+      input.originDetail ?? "",
+      input.registeredByTenantUserId ?? options?.changedByTenantUserId ?? null,
       input.status ?? "new",
       input.notes ?? "",
       input.firstContactAt ?? null,
@@ -942,6 +960,9 @@ export async function updateSeed(id: string, input: UpdateSeedInput, options?: {
       state: input.state ?? "",
       houseFrontImageUrl: input.houseFrontImageUrl ?? null,
       source: input.source ?? "",
+      originChannel: input.originChannel ?? currentSeed?.originChannel ?? "other",
+      originDetail: input.originDetail ?? currentSeed?.originDetail ?? "",
+      registeredByTenantUserId: currentSeed?.registeredByTenantUserId ?? input.registeredByTenantUserId ?? null,
       status: input.status ?? "new",
       notes: input.notes ?? "",
       firstContactAt: input.firstContactAt ?? null,
@@ -995,13 +1016,15 @@ export async function updateSeed(id: string, input: UpdateSeedInput, options?: {
               state = $14,
               house_front_image_url = $15,
               source = $16,
-              status = $17,
-              notes = $18,
-              first_contact_at = $19,
-              latitude = $20,
-              longitude = $21,
-              is_urgent = $22,
-              outing_event_id = $23
+              origin_channel = $17,
+              origin_detail = $18,
+              status = $19,
+              notes = $20,
+              first_contact_at = $21,
+              latitude = $22,
+              longitude = $23,
+              is_urgent = $24,
+              outing_event_id = $25
         where id = $1
         returning *`,
       [
@@ -1021,6 +1044,8 @@ export async function updateSeed(id: string, input: UpdateSeedInput, options?: {
         input.state ?? "",
         input.houseFrontImageUrl ?? null,
         input.source ?? "",
+        input.originChannel ?? currentSeed.origin_channel ?? "other",
+        input.originDetail ?? currentSeed.origin_detail ?? "",
         nextStatus,
         input.notes ?? "",
         input.firstContactAt ?? null,

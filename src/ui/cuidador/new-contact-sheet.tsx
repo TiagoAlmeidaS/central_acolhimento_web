@@ -1,8 +1,13 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import type { AuthSession } from "@/server/domain/mvp";
+import type { AuthSession, SeedOriginChannel } from "@/server/domain/mvp";
 import { ALL_CIDADES, ESTADOS_BRASIL } from "@/lib/br-locations";
+import {
+  SEED_ORIGIN_CHANNELS,
+  SEED_ORIGIN_CHANNEL_DETAIL_PLACEHOLDERS,
+  SEED_ORIGIN_CHANNEL_LABELS,
+} from "@/lib/seed-origin";
 import { Button, Input, Select, Textarea } from "@/ui/atalaia";
 import { LocationPicker, type LocationAddressFill } from "@/ui/mvp/location-picker";
 import { formatPhone, formatPostalCode, normalizePostalCode } from "@/ui/mvp/contact-form-utils";
@@ -22,6 +27,8 @@ function emptyForm(city: string): FormState {
     age: "",
     phone: "",
     city,
+    originChannel: "",
+    originDetail: "",
     notes: "",
     openHouse: false,
     postalCode: "",
@@ -129,6 +136,10 @@ export function NewContactSheet({ open, session, onClose, onSaved }: NewContactS
       setError("Informe o nome para cadastrar o contato.");
       return;
     }
+    if (!form.originChannel) {
+      setError("Escolha a origem do contato.");
+      return;
+    }
     setSaving(true);
     setError(null);
     const result = await createSeed(session, { ...form, name: form.name.trim() });
@@ -153,7 +164,7 @@ export function NewContactSheet({ open, session, onClose, onSaved }: NewContactS
           <Button variant="ghost" onClick={onClose} disabled={saving}>
             Cancelar
           </Button>
-          <Button variant="primary" type="submit" form={FORM_ID} loading={saving} disabled={!form.name.trim()}>
+          <Button variant="primary" type="submit" form={FORM_ID} loading={saving} disabled={!form.name.trim() || !form.originChannel}>
             {saving ? "Cadastrando..." : "Cadastrar contato"}
           </Button>
         </>
@@ -198,6 +209,29 @@ export function NewContactSheet({ open, session, onClose, onSaved }: NewContactS
             <option key={city} value={city} />
           ))}
         </datalist>
+
+        <Select
+          label="Origem do contato *"
+          value={form.originChannel}
+          onChange={(event) => update("originChannel", event.target.value as SeedOriginChannel)}
+          options={SEED_ORIGIN_CHANNELS.map((channel) => ({
+            value: channel,
+            label: SEED_ORIGIN_CHANNEL_LABELS[channel],
+          }))}
+          placeholder="Selecione a origem"
+          required
+        />
+        <Input
+          label="Detalhe da origem"
+          value={form.originDetail}
+          onChange={(event) => update("originDetail", event.target.value)}
+          placeholder={
+            form.originChannel
+              ? SEED_ORIGIN_CHANNEL_DETAIL_PLACEHOLDERS[form.originChannel]
+              : "Qual saída, quem indicou, qual link..."
+          }
+          hint="Ajuda a saber de onde a pessoa veio. Opcional."
+        />
 
         <Textarea
           label="Observações iniciais"

@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { Member, Seed } from "@/server/domain/mvp";
+import type { Followup, Member, Seed } from "@/server/domain/mvp";
 import {
   buildMemberJourneyDistribution,
   countOperationalAlerts,
+  countPeopleWithOverdueNextAction,
   mapMemberStatusToVisualStatus,
 } from "@/ui/mvp/dashboard-status-utils";
 
@@ -59,6 +60,64 @@ function createSeed(overrides: Partial<Seed>): Seed {
     ...overrides,
   };
 }
+
+function createFollowup(overrides: Partial<Followup>): Followup {
+  return {
+    id: "followup-1",
+    tenantId: "tenant-1",
+    memberId: "member-1",
+    caregiverId: null,
+    type: "visit",
+    occurredAt: "2026-01-01T12:00:00.000Z",
+    notes: "",
+    nextActionAt: null,
+    ...overrides,
+  };
+}
+
+describe("countPeopleWithOverdueNextAction", () => {
+  const now = new Date("2026-03-10T12:00:00.000Z");
+
+  it("nao conta pessoa sem followup", () => {
+    expect(countPeopleWithOverdueNextAction([], now)).toBe(0);
+  });
+
+  it("nao conta pessoa com proxima acao futura", () => {
+    const followups = [createFollowup({ id: "f1", memberId: "m1", occurredAt: "2026-03-01T12:00:00.000Z", nextActionAt: "2026-03-20T12:00:00.000Z" })];
+    expect(countPeopleWithOverdueNextAction(followups, now)).toBe(0);
+  });
+
+  it("conta pessoa com proxima acao vencida", () => {
+    const followups = [createFollowup({ id: "f1", memberId: "m1", occurredAt: "2026-03-01T12:00:00.000Z", nextActionAt: "2026-03-05T12:00:00.000Z" })];
+    expect(countPeopleWithOverdueNextAction(followups, now)).toBe(1);
+  });
+
+  it("conta a pessoa uma vez mesmo com varios followups vencidos", () => {
+    const followups = [
+      createFollowup({ id: "f1", memberId: "m1", occurredAt: "2026-02-01T12:00:00.000Z", nextActionAt: "2026-02-05T12:00:00.000Z" }),
+      createFollowup({ id: "f2", memberId: "m1", occurredAt: "2026-02-10T12:00:00.000Z", nextActionAt: "2026-02-15T12:00:00.000Z" }),
+      createFollowup({ id: "f3", memberId: "m1", occurredAt: "2026-03-01T12:00:00.000Z", nextActionAt: "2026-03-05T12:00:00.000Z" }),
+    ];
+    expect(countPeopleWithOverdueNextAction(followups, now)).toBe(1);
+  });
+
+  it("encerra a pendencia quando o followup mais novo nao tem proxima acao", () => {
+    const followups = [
+      createFollowup({ id: "f1", memberId: "m1", occurredAt: "2026-02-01T12:00:00.000Z", nextActionAt: "2026-02-05T12:00:00.000Z" }),
+      createFollowup({ id: "f2", memberId: "m1", occurredAt: "2026-03-02T12:00:00.000Z", nextActionAt: null }),
+    ];
+    expect(countPeopleWithOverdueNextAction(followups, now)).toBe(0);
+  });
+
+  it("conta pessoas distintas separadamente", () => {
+    const followups = [
+      createFollowup({ id: "f1", memberId: "m1", occurredAt: "2026-03-01T12:00:00.000Z", nextActionAt: "2026-03-05T12:00:00.000Z" }),
+      createFollowup({ id: "f2", memberId: "m2", occurredAt: "2026-03-02T12:00:00.000Z", nextActionAt: "2026-03-06T12:00:00.000Z" }),
+      createFollowup({ id: "f3", memberId: "m3", occurredAt: "2026-03-02T12:00:00.000Z", nextActionAt: "2026-03-30T12:00:00.000Z" }),
+    ];
+    expect(countPeopleWithOverdueNextAction(followups, now)).toBe(2);
+  });
+});
 
 describe("dashboard status utils", () => {
   it("builds an exclusive member journey distribution", () => {

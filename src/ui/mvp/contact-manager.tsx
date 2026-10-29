@@ -4,6 +4,7 @@ import { startTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { OutingEvent, Seed, Tenant } from "@/server/domain/mvp";
 import { formatPhone } from "@/ui/mvp/contact-form-utils";
+import { seedOriginText } from "@/lib/seed-origin";
 import { Avatar, Button, Card, CardBody, CardHeader, EmptyState, StatusPill, useToast } from "@/ui/atalaia";
 import { ContactForm } from "@/ui/coord/contact-form";
 import { convertSeedRequest, deleteSeedRequest, SEED_STATUS_LABEL } from "@/ui/coord/seed-utils";
@@ -141,7 +142,7 @@ export function ContactManager({
 
                     <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted">
                       {contact.age !== null ? <span>Idade: {contact.age}</span> : null}
-                      {contact.source ? <span>Origem: {contact.source}</span> : null}
+                      <span>Origem: {seedOriginText(contact)}</span>
                       {contact.openHouse ? <span>Casa aberta</span> : null}
                     </div>
 

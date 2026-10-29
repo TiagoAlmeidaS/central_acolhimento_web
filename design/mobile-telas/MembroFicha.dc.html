@@ -1,0 +1,152 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: "Plus Jakarta Sans", system-ui, sans-serif; background: #F5F5F7; color: #0F172A; }
+    * { box-sizing: border-box; }
+    a { color: #2D7FF9; text-decoration: none; }
+    a:hover { color: #1F6BE0; }
+    button { font-family: inherit; cursor: pointer; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 900px; background: #F5F5F7; display: flex; flex-direction: column; overflow: hidden;">
+
+  <header style="padding: 16px 18px 18px; background: #FFFFFF; border-bottom: 1px solid #E8EAEE; display: flex; flex-direction: column; gap: 15px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+      <button style="width: 44px; height: 44px; border: 1px solid #D5D9E0; border-radius: 12px; background: #FFFFFF; color: #0F172A; display: flex; align-items: center; justify-content: center;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg>
+      </button>
+      <button style="height: 44px; padding: 0 15px; border: 1px solid #D5D9E0; border-radius: 12px; background: #FFFFFF; color: #0F172A; font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 7px;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16z"></path><path d="M14 6l4 4"></path></svg>
+        Editar
+      </button>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <div style="width: 62px; height: 62px; border-radius: 50%; flex-shrink: 0; background: #E2E8F0; color: #64748B; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 21px;">CF</div>
+      <div style="display: flex; flex-direction: column; gap: 5px; min-width: 0;">
+        <h1 style="margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.025em; color: #0F172A;">Cláudia Freitas</h1>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <span style="display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 999px; background: #DBEAFE; color: #1D4ED8; font-size: 11.5px; font-weight: 700;"><span style="width: 5px; height: 5px; border-radius: 50%; background: currentColor;"></span>Acompanhando</span>
+          <span style="display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 999px; background: #FFEDD5; color: #C2410C; font-size: 11.5px; font-weight: 700;"><span style="width: 5px; height: 5px; border-radius: 50%; background: #F59E0B;"></span>Morno</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 8px;">
+      <button style="flex-grow: 1; min-height: 48px; border: 1px solid transparent; border-radius: 13px; background: #22C55E; color: #fff; font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 7px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.2-6.9"></path><path d="M8 10.5c.7 2.2 2.3 3.8 4.5 4.5l1.4-1.4 2.6 1v2.1c-3.9.4-7.6-3.3-8-7.2h2.1z"></path></svg>
+        WhatsApp
+      </button>
+      <button style="flex-grow: 1; min-height: 48px; border: 1px solid #D5D9E0; border-radius: 13px; background: #FFFFFF; color: #0F172A; font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 7px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h3l2 5-2 1a12 12 0 0 0 6 6l1-2 5 2v3a2 2 0 0 1-2 2A17 17 0 0 1 4 5a2 2 0 0 1 2-2z"></path></svg>
+        Ligar
+      </button>
+      <button style="width: 52px; min-height: 48px; border: 1px solid #D5D9E0; border-radius: 13px; background: #FFFFFF; color: #2D7FF9; display: inline-flex; align-items: center; justify-content: center;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>
+      </button>
+    </div>
+  </header>
+
+  <main style="flex: 1; padding: 14px 18px 24px; display: flex; flex-direction: column; gap: 13px; overflow: hidden;">
+
+    <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; padding: 16px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 12px;">
+      <h2 style="margin: 0; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #94A3B8;">Ficha</h2>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px;">
+        <sc-for list="{{fields}}" as="f" hint-placeholder-count="6">
+          <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+            <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; color: #94A3B8;">{{f.label}}</span>
+            <span style="font-size: 13.5px; font-weight: 600; color: {{f.color}};">{{f.value}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; padding: 16px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px;">
+        <h2 style="margin: 0; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #94A3B8;">Presença na igreja</h2>
+        <span style="font-size: 12.5px; font-weight: 800; color: #E11D48;">3 faltas seguidas</span>
+      </div>
+      <div style="display: flex; gap: 5px;">
+        <sc-for list="{{attendance}}" as="a" hint-placeholder-count="8">
+          <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 5px;">
+            <div style="width: 100%; height: 34px; border-radius: 7px; background: {{a.color}};"></div>
+            <span style="font-size: 10px; color: #94A3B8;">{{a.label}}</span>
+          </div>
+        </sc-for>
+      </div>
+      <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #4B5563;">Frequência de 34% nas últimas 8 chamadas fechadas. Última presença em 16 de agosto.</p>
+    </div>
+
+    <div style="background: #FFFFFF; border: 1px solid #E8EAEE; border-radius: 18px; padding: 16px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 13px;">
+      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px;">
+        <h2 style="margin: 0; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #94A3B8;">Histórico de cuidado</h2>
+        <span style="font-size: 12.5px; font-weight: 800; color: #2D7FF9;">Ver tudo</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 0;">
+        <sc-for list="{{timeline}}" as="t" hint-placeholder-count="4">
+          <div style="display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 12px;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 3px;">
+              <span style="width: 11px; height: 11px; border-radius: 50%; background: {{t.dot}}; margin-top: 4px; flex-shrink: 0;"></span>
+              <span style="width: 2px; flex-grow: 1; background: #EEF0F4;"></span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 2px; padding-bottom: 15px; min-width: 0;">
+              <span style="font-size: 13.5px; font-weight: 700; color: #0F172A;">{{t.title}}</span>
+              <span style="font-size: 12px; color: #94A3B8;">{{t.meta}}</span>
+              <span style="font-size: 12.5px; line-height: 1.5; color: #4B5563;">{{t.note}}</span>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <button style="height: 48px; width: 100%; border: 1px solid transparent; border-radius: 14px; background: #2D7FF9; color: #fff; font-size: 14.5px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+        Registrar acompanhamento
+      </button>
+    </div>
+
+  </main>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview":{"width":390,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      fields: [
+        { label: 'Cuidadora',  value: 'Ana Lima',            color: '#0F172A' },
+        { label: 'Telefone',   value: '(19) 9xxxx-4471',     color: '#0F172A' },
+        { label: 'Cidade',     value: 'Campinas · Taquaral', color: '#0F172A' },
+        { label: 'Idade',      value: '43 anos',             color: '#0F172A' },
+        { label: 'Origem',     value: 'Culto de domingo',    color: '#6D28D9' },
+        { label: 'Na base há', value: '7 meses',             color: '#0F172A' }
+      ],
+      attendance: [
+        { label: '16/8', color: '#16A34A' },
+        { label: '23/8', color: '#EA580C' },
+        { label: '30/8', color: '#0891B2' },
+        { label: '06/9', color: '#EA580C' },
+        { label: '13/9', color: '#EA580C' },
+        { label: '20/9', color: '#F1F3F7' },
+        { label: '27/9', color: '#F1F3F7' },
+        { label: '04/10', color: '#F1F3F7' }
+      ],
+      timeline: [
+        { title: 'Mensagem enviada', meta: 'Ana Lima · há 3 dias',        note: 'Sem resposta até agora. Próxima ação marcada para hoje.', dot: '#2D7FF9' },
+        { title: 'Falta no culto',   meta: 'Chamada de 06/09',            note: 'Terceira ausência seguida, sem justificativa registrada.', dot: '#EA580C' },
+        { title: 'Visita realizada', meta: 'Ana Lima · 24 de agosto',     note: 'Conversa sobre a mudança de turno no trabalho.',          dot: '#16A34A' },
+        { title: 'Entrou na base',   meta: 'Culto de domingo · fevereiro', note: 'Cadastrada após a reunião, sem cuidador nos 11 primeiros dias.', dot: '#94A3B8' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

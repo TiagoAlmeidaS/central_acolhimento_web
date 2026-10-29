@@ -1,4 +1,5 @@
 import type { Followup, FollowupType, Member, Seed, SpiritualTemperature } from "@/server/domain/mvp";
+import { seedOriginText } from "@/lib/seed-origin";
 import type { IconName } from "@/ui/atalaia";
 
 /** Fuso fixo: servidor e navegador formatam as datas igual (evita erro de hidratação). */
@@ -286,7 +287,7 @@ export function buildCarePeople(members: Member[], seeds: Seed[], followups: Fol
       address: seed.address || "",
       age: seed.age,
       openHouse: seed.openHouse,
-      source: seed.source || "",
+      source: seedOriginText(seed),
       caregiverId: seed.caregiverId,
       since: seed.firstContactAt ?? seed.createdAt ?? null,
       lastContactAt: seed.firstContactAt ?? null,

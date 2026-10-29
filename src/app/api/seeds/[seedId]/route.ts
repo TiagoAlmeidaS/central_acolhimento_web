@@ -7,6 +7,11 @@ import {
 } from "@/server/auth/access-scope";
 import { requireServerAuthSession } from "@/server/auth/session";
 import { validateHouseFrontImageDataUrl } from "@/lib/house-front-image";
+import {
+  parseSeedOriginChannelForUpdate,
+  SEED_ORIGIN_CHANNEL_ABSENT,
+  SEED_ORIGIN_CHANNEL_INVALID_MESSAGE,
+} from "@/lib/seed-origin";
 import { deleteSeed, listSeeds, updateSeed } from "@/server/repositories/mvp-repository";
 import { getOutingDetail } from "@/server/repositories/outing-repository";
 
@@ -41,6 +46,8 @@ export async function PUT(request: Request, context: RouteContext) {
       state?: string;
       houseFrontImageUrl?: string | null;
       source?: string;
+      originChannel?: string;
+      originDetail?: string;
       status?: "new" | "contacted" | "waiting_visit" | "in_progress" | "consolidated" | "inactive";
       notes?: string;
       firstContactAt?: string | null;
@@ -61,6 +68,14 @@ export async function PUT(request: Request, context: RouteContext) {
     if (imageValidationError) {
       return Response.json({ error: imageValidationError }, { status: 400 });
     }
+
+    // Campo ausente no corpo significa "nao mexer": o PUT parcial do app do
+    // cuidador (adotar/inativar) nao pode zerar a origem ja registrada.
+    const parsedOriginChannel = parseSeedOriginChannelForUpdate(body.originChannel);
+    if (!parsedOriginChannel) {
+      return Response.json({ error: SEED_ORIGIN_CHANNEL_INVALID_MESSAGE }, { status: 400 });
+    }
+    const originChannel = parsedOriginChannel === SEED_ORIGIN_CHANNEL_ABSENT ? undefined : parsedOriginChannel;
 
     const tenantId = await resolveTenantIdForUserAccess(session, body.tenantId);
     if (body.outingEventId) {
@@ -85,6 +100,8 @@ export async function PUT(request: Request, context: RouteContext) {
         state: body.state,
         houseFrontImageUrl: body.houseFrontImageUrl ?? null,
         source: body.source,
+        originChannel,
+        originDetail: body.originDetail ?? undefined,
         status: body.status,
         notes: body.notes,
         firstContactAt: body.firstContactAt ?? null,

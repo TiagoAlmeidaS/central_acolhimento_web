@@ -1,6 +1,40 @@
-import type { Member, Seed, SpiritualTemperature } from "@/server/domain/mvp";
+import type { Followup, Member, Seed, SpiritualTemperature } from "@/server/domain/mvp";
 
 export type JourneyStatusKey = "novo" | "acompanhamento" | "concluido" | "inativo";
+
+/**
+ * Mapa de PESSOAS (member_id) cuja proxima acao mais recente esta vencida, com
+ * o followup responsavel. Para cada pessoa vale apenas o followup de maior
+ * occurredAt: se ele tem nextActionAt no passado, a pessoa entra no mapa; se o
+ * followup mais novo nao tem nextActionAt, a pendencia anterior esta encerrada.
+ * Fonte unica da regra — o KPI e a fila de revisao leem daqui.
+ */
+export function buildOverdueNextActionByMember(followups: Followup[], now: Date = new Date()) {
+  const latestByMember = new Map<string, Followup>();
+
+  for (const followup of followups) {
+    if (!followup.memberId) continue;
+    const current = latestByMember.get(followup.memberId);
+    if (!current || (followup.occurredAt ?? "") > (current.occurredAt ?? "")) {
+      latestByMember.set(followup.memberId, followup);
+    }
+  }
+
+  const reference = now.getTime();
+  const overdue = new Map<string, Followup>();
+  for (const [memberId, followup] of latestByMember) {
+    if (!followup.nextActionAt) continue;
+    const nextAction = new Date(followup.nextActionAt).getTime();
+    if (Number.isNaN(nextAction)) continue;
+    if (nextAction < reference) overdue.set(memberId, followup);
+  }
+
+  return overdue;
+}
+
+export function countPeopleWithOverdueNextAction(followups: Followup[], now: Date = new Date()) {
+  return buildOverdueNextActionByMember(followups, now).size;
+}
 
 export function countOperationalAlerts(members: Member[], seeds: Seed[]) {
   return {

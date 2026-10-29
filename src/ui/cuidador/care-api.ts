@@ -1,4 +1,4 @@
-import type { AuthSession, FollowupType, Member, Seed, SpiritualTemperature } from "@/server/domain/mvp";
+import type { AuthSession, FollowupType, Member, Seed, SeedOriginChannel, SpiritualTemperature } from "@/server/domain/mvp";
 
 /**
  * Chamadas às mesmas APIs que o app do cuidador já usava (/api/followups, /api/seeds,
@@ -145,6 +145,8 @@ export type NewContactPayload = {
   age: string;
   phone: string;
   city: string;
+  originChannel: SeedOriginChannel | "";
+  originDetail: string;
   notes: string;
   openHouse: boolean;
   postalCode: string;
@@ -173,6 +175,8 @@ export function createSeed(session: AuthSession, form: NewContactPayload) {
       status: "new",
       notes: form.notes,
       source: "Cuidador",
+      originChannel: form.originChannel,
+      originDetail: form.originDetail.trim(),
       openHouse: form.openHouse,
       address,
       street: form.openHouse ? form.street : "",

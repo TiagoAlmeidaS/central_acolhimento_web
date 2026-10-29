@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import type { Caregiver, OutingEvent, Seed, Tenant } from "@/server/domain/mvp";
+import type { Caregiver, OutingEvent, Seed, SeedOriginChannel, Tenant } from "@/server/domain/mvp";
 import {
   estimateBase64Bytes,
   HOUSE_FRONT_IMAGE_MAX_DIMENSION,
@@ -14,6 +14,11 @@ import {
   normalizePhone,
   normalizePostalCode,
 } from "@/ui/mvp/contact-form-utils";
+import {
+  SEED_ORIGIN_CHANNELS,
+  SEED_ORIGIN_CHANNEL_DETAIL_PLACEHOLDERS,
+  SEED_ORIGIN_CHANNEL_LABELS,
+} from "@/lib/seed-origin";
 import { LocationPicker, type LocationAddressFill } from "@/ui/mvp/location-picker";
 import { buttonClass, Eyebrow, Input, Select, Textarea } from "@/ui/atalaia";
 import { Check } from "@/ui/coord/check";
@@ -121,6 +126,8 @@ type FormState = {
   city: string;
   postalCode: string;
   source: string;
+  originChannel: SeedOriginChannel | "";
+  originDetail: string;
   status: Seed["status"];
   notes: string;
   firstContactAt: string;
@@ -146,6 +153,8 @@ const emptyForm: FormState = {
   city: "",
   postalCode: "",
   source: "",
+  originChannel: "",
+  originDetail: "",
   status: "new",
   notes: "",
   firstContactAt: getTodayString(),
@@ -172,6 +181,8 @@ function formFromSeed(seed: Seed): FormState {
     city: seed.city,
     postalCode: seed.postalCode,
     source: seed.source,
+    originChannel: seed.originChannel ?? "other",
+    originDetail: seed.originDetail ?? "",
     status: seed.status,
     notes: seed.notes,
     firstContactAt: seed.firstContactAt ? seed.firstContactAt.slice(0, 10) : "",
@@ -396,7 +407,9 @@ export function ContactForm({
       phone: normalizePhone(form.phone),
       city: form.city,
       postalCode: normalizePostalCode(form.postalCode),
-      source: form.source,
+      source: form.source || form.originDetail.trim(),
+      originChannel: form.originChannel || "other",
+      originDetail: form.originDetail.trim(),
       status: form.status,
       notes: form.notes,
       firstContactAt: form.firstContactAt || null,
@@ -509,11 +522,27 @@ export function ContactForm({
               <option key={city} value={city} />
             ))}
           </datalist>
-          <Input
+          <Select
             label="Origem do contato"
-            value={form.source}
-            onChange={(event) => update("source", event.target.value)}
-            placeholder="Culto, visita, indicação, ligação..."
+            value={form.originChannel}
+            onChange={(event) => update("originChannel", event.target.value as SeedOriginChannel)}
+            options={SEED_ORIGIN_CHANNELS.map((channel) => ({
+              value: channel,
+              label: SEED_ORIGIN_CHANNEL_LABELS[channel],
+            }))}
+            placeholder="Selecione a origem"
+            required
+          />
+          <Input
+            label="Detalhe da origem"
+            value={form.originDetail}
+            onChange={(event) => update("originDetail", event.target.value)}
+            placeholder={
+              form.originChannel
+                ? SEED_ORIGIN_CHANNEL_DETAIL_PLACEHOLDERS[form.originChannel]
+                : "Qual saída, quem indicou, qual link..."
+            }
+            hint="Opcional."
           />
         </div>
         <div className="grid grid-cols-2 gap-3 max-[420px]:grid-cols-1">

@@ -10,13 +10,16 @@ export function PanelTabs<T extends string>({
   tabs,
   active,
   hrefFor,
+  label = "Seções do painel",
 }: {
   tabs: Array<{ value: T; label: string; count?: number }>;
   active: T;
   hrefFor: (tab: T) => string;
+  /** Nome acessível da navegação. */
+  label?: string;
 }) {
   return (
-    <nav aria-label="Seções do painel" className="mb-5 flex gap-1 overflow-x-auto border-b border-border pb-px">
+    <nav aria-label={label} className="mb-4 flex gap-1 overflow-x-auto border-b border-border pb-px">
       {tabs.map((tab) => {
         const selected = tab.value === active;
         return (
@@ -107,13 +110,22 @@ export type CaregiverLoadRow = {
   lastActionAt: string | null;
 };
 
-export function CaregiverLoadCard({ rows, showLastAction = false }: { rows: CaregiverLoadRow[]; showLastAction?: boolean }) {
+export function CaregiverLoadCard({
+  rows,
+  showLastAction = false,
+  meta = `limite de ${CAREGIVER_CAPACITY}`,
+}: {
+  rows: CaregiverLoadRow[];
+  showLastAction?: boolean;
+  /** Texto auxiliar do cabeçalho (padrão: o limite de assistidos por cuidador). */
+  meta?: string;
+}) {
   return (
     <Card aria-labelledby="load-heading">
       <CardHeader
         id="load-heading"
         title="Carga dos cuidadores"
-        meta={`limite de ${CAREGIVER_CAPACITY}`}
+        meta={meta}
         action={
           <Link href="/coord/cuidadores" className="text-[13px] text-primary underline underline-offset-2">
             Gerenciar

@@ -4,6 +4,8 @@ import {
   listChurchMemberships,
   listChurchOccurrences,
 } from "@/server/repositories/church-repository";
+import { addDays, parseDateOnly, toDateOnly, todayDateOnly } from "@/server/domain/dashboard-date";
+import { buildOverdueNextActionByMember, countPeopleWithOverdueNextAction } from "@/ui/mvp/dashboard-status-utils";
 import type {
   ChurchAttendanceRecord,
   ChurchMeetingOccurrence,
@@ -72,25 +74,6 @@ export function firstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-export function todayDateOnly() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function parseDateOnly(value: string) {
-  const parsed = new Date(`${value}T00:00:00`);
-  return Number.isNaN(parsed.getTime()) ? new Date(`${todayDateOnly()}T00:00:00`) : parsed;
-}
-
-function toDateOnly(value: Date) {
-  return value.toISOString().slice(0, 10);
-}
-
-export function addDays(value: string, amount: number) {
-  const date = parseDateOnly(value);
-  date.setDate(date.getDate() + amount);
-  return toDateOnly(date);
-}
-
 export function formatDateLabel(value: string) {
   return parseDateOnly(value).toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
@@ -106,7 +89,7 @@ export function formatDateTimeLabel(value: string | null | undefined) {
   return date.toLocaleString("pt-BR");
 }
 
-function resolvePeriodRange(period: ChurchPeriod, referenceDate: string): PeriodRange {
+export function resolvePeriodRange(period: ChurchPeriod, referenceDate: string): PeriodRange {
   const reference = parseDateOnly(referenceDate);
 
   if (period === "day") {
@@ -151,7 +134,7 @@ function resolvePreviousRange(period: ChurchPeriod, range: PeriodRange): PeriodR
   return resolvePeriodRange(period, addDays(range.start, -7));
 }
 
-function isDateBetween(value: string, start: string, end: string) {
+export function isDateBetween(value: string, start: string, end: string) {
   return value >= start && value <= end;
 }
 
@@ -290,6 +273,9 @@ function buildAttentionList(input: {
   }
 
   const activeMemberIds = new Set(input.memberships.filter((membership) => membership.status === "active").map((membership) => membership.memberId));
+  // Mesma regra do KPI "Pessoas com ação vencida": vale só a próxima ação mais
+  // recente da pessoa, não qualquer followup antigo com nextActionAt no passado.
+  const overdueByMember = buildOverdueNextActionByMember(input.followups);
 
   const items: Array<ChurchAttentionItem | null> = Array.from(activeMemberIds)
     .map((memberId) => {
@@ -320,10 +306,7 @@ function buildAttentionList(input: {
 
       const latestFollowup: Followup | null =
         (followupsByMember.get(memberId) ?? []).sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))[0] ?? null;
-      const overdueAction: Followup | null =
-        (followupsByMember.get(memberId) ?? [])
-          .filter((followup) => followup.nextActionAt && new Date(followup.nextActionAt) < new Date())
-          .sort((a, b) => (a.nextActionAt ?? "").localeCompare(b.nextActionAt ?? ""))[0] ?? null;
+      const overdueAction: Followup | null = overdueByMember.get(memberId) ?? null;
 
       const daysWithoutPresence = lastPresence
         ? Math.floor((parseDateOnly(todayDateOnly()).getTime() - parseDateOnly(lastPresence).getTime()) / 86_400_000)
@@ -448,7 +431,7 @@ export async function buildChurchProfileDashboard(input: {
     followups: input.followups,
     meetingTypeId: input.meetingTypeId,
   });
-  const overdueContacts = input.followups.filter((followup) => followup.nextActionAt && new Date(followup.nextActionAt) < new Date()).length;
+  const overdueContacts = countPeopleWithOverdueNextAction(input.followups);
   const inCareCases = input.members.filter((member) => member.status === "in_progress").length;
 
   return {

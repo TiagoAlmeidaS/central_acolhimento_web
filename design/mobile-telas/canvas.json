@@ -1,0 +1,48 @@
+{
+  "pages": [
+    { "id": "page-1", "name": "Mapa das telas" },
+    { "id": "page-2", "name": "Coordenação" },
+    { "id": "page-3", "name": "Cuidador" }
+  ],
+  "artboards": [
+    { "file": "Main.dc.html", "page": "page-1", "x": 0, "y": 0, "w": 1240, "h": 1560, "title": "As 26 telas no celular" },
+
+    { "file": "Navegacao.dc.html",   "page": "page-2", "x": 0,    "y": 0, "w": 390, "h": 844, "title": "Navegação e folha Mais", "is_interactive": true },
+    { "file": "PainelMobile.dc.html","page": "page-2", "x": 490,  "y": 0, "w": 390, "h": 844, "title": "Painel", "is_interactive": true },
+    { "file": "Pessoas.dc.html",     "page": "page-2", "x": 980,  "y": 0, "w": 390, "h": 844, "title": "Pessoas", "is_interactive": true },
+    { "file": "IgrejaChamada.dc.html","page": "page-2","x": 1470, "y": 0, "w": 390, "h": 844, "title": "Igreja · chamada", "is_interactive": true },
+    { "file": "MembroFicha.dc.html", "page": "page-2", "x": 1960, "y": 0, "w": 390, "h": 900, "title": "Ficha da pessoa" },
+    { "file": "Saidas.dc.html",      "page": "page-2", "x": 2450, "y": 0, "w": 390, "h": 900, "title": "Saída · grupos" },
+
+    { "file": "CuidadorInicio.dc.html", "page": "page-3", "x": 0,   "y": 0, "w": 390, "h": 844, "title": "Cuidador · início", "is_interactive": true },
+    { "file": "ContatoNovo.dc.html",    "page": "page-3", "x": 490, "y": 0, "w": 390, "h": 900, "title": "Novo contato", "is_interactive": true },
+    { "file": "Acoes.dc.html",          "page": "page-3", "x": 980, "y": 0, "w": 390, "h": 900, "title": "Registrar acompanhamento", "is_interactive": true }
+  ],
+  "annotations": [
+    {
+      "id": "nota-mapa",
+      "page": "page-1",
+      "x": 0,
+      "y": -140,
+      "w": 760,
+      "text": "Todas as 26 rotas de src/app, com o shell que cada uma usa hoje.\nAs telas desenhadas estão nas páginas Coordenação e Cuidador — use o menu de páginas na barra de ferramentas."
+    },
+    {
+      "id": "nota-coord",
+      "page": "page-2",
+      "x": 0,
+      "y": -150,
+      "w": 900,
+      "text": "Seis telas da coordenação no celular. Quatro são clicáveis: abra a folha \"Mais\", troque as abas de Pessoas, marque presença na chamada, troque os segmentos do painel.\nA barra inferior de cinco destinos substitui o menu lateral de dez, que hoje simplesmente some abaixo de 1280px."
+    },
+    {
+      "id": "nota-cuidador",
+      "page": "page-3",
+      "x": 0,
+      "y": -150,
+      "w": 860,
+      "text": "O lado do cuidador já é mobile-first — estas telas mostram o padrão que a coordenação passa a seguir.\nNovo contato e Registrar acompanhamento usam componentes compartilhados com a coordenação: arrumar aqui arruma nos dois lados."
+    }
+  ],
+  "launch": { "view": "canvas", "page": "page-1" }
+}

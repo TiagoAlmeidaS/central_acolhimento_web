@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Caregiver, Seed, Tenant } from "@/server/domain/mvp";
+import { seedOriginText } from "@/lib/seed-origin";
 import { Button, Drawer, Pill, Select, StatusPill } from "@/ui/atalaia";
 import { Check } from "@/ui/coord/check";
 import {
@@ -147,7 +148,7 @@ export function ContactDrawer({ seed, tenants, caregivers, loadByCaregiver, ...h
           </KV>
         ) : null}
         <KV label="Localidade">{tenant ? tenant.name : "—"}</KV>
-        <KV label="Origem">{seed.source || <span className="text-subtle">não informada</span>}</KV>
+        <KV label="Origem">{seedOriginText(seed)}</KV>
         <KV label="Casa aberta">{seed.openHouse ? "Sim, recebe vizinhos para visitas" : "Não"}</KV>
         <KV label="Primeiro contato">{formatDate(seedStartedAt(seed))}</KV>
         <KV label="Último movimento">
